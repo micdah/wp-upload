@@ -15,6 +15,8 @@ const clientDist = path.resolve(__dirname, '../../client/dist');
 const app = express();
 app.set('trust proxy', env.trustProxy);
 
+app.get('/healthz', (req, res) => res.status(200).send('ok'));
+
 app.use(basicAuth);
 
 app.use('/api', mediaRouter);
