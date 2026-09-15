@@ -1,6 +1,11 @@
 import { Group, Text, Select, Button } from '@mantine/core';
 
-const CONCURRENCY_OPTIONS = ['1', '2', '3', '4', '5', '6'];
+const DEFAULT_MAX_CONCURRENCY = 6;
+
+function buildConcurrencyOptions(max) {
+  const upper = max ?? DEFAULT_MAX_CONCURRENCY;
+  return Array.from({ length: upper }, (_, i) => String(i + 1));
+}
 
 export function SummaryBar({ items, concurrency, serverConcurrency, onConcurrencyChange, onRetryAllFailed, onClearCompleted }) {
   const counts = items.reduce(
@@ -26,7 +31,7 @@ export function SummaryBar({ items, concurrency, serverConcurrency, onConcurrenc
           <Select
             value={String(concurrency)}
             onChange={(value) => onConcurrencyChange(Number(value))}
-            data={CONCURRENCY_OPTIONS}
+            data={buildConcurrencyOptions(serverConcurrency)}
             w={70}
             allowDeselect={false}
           />

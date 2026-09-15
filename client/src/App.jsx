@@ -48,6 +48,9 @@ export default function App() {
         onStatus={(status) => {
           setMaxFileSizeMb(status.maxFileSizeMb);
           setServerConcurrency(status.uploadConcurrency);
+          if (status.uploadConcurrency && concurrency > status.uploadConcurrency) {
+            setConcurrency(status.uploadConcurrency);
+          }
         }}
       />
     </>
