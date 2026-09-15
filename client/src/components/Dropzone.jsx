@@ -3,7 +3,7 @@ import { Text } from '@mantine/core';
 
 export function Dropzone({ onFiles }) {
   return (
-    <MantineDropzone onDrop={onFiles} multiple>
+    <MantineDropzone onDrop={onFiles} multiple className="cyber-dropzone">
       <Text ta="center" c="dimmed">
         Drag &amp; drop media files here, or click to browse
       </Text>

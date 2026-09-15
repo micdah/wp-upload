@@ -21,8 +21,8 @@ const STATUS_LABEL = {
 
 const STATUS_COLOR = {
   queued: 'gray',
-  uploading: 'blue',
-  finalizing: 'blue',
+  uploading: 'neon',
+  finalizing: 'neon',
   success: 'green',
   error: 'red',
 };
@@ -33,8 +33,8 @@ function Thumbnail({ item }) {
   }
 
   return (
-    <Center w={48} h={48} bg="gray.1" style={{ borderRadius: 6, flexShrink: 0 }}>
-      <Text size="xs" c="dimmed" fw={600}>
+    <Center w={48} h={48} bg="dark.5" style={{ borderRadius: 6, flexShrink: 0 }}>
+      <Text size="xs" c="neon.4" fw={600}>
         {fileExtension(item.name).slice(0, 4)}
       </Text>
     </Center>
@@ -45,7 +45,7 @@ export function FileQueueItem({ item, onRetry, onRemove }) {
   const isFinalizing = item.status === 'finalizing';
 
   return (
-    <Paper component="li" withBorder p="sm" radius="md">
+    <Paper component="li" withBorder p="sm" radius="md" className="cyber-card">
       <Group wrap="nowrap" align="flex-start" gap="sm">
         <Thumbnail item={item} />
 
@@ -66,6 +66,7 @@ export function FileQueueItem({ item, onRetry, onRemove }) {
               striped={isFinalizing}
               animated={isFinalizing}
               flex={1}
+              classNames={{ section: 'cyber-progress-section' }}
             />
             <Badge color={STATUS_COLOR[item.status]} variant="light">
               {STATUS_LABEL[item.status]}

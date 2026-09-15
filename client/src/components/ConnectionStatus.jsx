@@ -22,7 +22,7 @@ export function ConnectionStatus({ onStatus }) {
 
   if (status.loading) {
     return (
-      <Alert color="gray" variant="light">
+      <Alert color="gray" variant="light" className="cyber-alert">
         Checking connection…
       </Alert>
     );
@@ -30,7 +30,7 @@ export function ConnectionStatus({ onStatus }) {
 
   if (status.connected) {
     return (
-      <Alert color="green" variant="light" title="Connected">
+      <Alert color="green" variant="light" title="Connected" className="cyber-alert">
         <Text span fw={600}>
           {status.wpUrl}
         </Text>{' '}
@@ -43,7 +43,7 @@ export function ConnectionStatus({ onStatus }) {
   }
 
   return (
-    <Alert color="red" variant="light" title="Not connected">
+    <Alert color="red" variant="light" title="Not connected" className="cyber-alert">
       {status.reason || 'Unknown error'}
       <Text size="xs" c="dimmed" mt={4}>
         Check server/.env and restart the server.

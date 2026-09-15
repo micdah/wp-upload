@@ -14,7 +14,7 @@ export default function App() {
   return (
     <Container size="sm" py="xl">
       <Stack gap="lg">
-        <Title order={1} size="h3">
+        <Title order={1} size="h3" c="neon.3" className="cyber-title">
           WordPress Media Uploader
         </Title>
 

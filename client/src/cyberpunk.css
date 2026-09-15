@@ -1,0 +1,64 @@
+body {
+  background:
+    radial-gradient(circle at 15% -10%, rgba(0, 229, 255, 0.1), transparent 45%),
+    radial-gradient(circle at 100% 10%, rgba(0, 112, 224, 0.1), transparent 40%),
+    var(--mantine-color-dark-7);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(0, 229, 255, 0.35);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--mantine-color-dark-8);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--mantine-color-neon-6);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mantine-color-neon-4);
+}
+
+.cyber-title {
+  text-shadow:
+    0 0 6px rgba(0, 229, 255, 0.7),
+    0 0 20px rgba(0, 229, 255, 0.4);
+  letter-spacing: 0.06em;
+}
+
+.cyber-card {
+  border-color: rgba(0, 229, 255, 0.25) !important;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.08);
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.cyber-card:hover {
+  border-color: rgba(0, 229, 255, 0.5) !important;
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.15);
+}
+
+.cyber-alert {
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.08);
+}
+
+.cyber-dropzone {
+  border-color: rgba(0, 229, 255, 0.4) !important;
+  background: rgba(0, 229, 255, 0.03);
+  transition: box-shadow 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+.cyber-dropzone:hover {
+  border-color: rgba(0, 229, 255, 0.85) !important;
+  background: rgba(0, 229, 255, 0.06);
+  box-shadow: 0 0 28px rgba(0, 229, 255, 0.25);
+}
+
+.cyber-progress-section {
+  box-shadow: 0 0 8px var(--progress-section-color);
+}
