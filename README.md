@@ -37,9 +37,14 @@ npm run start
 
 This builds the React app and serves it directly from the Express server on `http://localhost:3001` (port configurable via `PORT` in `.env`).
 
+## Accessing from another device on your network
+
+By default both the Express server and the Vite dev server bind to all network interfaces, so the app is also reachable at `http://<this-machine's-LAN-IP>:3001` (production) or `:5173` (dev). Set `HOST=127.0.0.1` in `server/.env` if you want to restrict it back to this machine only.
+
+**Security note:** this app has no login of its own — anyone who can reach the port can upload media as your configured WordPress user. Only expose it on a network you trust (e.g. your home/office LAN), never over the open internet.
+
 ## Notes
 
 - Credentials are only ever stored server-side in `server/.env` — the browser never sees them.
 - Changes to `.env` require restarting the server (`npm run dev` / `npm run start`).
 - Parallel upload count is adjustable in the UI (1–6) and remembered in the browser.
-- This app has no login of its own and is intended for local, single-user use.

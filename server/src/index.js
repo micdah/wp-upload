@@ -25,6 +25,6 @@ app.use(errorHandler);
 
 await checkConnection();
 
-app.listen(env.port, () => {
-  console.log(`Server listening on http://localhost:${env.port}`);
+app.listen(env.port, env.host, () => {
+  console.log(`Server listening on http://${env.host}:${env.port}`);
 });

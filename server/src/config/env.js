@@ -27,6 +27,7 @@ function loadEnv() {
     wpUrl: wpUrl.toString().replace(/\/$/, ''),
     wpUsername: process.env.WP_USERNAME,
     wpAppPassword: process.env.WP_APP_PASSWORD,
+    host: process.env.HOST || '0.0.0.0',
     port: Number(process.env.PORT) || 3001,
     uploadConcurrency: Number(process.env.UPLOAD_CONCURRENCY) || 8,
     maxFileSizeMb: Number(process.env.MAX_FILE_SIZE_MB) || 200,
