@@ -63,6 +63,18 @@ body {
   box-shadow: 0 0 8px var(--progress-section-color);
 }
 
+.cyber-statusbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background: rgba(13, 20, 32, 0.85);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid rgba(0, 229, 255, 0.25);
+  box-shadow: 0 -4px 16px rgba(0, 229, 255, 0.08);
+}
+
 .nyan-unicorn {
   filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.35));
   animation: nyan-bob 2.4s ease-in-out infinite alternate;

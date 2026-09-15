@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Container, Stack, Title, Text, Center } from '@mantine/core';
-import { ConnectionStatus } from './components/ConnectionStatus';
+import { ConnectionStatus, STATUS_BAR_HEIGHT } from './components/ConnectionStatus';
 import { Dropzone } from './components/Dropzone';
 import { FileQueue } from './components/FileQueue';
 import { SummaryBar } from './components/SummaryBar';
@@ -13,34 +13,36 @@ export default function App() {
   const [maxFileSizeMb, setMaxFileSizeMb] = useState(null);
 
   return (
-    <Container size="sm" py="xl">
-      <Stack gap="lg">
-        <Stack gap={4} align="center">
-          <Center>
-            <NyanUnicorn size={240} />
-          </Center>
-          <Title order={1} size="h3" c="neon.3" className="cyber-title">
-            WordPress Media Uploader
-          </Title>
+    <>
+      <Container size="sm" pt="xl" pb={STATUS_BAR_HEIGHT + 24}>
+        <Stack gap="lg">
+          <Stack gap={4} align="center">
+            <Center>
+              <NyanUnicorn size={240} />
+            </Center>
+            <Title order={1} size="h3" c="neon.3" className="cyber-title">
+              WordPress Media Uploader
+            </Title>
+          </Stack>
+
+          <Stack gap={4}>
+            <Dropzone onFiles={addFiles} />
+            {maxFileSizeMb && <Text size="xs" c="dimmed">Maximum file size: {maxFileSizeMb} MB per file.</Text>}
+          </Stack>
+
+          <SummaryBar
+            items={items}
+            concurrency={concurrency}
+            onConcurrencyChange={setConcurrency}
+            onRetryAllFailed={retryAllFailed}
+            onClearCompleted={clearCompleted}
+          />
+
+          <FileQueue items={items} onRetry={retry} onRemove={removeFile} />
         </Stack>
+      </Container>
 
-        <Stack gap={4}>
-          <Dropzone onFiles={addFiles} />
-          {maxFileSizeMb && <Text size="xs" c="dimmed">Maximum file size: {maxFileSizeMb} MB per file.</Text>}
-        </Stack>
-
-        <SummaryBar
-          items={items}
-          concurrency={concurrency}
-          onConcurrencyChange={setConcurrency}
-          onRetryAllFailed={retryAllFailed}
-          onClearCompleted={clearCompleted}
-        />
-
-        <FileQueue items={items} onRetry={retry} onRemove={removeFile} />
-
-        <ConnectionStatus onStatus={(status) => setMaxFileSizeMb(status.maxFileSizeMb)} />
-      </Stack>
-    </Container>
+      <ConnectionStatus onStatus={(status) => setMaxFileSizeMb(status.maxFileSizeMb)} />
+    </>
   );
 }
