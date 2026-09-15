@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Install, build & syntax-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # No bundler/tsc for the server workspace, so a syntax check is the
+      # closest equivalent of "does it compile" for plain ESM Node source.
+      - name: Syntax-check server source
+        run: find server/src -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Build client
+        run: npm run build
+
+  docker:
+    name: Build & run Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: wp-upload:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run container
+        run: |
+          docker run -d --name wp-upload-ci -p 3001:3001 \
+            -e WP_URL=https://example.invalid \
+            -e WP_USERNAME=ci-user \
+            -e WP_APP_PASSWORD="ci-app-password" \
+            -e AUTH_USERNAME=ci-user \
+            -e AUTH_PASSWORD=ci-password-not-real \
+            wp-upload:ci
+
+      - name: Wait for health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3001/healthz > /dev/null; then
+              echo "Service is healthy"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Service did not become healthy in time" >&2
+          docker logs wp-upload-ci
+          exit 1
+
+      - name: Verify Basic Auth is enforced
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/api/status)
+          if [ "$status" != "401" ]; then
+            echo "Expected 401 from an unauthenticated request to /api/status, got $status" >&2
+            docker logs wp-upload-ci
+            exit 1
+          fi
+
+      - name: Verify authenticated request succeeds
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' -u ci-user:ci-password-not-real http://localhost:3001/api/status)
+          if [ "$status" != "200" ]; then
+            echo "Expected 200 from an authenticated request to /api/status, got $status" >&2
+            docker logs wp-upload-ci
+            exit 1
+          fi
+
+      - name: Container logs
+        if: always()
+        run: docker logs wp-upload-ci || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f wp-upload-ci || true
