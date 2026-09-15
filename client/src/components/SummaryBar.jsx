@@ -2,7 +2,7 @@ import { Group, Text, Select, Button } from '@mantine/core';
 
 const CONCURRENCY_OPTIONS = ['1', '2', '3', '4', '5', '6'];
 
-export function SummaryBar({ items, concurrency, onConcurrencyChange, onRetryAllFailed, onClearCompleted }) {
+export function SummaryBar({ items, concurrency, serverConcurrency, onConcurrencyChange, onRetryAllFailed, onClearCompleted }) {
   const counts = items.reduce(
     (acc, item) => {
       acc[item.status] = (acc[item.status] || 0) + 1;
@@ -30,6 +30,11 @@ export function SummaryBar({ items, concurrency, onConcurrencyChange, onRetryAll
             w={70}
             allowDeselect={false}
           />
+          {serverConcurrency != null && (
+            <Text size="xs" c="dimmed">
+              (server allows up to {serverConcurrency} at once)
+            </Text>
+          )}
         </Group>
         <Button size="xs" variant="light" disabled={counts.error === 0} onClick={onRetryAllFailed}>
           Retry all failed

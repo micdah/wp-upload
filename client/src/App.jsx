@@ -11,6 +11,7 @@ export default function App() {
   const { items, concurrency, addFiles, retry, retryAllFailed, removeFile, clearCompleted, setConcurrency } =
     useUploadQueue();
   const [maxFileSizeMb, setMaxFileSizeMb] = useState(null);
+  const [serverConcurrency, setServerConcurrency] = useState(null);
 
   return (
     <>
@@ -33,6 +34,7 @@ export default function App() {
           <SummaryBar
             items={items}
             concurrency={concurrency}
+            serverConcurrency={serverConcurrency}
             onConcurrencyChange={setConcurrency}
             onRetryAllFailed={retryAllFailed}
             onClearCompleted={clearCompleted}
@@ -42,7 +44,12 @@ export default function App() {
         </Stack>
       </Container>
 
-      <ConnectionStatus onStatus={(status) => setMaxFileSizeMb(status.maxFileSizeMb)} />
+      <ConnectionStatus
+        onStatus={(status) => {
+          setMaxFileSizeMb(status.maxFileSizeMb);
+          setServerConcurrency(status.uploadConcurrency);
+        }}
+      />
     </>
   );
 }

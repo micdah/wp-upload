@@ -11,5 +11,6 @@ statusRouter.get('/status', (req, res) => {
     reason: connectionState.reason,
     wpUrl: env.wpUrl,
     maxFileSizeMb: env.maxFileSizeMb,
+    uploadConcurrency: env.uploadConcurrency,
   });
 });
