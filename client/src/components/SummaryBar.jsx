@@ -1,3 +1,7 @@
+import { Group, Text, Select, Button } from '@mantine/core';
+
+const CONCURRENCY_OPTIONS = ['1', '2', '3', '4', '5', '6'];
+
 export function SummaryBar({ items, concurrency, onConcurrencyChange, onRetryAllFailed, onClearCompleted }) {
   const counts = items.reduce(
     (acc, item) => {
@@ -8,32 +12,32 @@ export function SummaryBar({ items, concurrency, onConcurrencyChange, onRetryAll
   );
 
   return (
-    <div className="summary-bar">
-      <div className="summary-counts">
-        <span>{items.length} total</span>
-        <span>{counts.success} uploaded</span>
-        <span>{counts.error} failed</span>
-        <span>{counts.queued + counts.uploading + counts.finalizing} in progress</span>
-      </div>
+    <Group justify="space-between" wrap="wrap" gap="md">
+      <Group gap="md" c="dimmed">
+        <Text size="sm">{items.length} total</Text>
+        <Text size="sm">{counts.success} uploaded</Text>
+        <Text size="sm">{counts.error} failed</Text>
+        <Text size="sm">{counts.queued + counts.uploading + counts.finalizing} in progress</Text>
+      </Group>
 
-      <div className="summary-actions">
-        <label>
-          Parallel uploads:{' '}
-          <select value={concurrency} onChange={(e) => onConcurrencyChange(Number(e.target.value))}>
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" disabled={counts.error === 0} onClick={onRetryAllFailed}>
+      <Group gap="sm" align="center" wrap="wrap">
+        <Group gap={6} align="center">
+          <Text size="sm">Parallel uploads:</Text>
+          <Select
+            value={String(concurrency)}
+            onChange={(value) => onConcurrencyChange(Number(value))}
+            data={CONCURRENCY_OPTIONS}
+            w={70}
+            allowDeselect={false}
+          />
+        </Group>
+        <Button size="xs" variant="light" disabled={counts.error === 0} onClick={onRetryAllFailed}>
           Retry all failed
-        </button>
-        <button type="button" disabled={counts.success === 0} onClick={onClearCompleted}>
+        </Button>
+        <Button size="xs" variant="default" disabled={counts.success === 0} onClick={onClearCompleted}>
           Clear completed
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Group>
+    </Group>
   );
 }

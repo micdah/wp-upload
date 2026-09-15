@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Alert, Text } from '@mantine/core';
 
 export function ConnectionStatus({ onStatus }) {
   const [status, setStatus] = useState({ loading: true });
@@ -20,21 +21,33 @@ export function ConnectionStatus({ onStatus }) {
   }, [onStatus]);
 
   if (status.loading) {
-    return <div className="banner banner-neutral">Checking connection…</div>;
+    return (
+      <Alert color="gray" variant="light">
+        Checking connection…
+      </Alert>
+    );
   }
 
   if (status.connected) {
     return (
-      <div className="banner banner-ok">
-        Connected to <strong>{status.wpUrl}</strong> as <strong>{status.user}</strong>
-      </div>
+      <Alert color="green" variant="light" title="Connected">
+        <Text span fw={600}>
+          {status.wpUrl}
+        </Text>{' '}
+        as{' '}
+        <Text span fw={600}>
+          {status.user}
+        </Text>
+      </Alert>
     );
   }
 
   return (
-    <div className="banner banner-error">
-      Not connected: {status.reason || 'unknown error'}
-      <div className="banner-hint">Check server/.env and restart the server.</div>
-    </div>
+    <Alert color="red" variant="light" title="Not connected">
+      {status.reason || 'Unknown error'}
+      <Text size="xs" c="dimmed" mt={4}>
+        Check server/.env and restart the server.
+      </Text>
+    </Alert>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Container, Stack, Title, Text } from '@mantine/core';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { Dropzone } from './components/Dropzone';
 import { FileQueue } from './components/FileQueue';
@@ -11,22 +12,29 @@ export default function App() {
   const [maxFileSizeMb, setMaxFileSizeMb] = useState(null);
 
   return (
-    <div className="app">
-      <h1>WordPress Media Uploader</h1>
-      <ConnectionStatus onStatus={(status) => setMaxFileSizeMb(status.maxFileSizeMb)} />
+    <Container size="sm" py="xl">
+      <Stack gap="lg">
+        <Title order={1} size="h3">
+          WordPress Media Uploader
+        </Title>
 
-      <Dropzone onFiles={addFiles} />
-      {maxFileSizeMb && <p className="hint">Maximum file size: {maxFileSizeMb} MB per file.</p>}
+        <ConnectionStatus onStatus={(status) => setMaxFileSizeMb(status.maxFileSizeMb)} />
 
-      <SummaryBar
-        items={items}
-        concurrency={concurrency}
-        onConcurrencyChange={setConcurrency}
-        onRetryAllFailed={retryAllFailed}
-        onClearCompleted={clearCompleted}
-      />
+        <Stack gap={4}>
+          <Dropzone onFiles={addFiles} />
+          {maxFileSizeMb && <Text size="xs" c="dimmed">Maximum file size: {maxFileSizeMb} MB per file.</Text>}
+        </Stack>
 
-      <FileQueue items={items} onRetry={retry} onRemove={removeFile} />
-    </div>
+        <SummaryBar
+          items={items}
+          concurrency={concurrency}
+          onConcurrencyChange={setConcurrency}
+          onRetryAllFailed={retryAllFailed}
+          onClearCompleted={clearCompleted}
+        />
+
+        <FileQueue items={items} onRetry={retry} onRemove={removeFile} />
+      </Stack>
+    </Container>
   );
 }
