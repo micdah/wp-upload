@@ -24,8 +24,6 @@ export default function App() {
           </Title>
         </Stack>
 
-        <ConnectionStatus onStatus={(status) => setMaxFileSizeMb(status.maxFileSizeMb)} />
-
         <Stack gap={4}>
           <Dropzone onFiles={addFiles} />
           {maxFileSizeMb && <Text size="xs" c="dimmed">Maximum file size: {maxFileSizeMb} MB per file.</Text>}
@@ -40,6 +38,8 @@ export default function App() {
         />
 
         <FileQueue items={items} onRetry={retry} onRemove={removeFile} />
+
+        <ConnectionStatus onStatus={(status) => setMaxFileSizeMb(status.maxFileSizeMb)} />
       </Stack>
     </Container>
   );
