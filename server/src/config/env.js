@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const REQUIRED_VARS = ['WP_URL', 'WP_USERNAME', 'WP_APP_PASSWORD'];
+const REQUIRED_VARS = ['WP_URL', 'WP_USERNAME', 'WP_APP_PASSWORD', 'AUTH_USERNAME', 'AUTH_PASSWORD'];
 
 function loadEnv() {
   const missing = REQUIRED_VARS.filter((key) => !process.env[key]);
@@ -31,6 +31,12 @@ function loadEnv() {
     port: Number(process.env.PORT) || 3001,
     uploadConcurrency: Number(process.env.UPLOAD_CONCURRENCY) || 8,
     maxFileSizeMb: Number(process.env.MAX_FILE_SIZE_MB) || 200,
+    authUsername: process.env.AUTH_USERNAME,
+    authPassword: process.env.AUTH_PASSWORD,
+    // Only enable if a reverse proxy in front of this app sets X-Forwarded-For
+    // itself and strips any client-supplied one - otherwise this lets clients
+    // spoof their IP and bypass the login rate limit entirely.
+    trustProxy: process.env.TRUST_PROXY === 'true',
   };
 }
 
