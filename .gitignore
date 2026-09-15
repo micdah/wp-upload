@@ -2,3 +2,11 @@ node_modules/
 dist/
 .env
 *.log
+
+# Claude Code local state (worktrees, session data)
+.claude/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
