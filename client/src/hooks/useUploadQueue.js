@@ -105,6 +105,8 @@ export function useUploadQueue() {
   const abortControllersRef = useRef(new Map());
   const filesRef = useRef(state.files);
   filesRef.current = state.files;
+  const concurrencyRef = useRef(state.concurrency);
+  concurrencyRef.current = state.concurrency;
 
   const runUpload = useCallback((id) => {
     const entry = filesRef.current[id];
@@ -136,12 +138,12 @@ export function useUploadQueue() {
   }, []);
 
   const pump = useCallback(() => {
-    while (activeRef.current.size < state.concurrency && queueRef.current.length > 0) {
+    while (activeRef.current.size < concurrencyRef.current && queueRef.current.length > 0) {
       const id = queueRef.current.shift();
       runUpload(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.concurrency, runUpload]);
+  }, [runUpload]);
 
   const addFiles = useCallback(
     (fileList) => {
@@ -155,6 +157,9 @@ export function useUploadQueue() {
         error: null,
         result: null,
       }));
+      // Keep the ref in sync immediately: runUpload reads from it synchronously
+      // below, before React has re-rendered and refreshed it from state.
+      filesRef.current = { ...filesRef.current, ...Object.fromEntries(entries.map((e) => [e.id, e])) };
       dispatch({ type: 'ADD_FILES', entries });
       queueRef.current.push(...entries.map((e) => e.id));
       pump();
