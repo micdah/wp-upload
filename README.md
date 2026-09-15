@@ -55,6 +55,18 @@ The image is a multi-stage build ending on `gcr.io/distroless/nodejs22-debian12:
 
 A `GET /healthz` route (no login required) is available for container/orchestrator health checks — it just confirms the process is up, without touching WordPress or requiring credentials.
 
+### Using docker compose
+
+`docker-compose.yml` runs a **pre-built** image (it doesn't build one itself) and passes every setting through explicit `environment:` entries, filled in by Compose from a root-level `.env` file:
+
+```
+docker build -t wp-upload:latest .
+cp server/.env.example .env   # a root-level .env for compose - separate from server/.env
+docker compose up -d
+```
+
+That root `.env` is read by Compose itself for the `${VAR}` substitutions in `docker-compose.yml` — it's a different file from `server/.env` (used by the non-Docker `npm run` flows above), but takes the same variable names. Already covered by `.gitignore`. Re-run `docker build` and `docker compose up -d` again whenever you change the code and want the running container to pick it up.
+
 ## Accessing from another device on your network
 
 By default both the Express server and the Vite dev server bind to all network interfaces, so the app is also reachable at `http://<this-machine's-LAN-IP>:3001` (production) or `:5173` (dev). Set `HOST=127.0.0.1` in `server/.env` if you want to restrict it back to this machine only.

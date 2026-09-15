@@ -1,0 +1,17 @@
+services:
+  app:
+    image: wp-upload:latest
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      WP_URL: ${WP_URL}
+      WP_USERNAME: ${WP_USERNAME}
+      WP_APP_PASSWORD: ${WP_APP_PASSWORD}
+      AUTH_USERNAME: ${AUTH_USERNAME}
+      AUTH_PASSWORD: ${AUTH_PASSWORD}
+      HOST: 0.0.0.0
+      PORT: 3001
+      UPLOAD_CONCURRENCY: ${UPLOAD_CONCURRENCY:-8}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-200}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    restart: unless-stopped
