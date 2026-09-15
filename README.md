@@ -31,11 +31,10 @@ This starts the Express API on `http://localhost:3001` and the Vite dev server o
 ## Run as a single local app
 
 ```
-npm run build
-npm run start
+npm run serve
 ```
 
-This builds the React app and serves it directly from the Express server on `http://localhost:3001` (port configurable via `PORT` in `.env`).
+Builds the React app and starts the Express server, which serves both the UI and the API from one process on `http://localhost:3001` (port configurable via `PORT` in `.env`). `npm run build` and `npm run start` remain available separately if you only need one of the two steps (e.g. re-running the server without rebuilding).
 
 ## Accessing from another device on your network
 
