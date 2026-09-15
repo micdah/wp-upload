@@ -62,3 +62,43 @@ body {
 .cyber-progress-section {
   box-shadow: 0 0 8px var(--progress-section-color);
 }
+
+.nyan-unicorn {
+  filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.35));
+  animation: nyan-bob 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes nyan-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-6px);
+  }
+}
+
+.nyan-star {
+  transform-origin: center;
+  animation: nyan-twinkle 1.6s ease-in-out infinite;
+}
+.nyan-star-1 {
+  animation-delay: 0s;
+}
+.nyan-star-2 {
+  animation-delay: 0.4s;
+}
+.nyan-star-3 {
+  animation-delay: 0.8s;
+}
+
+@keyframes nyan-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Container, Stack, Title, Text } from '@mantine/core';
+import { Container, Stack, Title, Text, Center } from '@mantine/core';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { Dropzone } from './components/Dropzone';
 import { FileQueue } from './components/FileQueue';
 import { SummaryBar } from './components/SummaryBar';
+import { NyanUnicorn } from './components/NyanUnicorn';
 import { useUploadQueue } from './hooks/useUploadQueue';
 
 export default function App() {
@@ -14,9 +15,14 @@ export default function App() {
   return (
     <Container size="sm" py="xl">
       <Stack gap="lg">
-        <Title order={1} size="h3" c="neon.3" className="cyber-title">
-          WordPress Media Uploader
-        </Title>
+        <Stack gap={4} align="center">
+          <Center>
+            <NyanUnicorn size={240} />
+          </Center>
+          <Title order={1} size="h3" c="neon.3" className="cyber-title">
+            WordPress Media Uploader
+          </Title>
+        </Stack>
 
         <ConnectionStatus onStatus={(status) => setMaxFileSizeMb(status.maxFileSizeMb)} />
 
