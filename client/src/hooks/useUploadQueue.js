@@ -156,6 +156,7 @@ export function useUploadQueue() {
         progress: 0,
         error: null,
         result: null,
+        previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       }));
       // Keep the ref in sync immediately: runUpload reads from it synchronously
       // below, before React has re-rendered and refreshed it from state.
@@ -187,10 +188,20 @@ export function useUploadQueue() {
   const removeFile = useCallback((id) => {
     abortControllersRef.current.get(id)?.abort();
     queueRef.current = queueRef.current.filter((qid) => qid !== id);
+    if (filesRef.current[id]?.previewUrl) {
+      URL.revokeObjectURL(filesRef.current[id].previewUrl);
+    }
     dispatch({ type: 'REMOVE', id });
   }, []);
 
-  const clearCompleted = useCallback(() => dispatch({ type: 'CLEAR_COMPLETED' }), []);
+  const clearCompleted = useCallback(() => {
+    for (const id of state.order) {
+      if (state.files[id].status === 'success' && state.files[id].previewUrl) {
+        URL.revokeObjectURL(state.files[id].previewUrl);
+      }
+    }
+    dispatch({ type: 'CLEAR_COMPLETED' });
+  }, [state.order, state.files]);
 
   const setConcurrency = useCallback(
     (concurrency) => {
@@ -208,6 +219,15 @@ export function useUploadQueue() {
   useEffect(() => {
     pump();
   }, [state.concurrency, pump]);
+
+  // Revoke any remaining thumbnail object URLs when the component unmounts.
+  useEffect(() => {
+    return () => {
+      for (const file of Object.values(filesRef.current)) {
+        if (file.previewUrl) URL.revokeObjectURL(file.previewUrl);
+      }
+    };
+  }, []);
 
   const items = state.order.map((id) => state.files[id]);
 
