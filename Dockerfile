@@ -3,7 +3,7 @@
 # ---- client-builder: full toolchain, builds the React app ----
 FROM node:24-bookworm-slim AS client-builder
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json tsconfig.base.json ./
 COPY server/package.json server/package.json
 COPY client/package.json client/package.json
 RUN npm ci
