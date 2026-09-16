@@ -39,7 +39,13 @@ export function SummaryBar({
   return (
     <Stack gap='xs'>
       <Group justify='space-between' wrap='nowrap' gap='md'>
-        <Progress.Root size='xl' flex={1}>
+        <Progress.Root
+          size={32}
+          flex={1}
+          styles={{
+            label: { fontSize: 'var(--mantine-font-size-md)', fontWeight: 700 },
+          }}
+        >
           {failed > 0 && (
             <Progress.Section
               value={(failed / total) * 100}
