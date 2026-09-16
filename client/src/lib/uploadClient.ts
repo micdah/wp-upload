@@ -24,9 +24,9 @@ export function uploadFile(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     const formData = new FormData()
-    formData.append("file", file)
+    formData.append('file', file)
 
-    xhr.open("POST", "/api/media")
+    xhr.open('POST', '/api/media')
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
@@ -40,8 +40,8 @@ export function uploadFile(
         body = JSON.parse(xhr.responseText)
       } catch {
         body = {
-          code: "invalid_response",
-          message: "Server returned an unreadable response.",
+          code: 'invalid_response',
+          message: 'Server returned an unreadable response.',
         }
       }
 
@@ -54,14 +54,14 @@ export function uploadFile(
 
     xhr.onerror = () =>
       reject({
-        code: "network_error",
-        message: "Network error contacting the local server.",
+        code: 'network_error',
+        message: 'Network error contacting the local server.',
       })
     xhr.onabort = () =>
-      reject({ code: "aborted", message: "Upload cancelled." })
+      reject({ code: 'aborted', message: 'Upload cancelled.' })
 
     if (signal) {
-      signal.addEventListener("abort", () => xhr.abort())
+      signal.addEventListener('abort', () => xhr.abort())
     }
 
     xhr.send(formData)

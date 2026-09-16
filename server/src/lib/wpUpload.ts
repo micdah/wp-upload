@@ -1,6 +1,6 @@
-import fs from "node:fs"
-import axios from "axios"
-import { invalidateConnection, wpAxios } from "../config/wpClient.ts"
+import fs from 'node:fs'
+import axios from 'axios'
+import { invalidateConnection, wpAxios } from '../config/wpClient.ts'
 
 export interface WpError {
   status: number
@@ -10,11 +10,11 @@ export interface WpError {
 
 export function isWpError(e: unknown): e is WpError {
   return (
-    typeof e === "object" &&
+    typeof e === 'object' &&
     e !== null &&
-    "status" in e &&
-    "code" in e &&
-    "message" in e
+    'status' in e &&
+    'code' in e &&
+    'message' in e
   )
 }
 
@@ -34,11 +34,11 @@ export async function uploadToWordPress(
   const stream = fs.createReadStream(file.path)
 
   try {
-    const { data } = await wpAxios.post("/wp-json/wp/v2/media", stream, {
+    const { data } = await wpAxios.post('/wp-json/wp/v2/media', stream, {
       headers: {
-        "Content-Type": file.mimetype || "application/octet-stream",
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(file.originalname)}"`,
-        "Content-Length": file.size,
+        'Content-Type': file.mimetype || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(file.originalname)}"`,
+        'Content-Length': file.size,
       },
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
@@ -53,7 +53,7 @@ export async function uploadToWordPress(
   } catch (err) {
     const wpError = normaliseWpError(err)
     if (wpError.status === 401 || wpError.status === 403) {
-      invalidateConnection("WordPress rejected the configured credentials.")
+      invalidateConnection('WordPress rejected the configured credentials.')
     }
     throw wpError
   }
@@ -61,12 +61,12 @@ export async function uploadToWordPress(
 
 export function normaliseWpError(err: unknown): WpError {
   if (axios.isAxiosError(err)) {
-    if (err.code === "ECONNABORTED") {
+    if (err.code === 'ECONNABORTED') {
       return {
         status: 504,
-        code: "wp_timeout",
+        code: 'wp_timeout',
         message:
-          "WordPress did not respond in time. The upload was aborted so it would not block others.",
+          'WordPress did not respond in time. The upload was aborted so it would not block others.',
       }
     }
 
@@ -74,21 +74,21 @@ export function normaliseWpError(err: unknown): WpError {
       const { status, data } = err.response
       // WordPress normally returns JSON like { code, message }, but a WAF,
       // maintenance mode, or a PHP fatal can return an HTML page instead.
-      if (data && typeof data === "object" && data.message) {
-        return { status, code: data.code || "wp_error", message: data.message }
+      if (data && typeof data === 'object' && data.message) {
+        return { status, code: data.code || 'wp_error', message: data.message }
       }
       return {
         status,
-        code: "wp_unexpected_response",
+        code: 'wp_unexpected_response',
         message:
           `WordPress returned an unexpected response (HTTP ${status}). ` +
-          "This can happen if the host has a size limit, WAF rule, or maintenance mode enabled.",
+          'This can happen if the host has a size limit, WAF rule, or maintenance mode enabled.',
       }
     }
 
     return {
       status: 502,
-      code: "wp_unreachable",
+      code: 'wp_unreachable',
       message: `Could not reach WordPress (${err.code || err.message}).`,
     }
   }
@@ -96,7 +96,7 @@ export function normaliseWpError(err: unknown): WpError {
   const message = err instanceof Error ? err.message : String(err)
   return {
     status: 502,
-    code: "wp_unreachable",
+    code: 'wp_unreachable',
     message: `Could not reach WordPress (${message}).`,
   }
 }

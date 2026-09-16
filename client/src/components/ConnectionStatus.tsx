@@ -1,5 +1,5 @@
-import { Box, Group, Text } from "@mantine/core"
-import { useEffect, useState } from "react"
+import { Box, Group, Text } from '@mantine/core'
+import { useEffect, useState } from 'react'
 
 export const STATUS_BAR_HEIGHT = 36
 const POLL_INTERVAL_MS = 90_000
@@ -25,7 +25,7 @@ interface ConnectionStatusProps {
   onStatus?: (status: StatusResponse) => void
 }
 
-const DOT_COLOR = { loading: "gray", connected: "teal", error: "red" }
+const DOT_COLOR = { loading: 'gray', connected: 'teal', error: 'red' }
 
 export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
   const [status, setStatus] = useState<LocalStatus>({ loading: true })
@@ -34,7 +34,7 @@ export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
     let cancelled = false
 
     const poll = () => {
-      fetch("/api/status")
+      fetch('/api/status')
         .then((res) => res.json())
         .then((data: StatusResponse) => {
           if (cancelled) return
@@ -46,7 +46,7 @@ export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
           setStatus({
             loading: false,
             connected: false,
-            reason: "Could not reach the local server. Is it running?",
+            reason: 'Could not reach the local server. Is it running?',
           })
         })
     }
@@ -59,29 +59,29 @@ export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
     }
   }, [onStatus])
 
-  let state: "loading" | "connected" | "error" = "loading"
-  let label = "Checking connection…"
+  let state: 'loading' | 'connected' | 'error' = 'loading'
+  let label = 'Checking connection…'
 
   if (!status.loading) {
     if (status.connected) {
-      state = "connected"
+      state = 'connected'
       label = `Connected to ${status.wpUrl} as ${status.user}`
     } else {
-      state = "error"
-      label = `Not connected: ${status.reason || "unknown error"}`
+      state = 'error'
+      label = `Not connected: ${status.reason || 'unknown error'}`
     }
   }
 
   return (
-    <Box className="cyber-statusbar" h={STATUS_BAR_HEIGHT} px="md">
-      <Group gap={8} wrap="nowrap" justify="center" h="100%">
+    <Box className='cyber-statusbar' h={STATUS_BAR_HEIGHT} px='md'>
+      <Group gap={8} wrap='nowrap' justify='center' h='100%'>
         <Box
           w={7}
           h={7}
           bg={DOT_COLOR[state]}
-          style={{ borderRadius: "50%", flexShrink: 0 }}
+          style={{ borderRadius: '50%', flexShrink: 0 }}
         />
-        <Text size="xs" c="dimmed" truncate maw="90%">
+        <Text size='xs' c='dimmed' truncate maw='90%'>
           {label}
         </Text>
       </Group>

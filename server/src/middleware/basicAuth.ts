@@ -1,6 +1,6 @@
-import crypto from "node:crypto"
-import type { NextFunction, Request, Response } from "express"
-import { env } from "../config/env.ts"
+import crypto from 'node:crypto'
+import type { NextFunction, Request, Response } from 'express'
+import { env } from '../config/env.ts'
 
 const MAX_FAILURES = 10
 const WINDOW_MS = 5 * 60 * 1000
@@ -10,7 +10,7 @@ const WINDOW_MS = 5 * 60 * 1000
 const failures = new Map<string, { count: number; windowStart: number }>()
 
 function hash(value: string): Buffer {
-  return crypto.createHash("sha256").update(value).digest()
+  return crypto.createHash('sha256').update(value).digest()
 }
 
 // Hashing both sides to a fixed length first lets us use timingSafeEqual
@@ -44,13 +44,13 @@ export function basicAuth(
   res: Response,
   next: NextFunction,
 ): void {
-  const ip = req.ip ?? "unknown"
+  const ip = req.ip ?? 'unknown'
 
   if (isLockedOut(ip)) {
-    res.set("Retry-After", String(WINDOW_MS / 1000))
+    res.set('Retry-After', String(WINDOW_MS / 1000))
     res.status(429).json({
-      code: "too_many_attempts",
-      message: "Too many failed login attempts. Try again later.",
+      code: 'too_many_attempts',
+      message: 'Too many failed login attempts. Try again later.',
     })
     return
   }
@@ -58,29 +58,29 @@ export function basicAuth(
   const reject = (): void => {
     recordFailure(ip)
     res.set(
-      "WWW-Authenticate",
+      'WWW-Authenticate',
       'Basic realm="WP Media Uploader", charset="UTF-8"',
     )
     res
       .status(401)
-      .json({ code: "unauthorized", message: "Authentication required." })
+      .json({ code: 'unauthorized', message: 'Authentication required.' })
   }
 
   const header = req.headers.authorization
-  if (!header?.startsWith("Basic ")) {
+  if (!header?.startsWith('Basic ')) {
     reject()
     return
   }
 
   let decoded: string
   try {
-    decoded = Buffer.from(header.slice(6), "base64").toString("utf8")
+    decoded = Buffer.from(header.slice(6), 'base64').toString('utf8')
   } catch {
     reject()
     return
   }
 
-  const separatorIndex = decoded.indexOf(":")
+  const separatorIndex = decoded.indexOf(':')
   if (separatorIndex === -1) {
     reject()
     return

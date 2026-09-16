@@ -1,6 +1,6 @@
-import { Stack, Text } from "@mantine/core"
-import type { FileEntry } from "../hooks/useUploadQueue"
-import { FileQueueItem } from "./FileQueueItem"
+import { Stack, Text } from '@mantine/core'
+import type { FileEntry } from '../hooks/useUploadQueue'
+import { FileQueueItem } from './FileQueueItem'
 
 interface FileQueueProps {
   items: FileEntry[]
@@ -11,7 +11,7 @@ interface FileQueueProps {
 export function FileQueue({ items, onRetry, onRemove }: FileQueueProps) {
   if (items.length === 0) {
     return (
-      <Text c="dimmed" size="sm">
+      <Text c='dimmed' size='sm'>
         No files added yet.
       </Text>
     )
@@ -19,11 +19,11 @@ export function FileQueue({ items, onRetry, onRemove }: FileQueueProps) {
 
   return (
     <Stack
-      gap="sm"
-      component="ul"
-      role="list"
+      gap='sm'
+      component='ul'
+      role='list'
       p={0}
-      style={{ listStyle: "none" }}
+      style={{ listStyle: 'none' }}
     >
       {items.map((item) => (
         <FileQueueItem

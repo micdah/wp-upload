@@ -1,15 +1,15 @@
-import { Center, Container, Stack, Text, Title } from "@mantine/core"
-import { useState } from "react"
+import { Center, Container, Stack, Text, Title } from '@mantine/core'
+import { useState } from 'react'
 import {
   ConnectionStatus,
   STATUS_BAR_HEIGHT,
   type StatusResponse,
-} from "./components/ConnectionStatus"
-import { Dropzone } from "./components/Dropzone"
-import { FileQueue } from "./components/FileQueue"
-import { NyanUnicorn } from "./components/NyanUnicorn"
-import { SummaryBar } from "./components/SummaryBar"
-import { useUploadQueue } from "./hooks/useUploadQueue"
+} from './components/ConnectionStatus'
+import { Dropzone } from './components/Dropzone'
+import { FileQueue } from './components/FileQueue'
+import { NyanUnicorn } from './components/NyanUnicorn'
+import { SummaryBar } from './components/SummaryBar'
+import { useUploadQueue } from './hooks/useUploadQueue'
 
 export default function App() {
   const {
@@ -37,13 +37,13 @@ export default function App() {
 
   return (
     <>
-      <Container size="sm" pt="xl" pb={STATUS_BAR_HEIGHT + 24}>
-        <Stack gap="lg">
-          <Stack gap={4} align="center">
+      <Container size='sm' pt='xl' pb={STATUS_BAR_HEIGHT + 24}>
+        <Stack gap='lg'>
+          <Stack gap={4} align='center'>
             <Center>
               <NyanUnicorn size={240} />
             </Center>
-            <Title order={1} size="h3" c="neon.3" className="cyber-title">
+            <Title order={1} size='h3' c='neon.3' className='cyber-title'>
               WordPress Media Uploader
             </Title>
           </Stack>
@@ -51,7 +51,7 @@ export default function App() {
           <Stack gap={4}>
             <Dropzone onFiles={addFiles} />
             {maxFileSizeMb && (
-              <Text size="xs" c="dimmed">
+              <Text size='xs' c='dimmed'>
                 Maximum file size: {maxFileSizeMb} MB per file.
               </Text>
             )}

@@ -1,12 +1,12 @@
-import { describe, expect, it, vi } from "vitest"
-import { loadEnv } from "./env.ts"
+import { describe, expect, it, vi } from 'vitest'
+import { loadEnv } from './env.ts'
 
 const REQUIRED_ENV = {
-  WP_URL: "https://wp.example.invalid",
-  WP_USERNAME: "wp-user",
-  WP_APP_PASSWORD: "wp-app-password",
-  AUTH_USERNAME: "auth-user",
-  AUTH_PASSWORD: "auth-password",
+  WP_URL: 'https://wp.example.invalid',
+  WP_USERNAME: 'wp-user',
+  WP_APP_PASSWORD: 'wp-app-password',
+  AUTH_USERNAME: 'auth-user',
+  AUTH_PASSWORD: 'auth-password',
 }
 
 function withEnv<T>(
@@ -27,7 +27,7 @@ function withEnv<T>(
 
 function mockExit() {
   return vi
-    .spyOn(process, "exit")
+    .spyOn(process, 'exit')
     .mockImplementation((code?: string | number | null) => {
       throw new Error(`process.exit:${code}`)
     })
@@ -37,8 +37,8 @@ function mockExit() {
 // snapshots + restores process.env locally within its own body via
 // withEnv(), so concurrent interleaving cannot corrupt another test's
 // environment.
-describe.concurrent("loadEnv", () => {
-  it("exits with an error when required vars are missing", () => {
+describe.concurrent('loadEnv', () => {
+  it('exits with an error when required vars are missing', () => {
     withEnv(
       {
         WP_URL: undefined,
@@ -50,34 +50,34 @@ describe.concurrent("loadEnv", () => {
       () => {
         const exit = mockExit()
         const consoleError = vi
-          .spyOn(console, "error")
+          .spyOn(console, 'error')
           .mockImplementation(() => {})
 
-        expect(() => loadEnv()).toThrow("process.exit:1")
+        expect(() => loadEnv()).toThrow('process.exit:1')
 
         expect(consoleError).toHaveBeenCalledWith(
-          expect.stringContaining("Missing required environment variable"),
+          expect.stringContaining('Missing required environment variable'),
         )
         expect(exit).toHaveBeenCalledWith(1)
       },
     )
   })
 
-  it("exits with an error when WP_URL is not a valid URL", () => {
-    withEnv({ ...REQUIRED_ENV, WP_URL: "not-a-url" }, () => {
+  it('exits with an error when WP_URL is not a valid URL', () => {
+    withEnv({ ...REQUIRED_ENV, WP_URL: 'not-a-url' }, () => {
       const exit = mockExit()
-      vi.spyOn(console, "error").mockImplementation(() => {})
+      vi.spyOn(console, 'error').mockImplementation(() => {})
 
-      expect(() => loadEnv()).toThrow("process.exit:1")
+      expect(() => loadEnv()).toThrow('process.exit:1')
       expect(exit).toHaveBeenCalledWith(1)
     })
   })
 
-  it("returns a fully populated Env when all required vars are set", () => {
+  it('returns a fully populated Env when all required vars are set', () => {
     withEnv(
       {
         ...REQUIRED_ENV,
-        WP_URL: "https://wp.example.invalid/",
+        WP_URL: 'https://wp.example.invalid/',
         HOST: undefined,
         PORT: undefined,
         UPLOAD_CONCURRENCY: undefined,
@@ -87,10 +87,10 @@ describe.concurrent("loadEnv", () => {
       },
       () => {
         expect(loadEnv()).toEqual({
-          wpUrl: "https://wp.example.invalid",
+          wpUrl: 'https://wp.example.invalid',
           wpUsername: REQUIRED_ENV.WP_USERNAME,
           wpAppPassword: REQUIRED_ENV.WP_APP_PASSWORD,
-          host: "0.0.0.0",
+          host: '0.0.0.0',
           port: 3001,
           uploadConcurrency: 8,
           maxFileSizeMb: 200,
@@ -103,9 +103,9 @@ describe.concurrent("loadEnv", () => {
     )
   })
 
-  it("falls back to defaults when numeric vars are not valid numbers", () => {
+  it('falls back to defaults when numeric vars are not valid numbers', () => {
     withEnv(
-      { ...REQUIRED_ENV, PORT: "abc", UPLOAD_CONCURRENCY: "nope" },
+      { ...REQUIRED_ENV, PORT: 'abc', UPLOAD_CONCURRENCY: 'nope' },
       () => {
         const result = loadEnv()
 
@@ -116,10 +116,10 @@ describe.concurrent("loadEnv", () => {
   })
 
   it('only treats the literal string "true" as trustProxy', () => {
-    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: "yes" }, () => {
+    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: 'yes' }, () => {
       expect(loadEnv().trustProxy).toBe(false)
     })
-    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: "true" }, () => {
+    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: 'true' }, () => {
       expect(loadEnv().trustProxy).toBe(true)
     })
   })

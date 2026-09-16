@@ -1,13 +1,13 @@
-import { Router } from "express"
-import { env } from "../config/env.ts"
+import { Router } from 'express'
+import { env } from '../config/env.ts'
 import {
   connectionState,
   refreshConnectionIfStale,
-} from "../config/wpClient.ts"
+} from '../config/wpClient.ts'
 
 export const statusRouter = Router()
 
-statusRouter.get("/status", (_req, res) => {
+statusRouter.get('/status', (_req, res) => {
   refreshConnectionIfStale()
   res.json({
     connected: connectionState.connected,

@@ -1,7 +1,7 @@
-import axios from "axios"
-import { env } from "./env.ts"
+import axios from 'axios'
+import { env } from './env.ts'
 
-export const authHeader = `Basic ${Buffer.from(`${env.wpUsername}:${env.wpAppPassword}`).toString("base64")}`
+export const authHeader = `Basic ${Buffer.from(`${env.wpUsername}:${env.wpAppPassword}`).toString('base64')}`
 
 // On Node, axios' `timeout` is an idle-socket timeout (it resets whenever
 // bytes flow in either direction) rather than a wall-clock cap on total
@@ -42,7 +42,7 @@ let inFlightCheck: Promise<void> | null = null
 
 async function performCheck(): Promise<void> {
   try {
-    const { data } = await wpAxios.get("/wp-json/wp/v2/users/me", {
+    const { data } = await wpAxios.get('/wp-json/wp/v2/users/me', {
       timeout: 10_000,
     })
     connectionState.connected = true
@@ -57,7 +57,7 @@ async function performCheck(): Promise<void> {
     if (axios.isAxiosError(err) && err.response) {
       connectionState.reason =
         err.response.status === 401 || err.response.status === 403
-          ? "WordPress rejected the configured credentials."
+          ? 'WordPress rejected the configured credentials.'
           : `WordPress responded with HTTP ${err.response.status}.`
     } else if (axios.isAxiosError(err)) {
       connectionState.reason = `Could not reach ${env.wpUrl} (${err.code || err.message}).`

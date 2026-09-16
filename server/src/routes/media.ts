@@ -1,9 +1,9 @@
-import fs from "node:fs"
-import os from "node:os"
-import { Router } from "express"
-import multer from "multer"
-import { env } from "../config/env.ts"
-import { isWpError, uploadToWordPress } from "../lib/wpUpload.ts"
+import fs from 'node:fs'
+import os from 'node:os'
+import { Router } from 'express'
+import multer from 'multer'
+import { env } from '../config/env.ts'
+import { isWpError, uploadToWordPress } from '../lib/wpUpload.ts'
 
 const upload = multer({
   dest: os.tmpdir(),
@@ -32,14 +32,14 @@ export function releaseSlot(): void {
 
 export const mediaRouter = Router()
 
-mediaRouter.post("/media", (req, res, next) => {
-  upload.single("file")(req, res, async (err) => {
+mediaRouter.post('/media', (req, res, next) => {
+  upload.single('file')(req, res, async (err) => {
     if (err) return next(err)
 
     if (!req.file) {
       return res
         .status(400)
-        .json({ code: "no_file", message: "No file was provided." })
+        .json({ code: 'no_file', message: 'No file was provided.' })
     }
 
     const file = req.file
