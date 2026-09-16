@@ -22,7 +22,7 @@
     "lint:fix": "biome lint --write .",
     "check": "biome ci .",
     "check:fix": "biome check --write .",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
