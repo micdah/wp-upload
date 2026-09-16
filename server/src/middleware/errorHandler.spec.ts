@@ -41,13 +41,16 @@ describe.concurrent('errorHandler', () => {
     expect(consoleError).toHaveBeenCalledWith(err)
   })
 
-  it('maps a non-file-size Multer error to a generic 500', () => {
+  it('maps a non-file-size Multer error to a 400 upload error', () => {
     const res = createRes()
-    vi.spyOn(console, 'error').mockImplementation(() => {})
     const err = new multer.MulterError('LIMIT_UNEXPECTED_FILE')
 
     errorHandler(err, {} as Request, res as unknown as Response, vi.fn())
 
-    expect(res.status).toHaveBeenCalledWith(500)
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      code: 'upload_error',
+      message: err.message,
+    })
   })
 })
