@@ -16,7 +16,7 @@ const upload = multer({
 let activeUploads = 0;
 const waiting: Array<() => void> = [];
 
-function acquireSlot(): Promise<void> {
+export function acquireSlot(): Promise<void> {
   if (activeUploads < env.uploadConcurrency) {
     activeUploads++;
     return Promise.resolve();
@@ -24,7 +24,7 @@ function acquireSlot(): Promise<void> {
   return new Promise((resolve) => waiting.push(resolve));
 }
 
-function releaseSlot(): void {
+export function releaseSlot(): void {
   const next = waiting.shift();
   if (next) next();
   else activeUploads--;
