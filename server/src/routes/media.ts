@@ -44,15 +44,37 @@ mediaRouter.post('/media', (req, res, next) => {
 
     const file = req.file
 
+    // Aborts the upstream WordPress request when the client disconnects
+    // mid-upload (e.g. cancels in the UI) - without this, the request to
+    // WordPress runs to completion regardless, holding a concurrency slot
+    // and still creating the media item after the user "cancelled" it.
+    // Listening on `res` (not `req`) matters: once multer/busboy has fully
+    // consumed the request body, `req` stops receiving further socket
+    // lifecycle events, but `res` still reliably emits 'close' if the
+    // connection is torn down before the response completes.
+    const controller = new AbortController()
+    let clientDisconnected = false
+    res.on('error', () => {})
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        clientDisconnected = true
+        controller.abort()
+      }
+    })
+
     await acquireSlot()
     try {
-      const result = await uploadToWordPress(file)
-      res.status(201).json(result)
+      const result = await uploadToWordPress(file, {
+        signal: controller.signal,
+      })
+      if (!clientDisconnected) res.status(201).json(result)
     } catch (wpError) {
       if (!isWpError(wpError)) throw wpError
-      res
-        .status(wpError.status || 502)
-        .json({ code: wpError.code, message: wpError.message })
+      if (!clientDisconnected) {
+        res
+          .status(wpError.status || 502)
+          .json({ code: wpError.code, message: wpError.message })
+      }
     } finally {
       releaseSlot()
       fs.unlink(file.path, () => {})

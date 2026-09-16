@@ -30,6 +30,7 @@ export interface UploadResult {
 // on any failure so the route handler can respond consistently.
 export async function uploadToWordPress(
   file: Express.Multer.File,
+  options: { signal?: AbortSignal } = {},
 ): Promise<UploadResult> {
   const stream = fs.createReadStream(file.path)
 
@@ -42,6 +43,7 @@ export async function uploadToWordPress(
       },
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
+      signal: options.signal,
     })
 
     return {
