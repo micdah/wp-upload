@@ -40,20 +40,12 @@ export function SummaryBar({
     <Stack gap='xs'>
       <Group justify='space-between' wrap='nowrap' gap='md'>
         <Progress.Root size='xl' flex={1}>
-          {queued > 0 && (
+          {failed > 0 && (
             <Progress.Section
-              value={(queued / total) * 100}
-              color={STAT_COLOR.queued}
+              value={(failed / total) * 100}
+              color={STAT_COLOR.failed}
             >
-              <Progress.Label>{queued}</Progress.Label>
-            </Progress.Section>
-          )}
-          {inProgress > 0 && (
-            <Progress.Section
-              value={(inProgress / total) * 100}
-              color={STAT_COLOR.inProgress}
-            >
-              <Progress.Label>{inProgress}</Progress.Label>
+              <Progress.Label>{failed}</Progress.Label>
             </Progress.Section>
           )}
           {uploaded > 0 && (
@@ -64,12 +56,20 @@ export function SummaryBar({
               <Progress.Label>{uploaded}</Progress.Label>
             </Progress.Section>
           )}
-          {failed > 0 && (
+          {inProgress > 0 && (
             <Progress.Section
-              value={(failed / total) * 100}
-              color={STAT_COLOR.failed}
+              value={(inProgress / total) * 100}
+              color={STAT_COLOR.inProgress}
             >
-              <Progress.Label>{failed}</Progress.Label>
+              <Progress.Label>{inProgress}</Progress.Label>
+            </Progress.Section>
+          )}
+          {queued > 0 && (
+            <Progress.Section
+              value={(queued / total) * 100}
+              color={STAT_COLOR.queued}
+            >
+              <Progress.Label>{queued}</Progress.Label>
             </Progress.Section>
           )}
         </Progress.Root>
@@ -80,10 +80,10 @@ export function SummaryBar({
 
       <Group justify='space-between' wrap='wrap' gap='md'>
         <Group gap='md' c='dimmed'>
-          <Text size='sm'>{queued} queued</Text>
-          <Text size='sm'>{inProgress} in progress</Text>
-          <Text size='sm'>{uploaded} uploaded</Text>
           <Text size='sm'>{failed} failed</Text>
+          <Text size='sm'>{uploaded} uploaded</Text>
+          <Text size='sm'>{inProgress} in progress</Text>
+          <Text size='sm'>{queued} queued</Text>
         </Group>
 
         <Group gap='sm' align='center' wrap='wrap'>
