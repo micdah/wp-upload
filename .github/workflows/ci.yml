@@ -29,6 +29,9 @@ jobs:
       - name: Typecheck server
         run: npm run typecheck -w server
 
+      - name: Test server
+        run: npm run test -w server
+
       - name: Typecheck client
         run: npm run typecheck -w client
 

@@ -57,7 +57,7 @@ export async function uploadToWordPress(file: Express.Multer.File): Promise<Uplo
   }
 }
 
-function normaliseWpError(err: unknown): WpError {
+export function normaliseWpError(err: unknown): WpError {
   if (axios.isAxiosError(err)) {
     if (err.code === 'ECONNABORTED') {
       return {

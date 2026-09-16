@@ -18,7 +18,7 @@ export interface Env {
   trustProxy: boolean;
 }
 
-function loadEnv(): Env {
+export function loadEnv(): Env {
   const missing = REQUIRED_VARS.filter((key) => !process.env[key]);
   if (missing.length > 0) {
     console.error(
