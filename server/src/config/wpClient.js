@@ -8,14 +8,23 @@ export const wpAxios = axios.create({
   headers: { Authorization: authHeader },
 });
 
-// In-memory connection status, refreshed at startup and exposed via /api/status.
+// In-memory connection status, refreshed at startup, periodically re-checked
+// on a TTL when /api/status is polled, and invalidated eagerly on upload
+// auth failures. Exposed via /api/status.
 export const connectionState = {
   connected: false,
   user: null,
   reason: null,
+  lastCheckedAt: null,
 };
 
-export async function checkConnection() {
+const STALE_AFTER_MS = 2 * 60 * 1000;
+
+// Dedupes overlapping calls (startup, TTL refresh, concurrent /api/status
+// requests all racing) so we never fire more than one check at a time.
+let inFlightCheck = null;
+
+async function performCheck() {
   try {
     const { data } = await wpAxios.get('/wp-json/wp/v2/users/me', { timeout: 10_000 });
     connectionState.connected = true;
@@ -34,5 +43,35 @@ export async function checkConnection() {
       connectionState.reason = `Could not reach ${env.wpUrl} (${err.code || err.message}).`;
     }
     console.error(`WordPress self-check failed: ${connectionState.reason}`);
+  } finally {
+    connectionState.lastCheckedAt = Date.now();
   }
+}
+
+export function checkConnection() {
+  if (!inFlightCheck) {
+    inFlightCheck = performCheck().finally(() => {
+      inFlightCheck = null;
+    });
+  }
+  return inFlightCheck;
+}
+
+// Fire-and-forget: called from the /api/status handler so a stale cached
+// state gets refreshed for the *next* request, without adding the WP
+// round-trip's latency to the current one.
+export function refreshConnectionIfStale() {
+  if (!connectionState.lastCheckedAt || Date.now() - connectionState.lastCheckedAt >= STALE_AFTER_MS) {
+    checkConnection();
+  }
+}
+
+// Lets an upload failure mark the connection down immediately, rather than
+// waiting up to STALE_AFTER_MS for the next passive refresh to notice.
+export function invalidateConnection(reason) {
+  connectionState.connected = false;
+  connectionState.user = null;
+  connectionState.reason = reason;
+  connectionState.lastCheckedAt = Date.now();
+  console.error(`WordPress connection invalidated: ${reason}`);
 }
