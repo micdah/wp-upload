@@ -6,6 +6,7 @@ import { env } from './config/env.ts'
 import { basicAuth } from './middleware/basicAuth.ts'
 import { errorHandler } from './middleware/errorHandler.ts'
 import { mediaRouter } from './routes/media.ts'
+import { serverLoadRouter } from './routes/serverLoad.ts'
 import { statusRouter } from './routes/status.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -20,6 +21,7 @@ app.use(basicAuth)
 
 app.use('/api', mediaRouter)
 app.use('/api', statusRouter)
+app.use('/api', serverLoadRouter)
 
 app.use('/api', (_req, res) => {
   res.status(404).json({
