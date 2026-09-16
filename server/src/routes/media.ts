@@ -3,7 +3,7 @@ import os from 'node:os';
 import { Router } from 'express';
 import multer from 'multer';
 import { env } from '../config/env.ts';
-import { uploadToWordPress, type WpError } from '../lib/wpUpload.ts';
+import { uploadToWordPress, isWpError } from '../lib/wpUpload.ts';
 
 const upload = multer({
   dest: os.tmpdir(),
@@ -28,16 +28,6 @@ function releaseSlot(): void {
   const next = waiting.shift();
   if (next) next();
   else activeUploads--;
-}
-
-function isWpError(e: unknown): e is WpError {
-  return (
-    typeof e === 'object' &&
-    e !== null &&
-    'status' in e &&
-    'code' in e &&
-    'message' in e
-  );
 }
 
 export const mediaRouter = Router();

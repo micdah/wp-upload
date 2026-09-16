@@ -8,6 +8,16 @@ export interface WpError {
   message: string;
 }
 
+export function isWpError(e: unknown): e is WpError {
+  return (
+    typeof e === 'object' &&
+    e !== null &&
+    'status' in e &&
+    'code' in e &&
+    'message' in e
+  );
+}
+
 export interface UploadResult {
   id: number;
   title: string;
