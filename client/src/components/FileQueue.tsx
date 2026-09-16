@@ -4,11 +4,17 @@ import { FileQueueItem } from './FileQueueItem'
 
 interface FileQueueProps {
   items: FileEntry[]
+  onConfirm: (id: string) => void
   onRetry: (id: string) => void
   onRemove: (id: string) => void
 }
 
-export function FileQueue({ items, onRetry, onRemove }: FileQueueProps) {
+export function FileQueue({
+  items,
+  onConfirm,
+  onRetry,
+  onRemove,
+}: FileQueueProps) {
   if (items.length === 0) {
     return (
       <Text c='dimmed' size='sm'>
@@ -29,6 +35,7 @@ export function FileQueue({ items, onRetry, onRemove }: FileQueueProps) {
         <FileQueueItem
           key={item.id}
           item={item}
+          onConfirm={onConfirm}
           onRetry={onRetry}
           onRemove={onRemove}
         />

@@ -6,10 +6,14 @@ import { errorHandler } from '../middleware/errorHandler.ts'
 
 vi.mock('../lib/wpUpload.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/wpUpload.ts')>()
-  return { ...actual, uploadToWordPress: vi.fn() }
+  return {
+    ...actual,
+    uploadToWordPress: vi.fn(),
+    findExistingMediaBySlug: vi.fn(),
+  }
 })
 
-import { uploadToWordPress } from '../lib/wpUpload.ts'
+import { findExistingMediaBySlug, uploadToWordPress } from '../lib/wpUpload.ts'
 import { acquireSlot, mediaRouter, releaseSlot } from './media.ts'
 
 // Plain describe: both sections below mutate the module-scoped
@@ -47,6 +51,90 @@ describe('media', () => {
       // handed it straight to the queued one, so `CAP` outstanding slots
       // (not `CAP - 1`) still need releasing to return to baseline.
       for (let i = 0; i < CAP; i++) releaseSlot()
+    })
+  })
+
+  describe('GET /media/check', () => {
+    function buildApp() {
+      const app = express()
+      app.use(mediaRouter)
+      app.use(errorHandler)
+      return app
+    }
+
+    afterEach(() => {
+      vi.mocked(findExistingMediaBySlug).mockReset()
+    })
+
+    it('responds 400 when no filename is provided', async () => {
+      const app = buildApp()
+
+      const res = await request(app).get('/media/check')
+
+      expect(res.status).toBe(400)
+      expect(res.body).toEqual({
+        code: 'no_filename',
+        message: 'No filename was provided.',
+      })
+    })
+
+    it('responds with duplicate: false when no matches are found', async () => {
+      vi.mocked(findExistingMediaBySlug).mockResolvedValue([])
+      const app = buildApp()
+
+      const res = await request(app)
+        .get('/media/check')
+        .query({ filename: 'photo.png' })
+
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual({ duplicate: false, matches: [] })
+      expect(findExistingMediaBySlug).toHaveBeenCalledWith('photo.png')
+    })
+
+    it('responds with duplicate: true and the matches when found', async () => {
+      vi.mocked(findExistingMediaBySlug).mockResolvedValue([
+        {
+          id: 7,
+          title: 'Photo',
+          sourceUrl: 'https://example.invalid/photo.png',
+        },
+      ])
+      const app = buildApp()
+
+      const res = await request(app)
+        .get('/media/check')
+        .query({ filename: 'photo.png' })
+
+      expect(res.status).toBe(200)
+      expect(res.body).toEqual({
+        duplicate: true,
+        matches: [
+          {
+            id: 7,
+            title: 'Photo',
+            sourceUrl: 'https://example.invalid/photo.png',
+          },
+        ],
+      })
+    })
+
+    it('maps a WpError from findExistingMediaBySlug to the matching HTTP response', async () => {
+      vi.mocked(findExistingMediaBySlug).mockRejectedValue({
+        status: 502,
+        code: 'wp_unreachable',
+        message: 'Could not reach WordPress.',
+      })
+      const app = buildApp()
+
+      const res = await request(app)
+        .get('/media/check')
+        .query({ filename: 'photo.png' })
+
+      expect(res.status).toBe(502)
+      expect(res.body).toEqual({
+        code: 'wp_unreachable',
+        message: 'Could not reach WordPress.',
+      })
     })
   })
 

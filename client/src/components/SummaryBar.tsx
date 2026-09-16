@@ -7,6 +7,7 @@ const DEFAULT_MAX_CONCURRENCY = 6
 const STAT_COLOR: Record<keyof Omit<UploadStats, 'total'>, string> = {
   queued: 'gray',
   inProgress: 'neon',
+  duplicate: 'yellow',
   uploaded: 'green',
   failed: 'red',
 }
@@ -33,7 +34,7 @@ export function SummaryBar({
   onRetryAllFailed,
   onClearCompleted,
 }: SummaryBarProps) {
-  const { queued, inProgress, uploaded, failed, total } =
+  const { queued, inProgress, duplicate, uploaded, failed, total } =
     computeUploadStats(items)
 
   return (
@@ -52,6 +53,14 @@ export function SummaryBar({
               color={STAT_COLOR.failed}
             >
               <Progress.Label>{failed}</Progress.Label>
+            </Progress.Section>
+          )}
+          {duplicate > 0 && (
+            <Progress.Section
+              value={(duplicate / total) * 100}
+              color={STAT_COLOR.duplicate}
+            >
+              <Progress.Label>{duplicate}</Progress.Label>
             </Progress.Section>
           )}
           {uploaded > 0 && (
@@ -87,6 +96,11 @@ export function SummaryBar({
       <Group justify='space-between' wrap='wrap' gap='md'>
         <Group gap='md' c='dimmed'>
           <Text size='sm'>{failed} failed</Text>
+          {duplicate > 0 && (
+            <Text size='sm' c='yellow'>
+              {duplicate} need confirmation
+            </Text>
+          )}
           <Text size='sm'>{uploaded} uploaded</Text>
           <Text size='sm'>{inProgress} in progress</Text>
           <Text size='sm'>{queued} queued</Text>
