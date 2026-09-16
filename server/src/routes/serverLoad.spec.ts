@@ -1,19 +1,20 @@
-import { describe, it, expect, vi } from 'vitest';
-import express from 'express';
-import request from 'supertest';
+import express from 'express'
+import request from 'supertest'
+import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../config/serverLoad.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../config/serverLoad.ts')>();
-  return { ...actual, getLatestSnapshot: vi.fn() };
-});
+  const actual =
+    await importOriginal<typeof import('../config/serverLoad.ts')>()
+  return { ...actual, getLatestSnapshot: vi.fn() }
+})
 vi.mock('./media.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./media.ts')>();
-  return { ...actual, getActiveUploadCount: vi.fn() };
-});
+  const actual = await importOriginal<typeof import('./media.ts')>()
+  return { ...actual, getActiveUploadCount: vi.fn() }
+})
 
-import { getLatestSnapshot } from '../config/serverLoad.ts';
-import { getActiveUploadCount } from './media.ts';
-import { serverLoadRouter } from './serverLoad.ts';
+import { getLatestSnapshot } from '../config/serverLoad.ts'
+import { getActiveUploadCount } from './media.ts'
+import { serverLoadRouter } from './serverLoad.ts'
 
 const SNAPSHOT = {
   timestamp: 1_000,
@@ -23,35 +24,35 @@ const SNAPSHOT = {
   network: { iface: 'eth0', rxBytesPerSec: 10, txBytesPerSec: 5 },
   loadAverage: { '1m': 0.1, '5m': 0.2, '15m': 0.3 },
   cpuCount: 4,
-};
+}
 
 describe('GET /server-load', () => {
   function buildApp() {
-    const app = express();
-    app.use(serverLoadRouter);
-    return app;
+    const app = express()
+    app.use(serverLoadRouter)
+    return app
   }
 
   it('responds 503 while no snapshot has been sampled yet', async () => {
-    vi.mocked(getLatestSnapshot).mockReturnValue(null);
-    const app = buildApp();
+    vi.mocked(getLatestSnapshot).mockReturnValue(null)
+    const app = buildApp()
 
-    const res = await request(app).get('/server-load');
+    const res = await request(app).get('/server-load')
 
-    expect(res.status).toBe(503);
-  });
+    expect(res.status).toBe(503)
+  })
 
   it('returns the latest snapshot merged with live upload concurrency', async () => {
-    vi.mocked(getLatestSnapshot).mockReturnValue(SNAPSHOT);
-    vi.mocked(getActiveUploadCount).mockReturnValue(3);
-    const app = buildApp();
+    vi.mocked(getLatestSnapshot).mockReturnValue(SNAPSHOT)
+    vi.mocked(getActiveUploadCount).mockReturnValue(3)
+    const app = buildApp()
 
-    const res = await request(app).get('/server-load');
+    const res = await request(app).get('/server-load')
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(200)
     expect(res.body).toMatchObject({
       ...SNAPSHOT,
       uploads: { active: 3, concurrencyLimit: 8 },
-    });
-  });
-});
+    })
+  })
+})

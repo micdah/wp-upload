@@ -26,6 +26,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Check formatting & linting
+        run: npm run check
+
       - name: Typecheck server
         run: npm run typecheck -w server
 
