@@ -96,6 +96,36 @@ describe('media', () => {
       })
     })
 
+    it('logs but does not fail the request when removing the temp file errors', async () => {
+      vi.mocked(uploadToWordPress).mockResolvedValue({
+        id: 1,
+        title: 'Photo',
+        sourceUrl: 'https://example.invalid/photo.png',
+        mimeType: 'image/png',
+      })
+      const unlinkError = new Error('EACCES: permission denied')
+      const unlinkSpy = vi
+        .spyOn(fs, 'unlink')
+        .mockImplementation((_path, callback) => callback(unlinkError))
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+      const app = buildApp()
+
+      const res = await request(app)
+        .post('/media')
+        .attach('file', Buffer.from('fake-image-bytes'), 'photo.png')
+
+      expect(res.status).toBe(201)
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to remove temp upload file'),
+        unlinkError,
+      )
+
+      unlinkSpy.mockRestore()
+      consoleError.mockRestore()
+    })
+
     it('maps a WpError from uploadToWordPress to the matching HTTP response', async () => {
       vi.mocked(uploadToWordPress).mockRejectedValue({
         status: 502,
