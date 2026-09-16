@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import { Router } from 'express';
 import multer from 'multer';
-import { env } from '../config/env.js';
-import { uploadToWordPress } from '../lib/wpUpload.js';
+import { env } from '../config/env.ts';
+import { uploadToWordPress, isWpError } from '../lib/wpUpload.ts';
 
 const upload = multer({
   dest: os.tmpdir(),
@@ -14,9 +14,9 @@ const upload = multer({
 // how many parallel requests the client(s) send - protects the WP site from
 // a runaway client or multiple browser tabs each running their own limit.
 let activeUploads = 0;
-const waiting = [];
+const waiting: Array<() => void> = [];
 
-function acquireSlot() {
+function acquireSlot(): Promise<void> {
   if (activeUploads < env.uploadConcurrency) {
     activeUploads++;
     return Promise.resolve();
@@ -24,7 +24,7 @@ function acquireSlot() {
   return new Promise((resolve) => waiting.push(resolve));
 }
 
-function releaseSlot() {
+function releaseSlot(): void {
   const next = waiting.shift();
   if (next) next();
   else activeUploads--;
@@ -40,15 +40,18 @@ mediaRouter.post('/media', (req, res, next) => {
       return res.status(400).json({ code: 'no_file', message: 'No file was provided.' });
     }
 
+    const file = req.file;
+
     await acquireSlot();
     try {
-      const result = await uploadToWordPress(req.file);
+      const result = await uploadToWordPress(file);
       res.status(201).json(result);
     } catch (wpError) {
+      if (!isWpError(wpError)) throw wpError;
       res.status(wpError.status || 502).json({ code: wpError.code, message: wpError.message });
     } finally {
       releaseSlot();
-      fs.unlink(req.file.path, () => {});
+      fs.unlink(file.path, () => {});
     }
   });
 });

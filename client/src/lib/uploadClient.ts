@@ -1,6 +1,23 @@
+export interface UploadClientError {
+  code: string;
+  message: string;
+}
+
+export interface UploadResult {
+  id: number;
+  title: string;
+  sourceUrl: string;
+  mimeType: string;
+}
+
+export interface UploadOptions {
+  onProgress?: (percent: number) => void;
+  signal?: AbortSignal;
+}
+
 // Wraps XMLHttpRequest (not fetch) because it reliably exposes upload
 // progress events for the browser -> local backend leg.
-export function uploadFile(file, { onProgress, signal } = {}) {
+export function uploadFile(file: File, { onProgress, signal }: UploadOptions = {}): Promise<UploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
@@ -15,7 +32,7 @@ export function uploadFile(file, { onProgress, signal } = {}) {
     };
 
     xhr.onload = () => {
-      let body;
+      let body: UploadResult | UploadClientError;
       try {
         body = JSON.parse(xhr.responseText);
       } catch {
@@ -23,7 +40,7 @@ export function uploadFile(file, { onProgress, signal } = {}) {
       }
 
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(body);
+        resolve(body as UploadResult);
       } else {
         reject(body);
       }

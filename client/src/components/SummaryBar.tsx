@@ -1,14 +1,31 @@
 import { Group, Text, Select, Button } from '@mantine/core';
+import type { FileEntry, UploadStatus } from '../hooks/useUploadQueue';
 
 const DEFAULT_MAX_CONCURRENCY = 6;
 
-function buildConcurrencyOptions(max) {
+function buildConcurrencyOptions(max: number | null): string[] {
   const upper = max ?? DEFAULT_MAX_CONCURRENCY;
   return Array.from({ length: upper }, (_, i) => String(i + 1));
 }
 
-export function SummaryBar({ items, concurrency, serverConcurrency, onConcurrencyChange, onRetryAllFailed, onClearCompleted }) {
-  const counts = items.reduce(
+interface SummaryBarProps {
+  items: FileEntry[];
+  concurrency: number;
+  serverConcurrency: number | null;
+  onConcurrencyChange: (concurrency: number) => void;
+  onRetryAllFailed: () => void;
+  onClearCompleted: () => void;
+}
+
+export function SummaryBar({
+  items,
+  concurrency,
+  serverConcurrency,
+  onConcurrencyChange,
+  onRetryAllFailed,
+  onClearCompleted,
+}: SummaryBarProps) {
+  const counts = items.reduce<Record<UploadStatus, number>>(
     (acc, item) => {
       acc[item.status] = (acc[item.status] || 0) + 1;
       return acc;
@@ -30,7 +47,10 @@ export function SummaryBar({ items, concurrency, serverConcurrency, onConcurrenc
           <Text size="sm">Parallel uploads:</Text>
           <Select
             value={String(concurrency)}
-            onChange={(value) => onConcurrencyChange(Number(value))}
+            onChange={(value) => {
+              if (value == null) return;
+              onConcurrencyChange(Number(value));
+            }}
             data={buildConcurrencyOptions(serverConcurrency)}
             w={70}
             allowDeselect={false}

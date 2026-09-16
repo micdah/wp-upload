@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { env } from './env.js';
+import { env } from './env.ts';
 
 export const authHeader = `Basic ${Buffer.from(`${env.wpUsername}:${env.wpAppPassword}`).toString('base64')}`;
 
@@ -17,10 +17,17 @@ export const wpAxios = axios.create({
   timeout: env.wpRequestTimeoutMs,
 });
 
+export interface ConnectionState {
+  connected: boolean;
+  user: string | null;
+  reason: string | null;
+  lastCheckedAt: number | null;
+}
+
 // In-memory connection status, refreshed at startup, periodically re-checked
 // on a TTL when /api/status is polled, and invalidated eagerly on upload
 // auth failures. Exposed via /api/status.
-export const connectionState = {
+export const connectionState: ConnectionState = {
   connected: false,
   user: null,
   reason: null,
@@ -31,9 +38,9 @@ const STALE_AFTER_MS = 2 * 60 * 1000;
 
 // Dedupes overlapping calls (startup, TTL refresh, concurrent /api/status
 // requests all racing) so we never fire more than one check at a time.
-let inFlightCheck = null;
+let inFlightCheck: Promise<void> | null = null;
 
-async function performCheck() {
+async function performCheck(): Promise<void> {
   try {
     const { data } = await wpAxios.get('/wp-json/wp/v2/users/me', { timeout: 10_000 });
     connectionState.connected = true;
@@ -43,13 +50,16 @@ async function performCheck() {
   } catch (err) {
     connectionState.connected = false;
     connectionState.user = null;
-    if (err.response) {
+    if (axios.isAxiosError(err) && err.response) {
       connectionState.reason =
         err.response.status === 401 || err.response.status === 403
           ? 'WordPress rejected the configured credentials.'
           : `WordPress responded with HTTP ${err.response.status}.`;
-    } else {
+    } else if (axios.isAxiosError(err)) {
       connectionState.reason = `Could not reach ${env.wpUrl} (${err.code || err.message}).`;
+    } else {
+      const message = err instanceof Error ? err.message : String(err);
+      connectionState.reason = `Could not reach ${env.wpUrl} (${message}).`;
     }
     console.error(`WordPress self-check failed: ${connectionState.reason}`);
   } finally {
@@ -57,7 +67,7 @@ async function performCheck() {
   }
 }
 
-export function checkConnection() {
+export function checkConnection(): Promise<void> {
   if (!inFlightCheck) {
     inFlightCheck = performCheck().finally(() => {
       inFlightCheck = null;
@@ -69,7 +79,7 @@ export function checkConnection() {
 // Fire-and-forget: called from the /api/status handler so a stale cached
 // state gets refreshed for the *next* request, without adding the WP
 // round-trip's latency to the current one.
-export function refreshConnectionIfStale() {
+export function refreshConnectionIfStale(): void {
   if (!connectionState.lastCheckedAt || Date.now() - connectionState.lastCheckedAt >= STALE_AFTER_MS) {
     checkConnection();
   }
@@ -77,7 +87,7 @@ export function refreshConnectionIfStale() {
 
 // Lets an upload failure mark the connection down immediately, rather than
 // waiting up to STALE_AFTER_MS for the next passive refresh to notice.
-export function invalidateConnection(reason) {
+export function invalidateConnection(reason: string): void {
   connectionState.connected = false;
   connectionState.user = null;
   connectionState.reason = reason;

@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { env } from './config/env.js';
-import { checkConnection } from './config/wpClient.js';
-import { basicAuth } from './middleware/basicAuth.js';
-import { mediaRouter } from './routes/media.js';
-import { statusRouter } from './routes/status.js';
-import { errorHandler } from './middleware/errorHandler.js';
+import { env } from './config/env.ts';
+import { checkConnection } from './config/wpClient.ts';
+import { basicAuth } from './middleware/basicAuth.ts';
+import { mediaRouter } from './routes/media.ts';
+import { statusRouter } from './routes/status.ts';
+import { errorHandler } from './middleware/errorHandler.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, '../../client/dist');

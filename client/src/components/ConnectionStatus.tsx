@@ -4,10 +4,31 @@ import { Box, Group, Text } from '@mantine/core';
 export const STATUS_BAR_HEIGHT = 36;
 const POLL_INTERVAL_MS = 90_000;
 
+export interface StatusResponse {
+  connected: boolean;
+  user: string | null;
+  reason: string | null;
+  wpUrl: string;
+  maxFileSizeMb: number;
+  uploadConcurrency: number;
+}
+
+interface LocalStatus {
+  loading: boolean;
+  connected?: boolean;
+  reason?: string | null;
+  wpUrl?: string;
+  user?: string | null;
+}
+
+interface ConnectionStatusProps {
+  onStatus?: (status: StatusResponse) => void;
+}
+
 const DOT_COLOR = { loading: 'gray', connected: 'teal', error: 'red' };
 
-export function ConnectionStatus({ onStatus }) {
-  const [status, setStatus] = useState({ loading: true });
+export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
+  const [status, setStatus] = useState<LocalStatus>({ loading: true });
 
   useEffect(() => {
     let cancelled = false;
@@ -15,7 +36,7 @@ export function ConnectionStatus({ onStatus }) {
     const poll = () => {
       fetch('/api/status')
         .then((res) => res.json())
-        .then((data) => {
+        .then((data: StatusResponse) => {
           if (cancelled) return;
           setStatus({ loading: false, ...data });
           onStatus?.(data);
@@ -38,7 +59,7 @@ export function ConnectionStatus({ onStatus }) {
     };
   }, [onStatus]);
 
-  let state = 'loading';
+  let state: 'loading' | 'connected' | 'error' = 'loading';
   let label = 'Checking connection…';
 
   if (!status.loading) {
