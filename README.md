@@ -40,6 +40,20 @@ Builds the React app and starts the Express server, which serves both the UI and
 
 ## Run with Docker
 
+A pre-built image is published to GHCR on every merge to `master`: [`ghcr.io/micdah/wp-upload`](https://github.com/micdah/wp-upload/pkgs/container/wp-upload). Pull `:latest` or a specific version tag (e.g. `:1.2.3`) instead of building locally:
+
+```
+docker run -d -p 3001:3001 \
+  -e WP_URL=https://example.com \
+  -e WP_USERNAME=your-username \
+  -e WP_APP_PASSWORD="xxxx xxxx xxxx xxxx xxxx xxxx" \
+  -e AUTH_USERNAME=admin \
+  -e AUTH_PASSWORD=change-me-to-something-long-and-random \
+  ghcr.io/micdah/wp-upload:latest
+```
+
+If you'd rather build it yourself (e.g. to test local changes), the `Dockerfile` still works the same way:
+
 ```
 docker build -t wp-upload .
 docker run -d -p 3001:3001 \
@@ -57,15 +71,14 @@ A `GET /healthz` route (no login required) is available for container/orchestrat
 
 ### Using docker compose
 
-`docker-compose.yml` runs a **pre-built** image (it doesn't build one itself) and passes every setting through explicit `environment:` entries, filled in by Compose from a root-level `.env` file:
+`docker-compose.yml` pulls the **pre-built** [`ghcr.io/micdah/wp-upload:latest`](https://github.com/micdah/wp-upload/pkgs/container/wp-upload) image (it doesn't build one itself) and passes every setting through explicit `environment:` entries, filled in by Compose from a root-level `.env` file:
 
 ```
-docker build -t wp-upload:latest .
 cp server/.env.example .env   # a root-level .env for compose - separate from server/.env
 docker compose up -d
 ```
 
-That root `.env` is read by Compose itself for the `${VAR}` substitutions in `docker-compose.yml` — it's a different file from `server/.env` (used by the non-Docker `npm run` flows above), but takes the same variable names. Already covered by `.gitignore`. Re-run `docker build` and `docker compose up -d` again whenever you change the code and want the running container to pick it up.
+That root `.env` is read by Compose itself for the `${VAR}` substitutions in `docker-compose.yml` — it's a different file from `server/.env` (used by the non-Docker `npm run` flows above), but takes the same variable names. Already covered by `.gitignore`. Run `docker compose pull && docker compose up -d` whenever you want to update to the latest published image. If you're testing local changes instead, set `image: wp-upload:latest` in `docker-compose.yml`, `docker build -t wp-upload:latest .`, then `docker compose up -d`.
 
 ## Accessing from another device on your network
 
