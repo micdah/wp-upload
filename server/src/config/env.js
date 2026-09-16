@@ -31,7 +31,7 @@ function loadEnv() {
     port: Number(process.env.PORT) || 3001,
     uploadConcurrency: Number(process.env.UPLOAD_CONCURRENCY) || 8,
     maxFileSizeMb: Number(process.env.MAX_FILE_SIZE_MB) || 200,
-    wpRequestTimeoutMs: Number(process.env.WP_REQUEST_TIMEOUT_MS) || 30_000,
+    wpRequestTimeoutMs: Number(process.env.WP_REQUEST_TIMEOUT_MS) || 5 * 60_000,
     authUsername: process.env.AUTH_USERNAME,
     authPassword: process.env.AUTH_PASSWORD,
     // Only enable if a reverse proxy in front of this app sets X-Forwarded-For
