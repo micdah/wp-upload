@@ -1,3 +1,4 @@
+import type { AxiosResponse } from "axios"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
   checkConnection,
@@ -27,7 +28,7 @@ describe("wpClient", () => {
     it("marks the connection healthy on a successful self-check", async () => {
       vi.spyOn(wpAxios, "get").mockResolvedValue({
         data: { name: "Jane" },
-      } as any)
+      } as unknown as AxiosResponse)
 
       await checkConnection()
 
@@ -40,7 +41,9 @@ describe("wpClient", () => {
     })
 
     it("falls back to the configured username when WordPress omits a display name", async () => {
-      vi.spyOn(wpAxios, "get").mockResolvedValue({ data: {} } as any)
+      vi.spyOn(wpAxios, "get").mockResolvedValue({
+        data: {},
+      } as unknown as AxiosResponse)
 
       await checkConnection()
 
@@ -93,15 +96,15 @@ describe("wpClient", () => {
     })
 
     it("dedupes overlapping calls into a single underlying request", async () => {
-      let resolveGet: (value: unknown) => void = () => {}
-      const pending = new Promise((resolve) => {
+      let resolveGet: (value: AxiosResponse) => void = () => {}
+      const pending = new Promise<AxiosResponse>((resolve) => {
         resolveGet = resolve
       })
-      const get = vi.spyOn(wpAxios, "get").mockReturnValue(pending as any)
+      const get = vi.spyOn(wpAxios, "get").mockReturnValue(pending)
 
       const first = checkConnection()
       const second = checkConnection()
-      resolveGet({ data: { name: "Jane" } })
+      resolveGet({ data: { name: "Jane" } } as unknown as AxiosResponse)
       await Promise.all([first, second])
 
       expect(get).toHaveBeenCalledTimes(1)
@@ -122,7 +125,7 @@ describe("wpClient", () => {
       connectionState.lastCheckedAt = null
       const get = vi
         .spyOn(wpAxios, "get")
-        .mockResolvedValue({ data: {} } as any)
+        .mockResolvedValue({ data: {} } as unknown as AxiosResponse)
 
       refreshConnectionIfStale()
 
@@ -133,7 +136,7 @@ describe("wpClient", () => {
       connectionState.lastCheckedAt = Date.now() - 3 * 60 * 1000
       const get = vi
         .spyOn(wpAxios, "get")
-        .mockResolvedValue({ data: {} } as any)
+        .mockResolvedValue({ data: {} } as unknown as AxiosResponse)
 
       refreshConnectionIfStale()
 

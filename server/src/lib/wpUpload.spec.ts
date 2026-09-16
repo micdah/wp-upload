@@ -1,5 +1,6 @@
 import type { ReadStream } from "node:fs"
 import fs from "node:fs"
+import type { AxiosResponse } from "axios"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { connectionState, wpAxios } from "../config/wpClient.ts"
 import { isWpError, normaliseWpError, uploadToWordPress } from "./wpUpload.ts"
@@ -131,7 +132,7 @@ describe("uploadToWordPress", () => {
         source_url: "https://example.invalid/photo.png",
         mime_type: "image/png",
       },
-    } as any)
+    } as unknown as AxiosResponse)
 
     const result = await uploadToWordPress(file)
 
@@ -150,7 +151,7 @@ describe("uploadToWordPress", () => {
         source_url: "https://example.invalid/photo.png",
         mime_type: "image/png",
       },
-    } as any)
+    } as unknown as AxiosResponse)
 
     const result = await uploadToWordPress(file)
 
