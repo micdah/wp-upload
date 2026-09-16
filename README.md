@@ -2,7 +2,7 @@
 
 A local web app for uploading multiple media files to your WordPress site in parallel, via the WordPress REST API.
 
-![Screenshot of the WordPress Media Uploader interface, showing three uploaded image files with progress bars and an "Uploaded" status badge each](docs/screenshot.png)
+![Screenshot of the WordPress Media Uploader interface, showing a cyberpunk-themed upload queue with image thumbnails, three uploaded files and two finalizing, and a bottom status bar with WordPress connection info and live CPU/memory/disk usage rings](docs/screenshot.png)
 
 ## Using the Docker image
 
