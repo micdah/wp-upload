@@ -3,9 +3,15 @@ import { env } from './env.js';
 
 export const authHeader = `Basic ${Buffer.from(`${env.wpUsername}:${env.wpAppPassword}`).toString('base64')}`;
 
+// On Node, axios' `timeout` is an idle-socket timeout (it resets whenever
+// bytes flow in either direction), not a wall-clock cap on total request
+// duration - so a single flat value is safe even for slow, large uploads,
+// while still aborting a genuinely stalled connection instead of hanging
+// forever and holding an upload concurrency slot open indefinitely.
 export const wpAxios = axios.create({
   baseURL: env.wpUrl,
   headers: { Authorization: authHeader },
+  timeout: env.wpRequestTimeoutMs,
 });
 
 // In-memory connection status, refreshed at startup and exposed via /api/status.
