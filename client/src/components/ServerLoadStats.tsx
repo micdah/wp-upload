@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Group, Text } from '@mantine/core';
+import { Box, Group, RingProgress, Text } from '@mantine/core';
 
 const POLL_INTERVAL_MS = 5_000;
 const STALE_AFTER_MS = POLL_INTERVAL_MS * 3;
@@ -38,25 +38,38 @@ interface Chip {
   hideOnNarrow?: boolean;
 }
 
+// Each ring keeps one fixed identity color so CPU/Mem/Disk stay visually
+// distinct at a glance - usage level is conveyed by how full the ring is
+// and by its numeric label, not by a severity color swap.
+const RING_COLOR = { cpu: 'cyan', mem: 'grape', disk: 'orange' } as const;
+
+interface RingMetric {
+  key: keyof typeof RING_COLOR;
+  label: string;
+  percent: number;
+  color: string;
+}
+
+function buildRingMetrics(data: ServerLoadResponse, stale: boolean): RingMetric[] {
+  const metrics: RingMetric[] = [];
+
+  if (data.cpu.usagePercent !== null) {
+    metrics.push({ key: 'cpu', label: 'CPU', percent: data.cpu.usagePercent, color: stale ? 'gray' : RING_COLOR.cpu });
+  }
+  if (data.memory) {
+    metrics.push({ key: 'mem', label: 'MEM', percent: data.memory.usedPercent, color: stale ? 'gray' : RING_COLOR.mem });
+  }
+  if (data.disk) {
+    metrics.push({ key: 'disk', label: 'DISK', percent: data.disk.usedPercent, color: stale ? 'gray' : RING_COLOR.disk });
+  }
+
+  return metrics;
+}
+
 function buildChips(data: ServerLoadResponse, stale: boolean): Chip[] {
   const dim = (color: ChipColor): ChipColor => (stale ? 'gray' : color);
 
   const chips: Chip[] = [];
-
-  if (data.cpu.usagePercent !== null) {
-    const pct = data.cpu.usagePercent;
-    chips.push({ key: 'cpu', label: `CPU ${pct.toFixed(0)}%`, color: dim(colorForPercent(pct)) });
-  }
-
-  if (data.memory) {
-    const pct = data.memory.usedPercent;
-    chips.push({ key: 'mem', label: `Mem ${pct.toFixed(0)}%`, color: dim(colorForPercent(pct)) });
-  }
-
-  if (data.disk) {
-    const pct = data.disk.usedPercent;
-    chips.push({ key: 'disk', label: `Disk ${pct.toFixed(0)}%`, color: dim(colorForPercent(pct)) });
-  }
 
   chips.push({
     key: 'uploads',
@@ -123,10 +136,31 @@ export function ServerLoadStats() {
   if (!data) return null;
 
   const stale = Date.now() - data.timestamp > STALE_AFTER_MS;
+  const ringMetrics = buildRingMetrics(data, stale);
   const chips = buildChips(data, stale);
 
   return (
     <>
+      {ringMetrics.map((metric) => (
+        <Group key={metric.key} gap={6} wrap="nowrap">
+          <RingProgress
+            size={30}
+            thickness={4}
+            roundCaps
+            rootColor="var(--mantine-color-dark-4)"
+            transitionDuration={300}
+            sections={[{ value: Math.min(metric.percent, 100), color: metric.color }]}
+            label={
+              <Text size="9px" fw={700} ta="center" c="dimmed">
+                {metric.percent.toFixed(0)}
+              </Text>
+            }
+          />
+          <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+            {metric.label}
+          </Text>
+        </Group>
+      ))}
       {chips.map((chip) => (
         <Group key={chip.key} gap={4} wrap="nowrap" visibleFrom={chip.hideOnNarrow ? 'sm' : undefined}>
           <Box w={7} h={7} bg={chip.color} style={{ borderRadius: '50%', flexShrink: 0 }} />
