@@ -15,6 +15,34 @@ export interface UploadOptions {
   signal?: AbortSignal
 }
 
+export interface ExistingMedia {
+  id: number
+  title: string
+  sourceUrl: string
+}
+
+export interface DuplicateCheckResult {
+  duplicate: boolean
+  matches: ExistingMedia[]
+}
+
+// Best-effort pre-flight check - if it fails (network hiccup, WP down) we
+// treat that the same as "no duplicate found" rather than blocking the
+// upload on a check that's a nicety, not a requirement.
+export async function checkDuplicate(
+  filename: string,
+): Promise<DuplicateCheckResult> {
+  try {
+    const res = await fetch(
+      `/api/media/check?filename=${encodeURIComponent(filename)}`,
+    )
+    if (!res.ok) return { duplicate: false, matches: [] }
+    return (await res.json()) as DuplicateCheckResult
+  } catch {
+    return { duplicate: false, matches: [] }
+  }
+}
+
 // Wraps XMLHttpRequest (not fetch) because it reliably exposes upload
 // progress events for the browser -> local backend leg.
 export function uploadFile(

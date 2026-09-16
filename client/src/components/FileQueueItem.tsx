@@ -24,17 +24,21 @@ function fileExtension(name: string): string {
 }
 
 const STATUS_LABEL: Record<UploadStatus, string> = {
+  checking: 'Checking…',
   queued: 'Queued',
   uploading: 'Uploading',
   finalizing: 'Finalizing…',
+  duplicate: 'Possible duplicate',
   success: 'Uploaded',
   error: 'Failed',
 }
 
 const STATUS_COLOR: Record<UploadStatus, string> = {
+  checking: 'gray',
   queued: 'gray',
   uploading: 'neon',
   finalizing: 'neon',
+  duplicate: 'yellow',
   success: 'green',
   error: 'red',
 }
@@ -69,12 +73,19 @@ function Thumbnail({ item }: { item: FileEntry }) {
 
 interface FileQueueItemProps {
   item: FileEntry
+  onConfirm: (id: string) => void
   onRetry: (id: string) => void
   onRemove: (id: string) => void
 }
 
-export function FileQueueItem({ item, onRetry, onRemove }: FileQueueItemProps) {
+export function FileQueueItem({
+  item,
+  onConfirm,
+  onRetry,
+  onRemove,
+}: FileQueueItemProps) {
   const isFinalizing = item.status === 'finalizing'
+  const isDuplicate = item.status === 'duplicate'
 
   return (
     <Paper component='li' withBorder p='sm' radius='md' className='cyber-card'>
@@ -110,6 +121,24 @@ export function FileQueueItem({ item, onRetry, onRemove }: FileQueueItemProps) {
               {item.error?.message}
             </Text>
           )}
+          {isDuplicate && (
+            <Stack gap={2}>
+              <Text c='yellow' size='sm'>
+                A file with this name may already be in the media library:
+              </Text>
+              {item.duplicateMatches.map((match) => (
+                <Anchor
+                  key={match.id}
+                  href={match.sourceUrl}
+                  target='_blank'
+                  rel='noreferrer'
+                  size='sm'
+                >
+                  {match.title}
+                </Anchor>
+              ))}
+            </Stack>
+          )}
           {item.status === 'success' && item.result?.sourceUrl && (
             <Anchor
               href={item.result.sourceUrl}
@@ -132,13 +161,23 @@ export function FileQueueItem({ item, onRetry, onRemove }: FileQueueItemProps) {
                 Retry
               </Button>
             )}
+            {isDuplicate && (
+              <Button
+                size='xs'
+                variant='light'
+                color='yellow'
+                onClick={() => onConfirm(item.id)}
+              >
+                Upload anyway
+              </Button>
+            )}
             <Button
               size='xs'
               variant='subtle'
               color='red'
               onClick={() => onRemove(item.id)}
             >
-              Remove
+              {isDuplicate ? 'Cancel' : 'Remove'}
             </Button>
           </Group>
         </Stack>

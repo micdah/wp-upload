@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import {
+  checkDuplicate,
+  type ExistingMedia,
   type UploadClientError,
   type UploadResult,
   uploadFile,
@@ -9,9 +11,11 @@ const CONCURRENCY_KEY = 'wp-upload.concurrency'
 const DEFAULT_CONCURRENCY = 3
 
 export type UploadStatus =
+  | 'checking'
   | 'queued'
   | 'uploading'
   | 'finalizing'
+  | 'duplicate'
   | 'success'
   | 'error'
 
@@ -25,6 +29,7 @@ export interface FileEntry {
   error: UploadClientError | null
   result: UploadResult | null
   previewUrl: string | null
+  duplicateMatches: ExistingMedia[]
 }
 
 interface State {
@@ -39,6 +44,7 @@ type Action =
   | { type: 'SET_PROGRESS'; id: string; progress: number }
   | { type: 'SET_SUCCESS'; id: string; result: UploadResult }
   | { type: 'SET_ERROR'; id: string; error: UploadClientError }
+  | { type: 'SET_DUPLICATE'; id: string; matches: ExistingMedia[] }
   | { type: 'RESET_TO_QUEUED'; ids: string[] }
   | { type: 'REMOVE'; id: string }
   | { type: 'CLEAR_COMPLETED' }
@@ -130,12 +136,36 @@ function reducer(state: State, action: Action): State {
         },
       }
     }
+    case 'SET_DUPLICATE': {
+      const current = state.files[action.id]
+      if (!current) return state
+      return {
+        ...state,
+        files: {
+          ...state.files,
+          [action.id]: {
+            ...current,
+            status: 'duplicate',
+            duplicateMatches: action.matches,
+          },
+        },
+      }
+    }
     case 'RESET_TO_QUEUED': {
       const updates = action.ids.flatMap((id): [string, FileEntry][] => {
         const current = state.files[id]
         if (!current) return []
         return [
-          [id, { ...current, status: 'queued', progress: 0, error: null }],
+          [
+            id,
+            {
+              ...current,
+              status: 'queued',
+              progress: 0,
+              error: null,
+              duplicateMatches: [],
+            },
+          ],
         ]
       })
       return {
@@ -227,6 +257,16 @@ export function useUploadQueue() {
     }
   }, [runUpload])
 
+  // Enters an item into the actual upload queue - shared by files that
+  // passed the duplicate check and ones the user confirmed despite a match.
+  const enqueue = useCallback(
+    (id: string) => {
+      queueRef.current.push(id)
+      pump()
+    },
+    [pump],
+  )
+
   const addFiles = useCallback(
     (fileList: File[]) => {
       const entries: FileEntry[] = Array.from(fileList).map((file) => ({
@@ -234,13 +274,14 @@ export function useUploadQueue() {
         file,
         name: file.name,
         size: file.size,
-        status: 'queued',
+        status: 'checking',
         progress: 0,
         error: null,
         result: null,
         previewUrl: file.type.startsWith('image/')
           ? URL.createObjectURL(file)
           : null,
+        duplicateMatches: [],
       }))
       // Keep the ref in sync immediately: runUpload reads from it synchronously
       // below, before React has re-rendered and refreshed it from state.
@@ -249,19 +290,45 @@ export function useUploadQueue() {
         ...Object.fromEntries(entries.map((e) => [e.id, e])),
       }
       dispatch({ type: 'ADD_FILES', entries })
-      queueRef.current.push(...entries.map((e) => e.id))
-      pump()
+
+      // Each file gets its own duplicate check so a slow WP response for one
+      // doesn't hold up the others - only files that come back clear (or
+      // whose check fails, see checkDuplicate) join the upload queue.
+      for (const entry of entries) {
+        checkDuplicate(entry.name).then((result) => {
+          // The item may have been removed while the check was in flight.
+          if (!filesRef.current[entry.id]) return
+
+          if (result.duplicate) {
+            dispatch({
+              type: 'SET_DUPLICATE',
+              id: entry.id,
+              matches: result.matches,
+            })
+          } else {
+            dispatch({ type: 'SET_STATUS', id: entry.id, status: 'queued' })
+            enqueue(entry.id)
+          }
+        })
+      }
     },
-    [pump],
+    [enqueue],
+  )
+
+  const confirmUpload = useCallback(
+    (id: string) => {
+      dispatch({ type: 'RESET_TO_QUEUED', ids: [id] })
+      enqueue(id)
+    },
+    [enqueue],
   )
 
   const retry = useCallback(
     (id: string) => {
       dispatch({ type: 'RESET_TO_QUEUED', ids: [id] })
-      queueRef.current.push(id)
-      pump()
+      enqueue(id)
     },
-    [pump],
+    [enqueue],
   )
 
   const retryAllFailed = useCallback(() => {
@@ -270,9 +337,8 @@ export function useUploadQueue() {
     )
     if (failedIds.length === 0) return
     dispatch({ type: 'RESET_TO_QUEUED', ids: failedIds })
-    queueRef.current.push(...failedIds)
-    pump()
-  }, [state.order, state.files, pump])
+    for (const id of failedIds) enqueue(id)
+  }, [state.order, state.files, enqueue])
 
   const removeFile = useCallback((id: string) => {
     abortControllersRef.current.get(id)?.abort()
@@ -326,6 +392,7 @@ export function useUploadQueue() {
     items,
     concurrency: state.concurrency,
     addFiles,
+    confirmUpload,
     retry,
     retryAllFailed,
     removeFile,

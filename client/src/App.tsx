@@ -16,6 +16,7 @@ export default function App() {
     items,
     concurrency,
     addFiles,
+    confirmUpload,
     retry,
     retryAllFailed,
     removeFile,
@@ -66,7 +67,12 @@ export default function App() {
             onClearCompleted={clearCompleted}
           />
 
-          <FileQueue items={items} onRetry={retry} onRemove={removeFile} />
+          <FileQueue
+            items={items}
+            onConfirm={confirmUpload}
+            onRetry={retry}
+            onRemove={removeFile}
+          />
         </Stack>
       </Container>
 
