@@ -76,36 +76,41 @@ function reducer(state: State, action: Action): State {
       }
       return { ...state, files, order }
     }
-    case "SET_STATUS":
+    case "SET_STATUS": {
+      const current = state.files[action.id]
+      if (!current) return state
       return {
         ...state,
         files: {
           ...state.files,
           [action.id]: {
-            ...state.files[action.id]!,
+            ...current,
             status: action.status,
-            progress: action.progress ?? state.files[action.id]!.progress,
+            progress: action.progress ?? current.progress,
           },
         },
       }
-    case "SET_PROGRESS":
+    }
+    case "SET_PROGRESS": {
+      const current = state.files[action.id]
+      if (!current) return state
+      return {
+        ...state,
+        files: {
+          ...state.files,
+          [action.id]: { ...current, progress: action.progress },
+        },
+      }
+    }
+    case "SET_SUCCESS": {
+      const current = state.files[action.id]
+      if (!current) return state
       return {
         ...state,
         files: {
           ...state.files,
           [action.id]: {
-            ...state.files[action.id]!,
-            progress: action.progress,
-          },
-        },
-      }
-    case "SET_SUCCESS":
-      return {
-        ...state,
-        files: {
-          ...state.files,
-          [action.id]: {
-            ...state.files[action.id]!,
+            ...current,
             status: "success",
             progress: 100,
             result: action.result,
@@ -113,36 +118,31 @@ function reducer(state: State, action: Action): State {
           },
         },
       }
-    case "SET_ERROR":
+    }
+    case "SET_ERROR": {
+      const current = state.files[action.id]
+      if (!current) return state
       return {
         ...state,
         files: {
           ...state.files,
-          [action.id]: {
-            ...state.files[action.id]!,
-            status: "error",
-            error: action.error,
-          },
+          [action.id]: { ...current, status: "error", error: action.error },
         },
       }
-    case "RESET_TO_QUEUED":
+    }
+    case "RESET_TO_QUEUED": {
+      const updates = action.ids.flatMap((id): [string, FileEntry][] => {
+        const current = state.files[id]
+        if (!current) return []
+        return [
+          [id, { ...current, status: "queued", progress: 0, error: null }],
+        ]
+      })
       return {
         ...state,
-        files: {
-          ...state.files,
-          ...Object.fromEntries(
-            action.ids.map((id) => [
-              id,
-              {
-                ...state.files[id]!,
-                status: "queued",
-                progress: 0,
-                error: null,
-              },
-            ]),
-          ),
-        },
+        files: { ...state.files, ...Object.fromEntries(updates) },
       }
+    }
     case "REMOVE": {
       const files = { ...state.files }
       delete files[action.id]
@@ -156,8 +156,9 @@ function reducer(state: State, action: Action): State {
       const files: Record<string, FileEntry> = {}
       const order: string[] = []
       for (const id of state.order) {
-        if (state.files[id]!.status !== "success") {
-          files[id] = state.files[id]!
+        const current = state.files[id]
+        if (current && current.status !== "success") {
+          files[id] = current
           order.push(id)
         }
       }
@@ -265,7 +266,7 @@ export function useUploadQueue() {
 
   const retryAllFailed = useCallback(() => {
     const failedIds = state.order.filter(
-      (id) => state.files[id]!.status === "error",
+      (id) => state.files[id]?.status === "error",
     )
     if (failedIds.length === 0) return
     dispatch({ type: "RESET_TO_QUEUED", ids: failedIds })
@@ -276,19 +277,18 @@ export function useUploadQueue() {
   const removeFile = useCallback((id: string) => {
     abortControllersRef.current.get(id)?.abort()
     queueRef.current = queueRef.current.filter((qid) => qid !== id)
-    if (filesRef.current[id]?.previewUrl) {
-      URL.revokeObjectURL(filesRef.current[id]!.previewUrl!)
+    const previewUrl = filesRef.current[id]?.previewUrl
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
     }
     dispatch({ type: "REMOVE", id })
   }, [])
 
   const clearCompleted = useCallback(() => {
     for (const id of state.order) {
-      if (
-        state.files[id]!.status === "success" &&
-        state.files[id]!.previewUrl
-      ) {
-        URL.revokeObjectURL(state.files[id]!.previewUrl!)
+      const current = state.files[id]
+      if (current?.status === "success" && current.previewUrl) {
+        URL.revokeObjectURL(current.previewUrl)
       }
     }
     dispatch({ type: "CLEAR_COMPLETED" })
@@ -318,7 +318,9 @@ export function useUploadQueue() {
     }
   }, [])
 
-  const items = state.order.map((id) => state.files[id]!)
+  const items = state.order
+    .map((id) => state.files[id])
+    .filter((entry): entry is FileEntry => entry !== undefined)
 
   return {
     items,
