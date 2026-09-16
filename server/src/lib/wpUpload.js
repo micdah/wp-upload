@@ -34,6 +34,14 @@ export async function uploadToWordPress(file) {
 }
 
 function normaliseWpError(err) {
+  if (err.code === 'ECONNABORTED') {
+    return {
+      status: 504,
+      code: 'wp_timeout',
+      message: 'WordPress did not respond in time. The upload was aborted so it would not block others.',
+    };
+  }
+
   if (err.response) {
     const { status, data } = err.response;
     // WordPress normally returns JSON like { code, message }, but a WAF,

@@ -3,9 +3,18 @@ import { env } from './env.js';
 
 export const authHeader = `Basic ${Buffer.from(`${env.wpUsername}:${env.wpAppPassword}`).toString('base64')}`;
 
+// On Node, axios' `timeout` is an idle-socket timeout (it resets whenever
+// bytes flow in either direction) rather than a wall-clock cap on total
+// request duration. That covers slow-but-active transfers, but NOT the gap
+// after WordPress has received the whole file and is generating scaled-down
+// versions before responding - no bytes move during that processing, so it
+// looks identical to a dead connection. This value must be generous enough
+// to outlast the slowest realistic WP processing time under concurrent
+// uploads, not just a "reasonable network response" duration - see #1.
 export const wpAxios = axios.create({
   baseURL: env.wpUrl,
   headers: { Authorization: authHeader },
+  timeout: env.wpRequestTimeoutMs,
 });
 
 // In-memory connection status, refreshed at startup, periodically re-checked
