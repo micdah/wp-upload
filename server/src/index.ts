@@ -15,7 +15,7 @@ const clientDist = path.resolve(__dirname, "../../client/dist")
 const app = express()
 app.set("trust proxy", env.trustProxy)
 
-app.get("/healthz", (req, res) => res.status(200).send("ok"))
+app.get("/healthz", (_req, res) => res.status(200).send("ok"))
 
 app.use(basicAuth)
 
@@ -24,7 +24,7 @@ app.use("/api", statusRouter)
 
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist))
-  app.get("*", (req, res) => res.sendFile(path.join(clientDist, "index.html")))
+  app.get("*", (_req, res) => res.sendFile(path.join(clientDist, "index.html")))
 }
 
 app.use(errorHandler)

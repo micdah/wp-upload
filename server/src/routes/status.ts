@@ -7,7 +7,7 @@ import {
 
 export const statusRouter = Router()
 
-statusRouter.get("/status", (req, res) => {
+statusRouter.get("/status", (_req, res) => {
   refreshConnectionIfStale()
   res.json({
     connected: connectionState.connected,

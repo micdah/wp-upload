@@ -67,7 +67,7 @@ export function basicAuth(
   }
 
   const header = req.headers.authorization
-  if (!header || !header.startsWith("Basic ")) {
+  if (!header?.startsWith("Basic ")) {
     reject()
     return
   }
