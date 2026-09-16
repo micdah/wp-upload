@@ -34,13 +34,23 @@ export interface ExistingMedia {
 // Approximates WordPress's sanitize_title_with_dashes() closely enough to
 // find likely name collisions - it doesn't need to be byte-for-byte
 // identical, since a missed match just means no warning is shown (see #28).
+//
+// Two things WP does that are easy to get wrong here (and did, in an earlier
+// version of this function - it silently broke the duplicate check for any
+// filename with an underscore, e.g. camera defaults like "IMG_1234.jpg"):
+// underscores are kept as-is, not folded into a dash, and punctuation
+// outside [a-z0-9 _-] is deleted outright rather than replaced with a dash
+// (so "photo(1).jpg" becomes "photo1", not "photo-1").
 export function filenameToSlug(filename: string): string {
   const base = filename.replace(/\.[^./]+$/, '')
   return base
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/\./g, '-')
+    .replace(/[^a-z0-9 _-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '')
 }
 

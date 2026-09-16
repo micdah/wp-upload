@@ -243,14 +243,22 @@ describe.concurrent('filenameToSlug', () => {
     expect(filenameToSlug('Photo.PNG')).toBe('photo')
   })
 
-  it('replaces runs of non-alphanumeric characters with a single dash', () => {
+  it('replaces whitespace with a single dash and deletes other punctuation', () => {
     expect(filenameToSlug('My Summer Trip (2024)!!.jpg')).toBe(
       'my-summer-trip-2024',
     )
   })
 
+  it('deletes punctuation without inserting a dash in its place', () => {
+    expect(filenameToSlug('photo(1).jpg')).toBe('photo1')
+  })
+
+  it('preserves underscores rather than folding them into a dash - camera default filenames rely on this', () => {
+    expect(filenameToSlug('IMG_1234.JPG')).toBe('img_1234')
+  })
+
   it('strips leading/trailing dashes left by punctuation at the edges', () => {
-    expect(filenameToSlug('-- weird_name --.jpg')).toBe('weird-name')
+    expect(filenameToSlug('-- weird_name --.jpg')).toBe('weird_name')
   })
 
   it('strips accents', () => {
