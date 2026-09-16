@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box, Group, Text } from '@mantine/core';
 
 export const STATUS_BAR_HEIGHT = 36;
+const POLL_INTERVAL_MS = 90_000;
 
 const DOT_COLOR = { loading: 'gray', connected: 'teal', error: 'red' };
 
@@ -9,19 +10,32 @@ export function ConnectionStatus({ onStatus }) {
   const [status, setStatus] = useState({ loading: true });
 
   useEffect(() => {
-    fetch('/api/status')
-      .then((res) => res.json())
-      .then((data) => {
-        setStatus({ loading: false, ...data });
-        onStatus?.(data);
-      })
-      .catch(() =>
-        setStatus({
-          loading: false,
-          connected: false,
-          reason: 'Could not reach the local server. Is it running?',
+    let cancelled = false;
+
+    const poll = () => {
+      fetch('/api/status')
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          setStatus({ loading: false, ...data });
+          onStatus?.(data);
         })
-      );
+        .catch(() => {
+          if (cancelled) return;
+          setStatus({
+            loading: false,
+            connected: false,
+            reason: 'Could not reach the local server. Is it running?',
+          });
+        });
+    };
+
+    poll();
+    const intervalId = setInterval(poll, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
   }, [onStatus]);
 
   let state = 'loading';
