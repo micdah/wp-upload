@@ -1,11 +1,14 @@
-import { Router } from 'express';
-import { env } from '../config/env.ts';
-import { connectionState, refreshConnectionIfStale } from '../config/wpClient.ts';
+import { Router } from "express"
+import { env } from "../config/env.ts"
+import {
+  connectionState,
+  refreshConnectionIfStale,
+} from "../config/wpClient.ts"
 
-export const statusRouter = Router();
+export const statusRouter = Router()
 
-statusRouter.get('/status', (req, res) => {
-  refreshConnectionIfStale();
+statusRouter.get("/status", (req, res) => {
+  refreshConnectionIfStale()
   res.json({
     connected: connectionState.connected,
     user: connectionState.user,
@@ -13,5 +16,5 @@ statusRouter.get('/status', (req, res) => {
     wpUrl: env.wpUrl,
     maxFileSizeMb: env.maxFileSizeMb,
     uploadConcurrency: env.uploadConcurrency,
-  });
-});
+  })
+})

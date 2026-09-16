@@ -1,126 +1,157 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { checkConnection, connectionState, invalidateConnection, refreshConnectionIfStale, wpAxios } from './wpClient.ts';
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  checkConnection,
+  connectionState,
+  invalidateConnection,
+  refreshConnectionIfStale,
+  wpAxios,
+} from "./wpClient.ts"
 
-const INITIAL_STATE = { connected: false, user: null, reason: null, lastCheckedAt: null };
+const INITIAL_STATE = {
+  connected: false,
+  user: null,
+  reason: null,
+  lastCheckedAt: null,
+}
 
 // Plain describe: checkConnection/refreshConnectionIfStale await a mocked
 // network call while mutating the shared `connectionState` singleton, so
 // concurrent tests could interleave mid-check and observe a half-updated
 // state.
-describe('wpClient', () => {
+describe("wpClient", () => {
   beforeEach(() => {
-    Object.assign(connectionState, INITIAL_STATE);
-  });
+    Object.assign(connectionState, INITIAL_STATE)
+  })
 
-  describe('checkConnection', () => {
-    it('marks the connection healthy on a successful self-check', async () => {
-      vi.spyOn(wpAxios, 'get').mockResolvedValue({ data: { name: 'Jane' } } as any);
+  describe("checkConnection", () => {
+    it("marks the connection healthy on a successful self-check", async () => {
+      vi.spyOn(wpAxios, "get").mockResolvedValue({
+        data: { name: "Jane" },
+      } as any)
 
-      await checkConnection();
+      await checkConnection()
 
-      expect(connectionState).toMatchObject({ connected: true, user: 'Jane', reason: null });
-      expect(connectionState.lastCheckedAt).not.toBeNull();
-    });
+      expect(connectionState).toMatchObject({
+        connected: true,
+        user: "Jane",
+        reason: null,
+      })
+      expect(connectionState.lastCheckedAt).not.toBeNull()
+    })
 
-    it('falls back to the configured username when WordPress omits a display name', async () => {
-      vi.spyOn(wpAxios, 'get').mockResolvedValue({ data: {} } as any);
+    it("falls back to the configured username when WordPress omits a display name", async () => {
+      vi.spyOn(wpAxios, "get").mockResolvedValue({ data: {} } as any)
 
-      await checkConnection();
+      await checkConnection()
 
-      expect(connectionState.user).toBe('test-user');
-    });
+      expect(connectionState.user).toBe("test-user")
+    })
 
-    it('records a credential-rejected reason on 401/403', async () => {
-      vi.spyOn(wpAxios, 'get').mockRejectedValue({ isAxiosError: true, response: { status: 401 } });
+    it("records a credential-rejected reason on 401/403", async () => {
+      vi.spyOn(wpAxios, "get").mockRejectedValue({
+        isAxiosError: true,
+        response: { status: 401 },
+      })
 
-      await checkConnection();
+      await checkConnection()
 
       expect(connectionState).toMatchObject({
         connected: false,
-        reason: 'WordPress rejected the configured credentials.',
-      });
-    });
+        reason: "WordPress rejected the configured credentials.",
+      })
+    })
 
-    it('records the HTTP status for other error responses', async () => {
-      vi.spyOn(wpAxios, 'get').mockRejectedValue({ isAxiosError: true, response: { status: 500 } });
-
-      await checkConnection();
-
-      expect(connectionState.reason).toContain('HTTP 500');
-    });
-
-    it('records an unreachable reason when there is no response', async () => {
-      vi.spyOn(wpAxios, 'get').mockRejectedValue({
+    it("records the HTTP status for other error responses", async () => {
+      vi.spyOn(wpAxios, "get").mockRejectedValue({
         isAxiosError: true,
-        code: 'ECONNREFUSED',
-        message: 'connect ECONNREFUSED',
-      });
+        response: { status: 500 },
+      })
 
-      await checkConnection();
+      await checkConnection()
 
-      expect(connectionState.reason).toContain('ECONNREFUSED');
-    });
+      expect(connectionState.reason).toContain("HTTP 500")
+    })
 
-    it('records a message-based reason for a non-axios error', async () => {
-      vi.spyOn(wpAxios, 'get').mockRejectedValue(new Error('boom'));
+    it("records an unreachable reason when there is no response", async () => {
+      vi.spyOn(wpAxios, "get").mockRejectedValue({
+        isAxiosError: true,
+        code: "ECONNREFUSED",
+        message: "connect ECONNREFUSED",
+      })
 
-      await checkConnection();
+      await checkConnection()
 
-      expect(connectionState.reason).toContain('boom');
-    });
+      expect(connectionState.reason).toContain("ECONNREFUSED")
+    })
 
-    it('dedupes overlapping calls into a single underlying request', async () => {
-      let resolveGet: (value: unknown) => void = () => {};
+    it("records a message-based reason for a non-axios error", async () => {
+      vi.spyOn(wpAxios, "get").mockRejectedValue(new Error("boom"))
+
+      await checkConnection()
+
+      expect(connectionState.reason).toContain("boom")
+    })
+
+    it("dedupes overlapping calls into a single underlying request", async () => {
+      let resolveGet: (value: unknown) => void = () => {}
       const pending = new Promise((resolve) => {
-        resolveGet = resolve;
-      });
-      const get = vi.spyOn(wpAxios, 'get').mockReturnValue(pending as any);
+        resolveGet = resolve
+      })
+      const get = vi.spyOn(wpAxios, "get").mockReturnValue(pending as any)
 
-      const first = checkConnection();
-      const second = checkConnection();
-      resolveGet({ data: { name: 'Jane' } });
-      await Promise.all([first, second]);
+      const first = checkConnection()
+      const second = checkConnection()
+      resolveGet({ data: { name: "Jane" } })
+      await Promise.all([first, second])
 
-      expect(get).toHaveBeenCalledTimes(1);
-    });
-  });
+      expect(get).toHaveBeenCalledTimes(1)
+    })
+  })
 
-  describe('refreshConnectionIfStale', () => {
-    it('does nothing when the last check is recent', () => {
-      connectionState.lastCheckedAt = Date.now();
-      const get = vi.spyOn(wpAxios, 'get');
+  describe("refreshConnectionIfStale", () => {
+    it("does nothing when the last check is recent", () => {
+      connectionState.lastCheckedAt = Date.now()
+      const get = vi.spyOn(wpAxios, "get")
 
-      refreshConnectionIfStale();
+      refreshConnectionIfStale()
 
-      expect(get).not.toHaveBeenCalled();
-    });
+      expect(get).not.toHaveBeenCalled()
+    })
 
-    it('triggers a check when there has never been one', () => {
-      connectionState.lastCheckedAt = null;
-      const get = vi.spyOn(wpAxios, 'get').mockResolvedValue({ data: {} } as any);
+    it("triggers a check when there has never been one", () => {
+      connectionState.lastCheckedAt = null
+      const get = vi
+        .spyOn(wpAxios, "get")
+        .mockResolvedValue({ data: {} } as any)
 
-      refreshConnectionIfStale();
+      refreshConnectionIfStale()
 
-      expect(get).toHaveBeenCalledTimes(1);
-    });
+      expect(get).toHaveBeenCalledTimes(1)
+    })
 
-    it('triggers a check when the last one is stale', () => {
-      connectionState.lastCheckedAt = Date.now() - 3 * 60 * 1000;
-      const get = vi.spyOn(wpAxios, 'get').mockResolvedValue({ data: {} } as any);
+    it("triggers a check when the last one is stale", () => {
+      connectionState.lastCheckedAt = Date.now() - 3 * 60 * 1000
+      const get = vi
+        .spyOn(wpAxios, "get")
+        .mockResolvedValue({ data: {} } as any)
 
-      refreshConnectionIfStale();
+      refreshConnectionIfStale()
 
-      expect(get).toHaveBeenCalledTimes(1);
-    });
-  });
+      expect(get).toHaveBeenCalledTimes(1)
+    })
+  })
 
-  describe('invalidateConnection', () => {
-    it('marks the connection down with the given reason', () => {
-      connectionState.connected = true;
-      invalidateConnection('credentials rejected');
+  describe("invalidateConnection", () => {
+    it("marks the connection down with the given reason", () => {
+      connectionState.connected = true
+      invalidateConnection("credentials rejected")
 
-      expect(connectionState).toMatchObject({ connected: false, user: null, reason: 'credentials rejected' });
-      expect(connectionState.lastCheckedAt).not.toBeNull();
-    });
-  });
-});
+      expect(connectionState).toMatchObject({
+        connected: false,
+        user: null,
+        reason: "credentials rejected",
+      })
+      expect(connectionState.lastCheckedAt).not.toBeNull()
+    })
+  })
+})

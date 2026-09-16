@@ -1,8 +1,11 @@
-import { Dropzone as MantineDropzone, type FileWithPath } from '@mantine/dropzone';
-import { Text } from '@mantine/core';
+import { Text } from "@mantine/core"
+import {
+  type FileWithPath,
+  Dropzone as MantineDropzone,
+} from "@mantine/dropzone"
 
 interface DropzoneProps {
-  onFiles: (files: FileWithPath[]) => void;
+  onFiles: (files: FileWithPath[]) => void
 }
 
 export function Dropzone({ onFiles }: DropzoneProps) {
@@ -12,5 +15,5 @@ export function Dropzone({ onFiles }: DropzoneProps) {
         Drag &amp; drop media files here, or click to browse
       </Text>
     </MantineDropzone>
-  );
+  )
 }

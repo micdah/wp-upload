@@ -1,9 +1,9 @@
 interface NyanUnicornProps {
-  size?: number;
+  size?: number
 }
 
 export function NyanUnicorn({ size = 240 }: NyanUnicornProps) {
-  const height = Math.round((size * 110) / 240);
+  const height = Math.round((size * 110) / 240)
 
   return (
     <svg
@@ -15,7 +15,12 @@ export function NyanUnicorn({ size = 240 }: NyanUnicornProps) {
       className="nyan-unicorn"
     >
       <defs>
-        <pattern id="nyanTrail" width="24" height="56" patternUnits="userSpaceOnUse">
+        <pattern
+          id="nyanTrail"
+          width="24"
+          height="56"
+          patternUnits="userSpaceOnUse"
+        >
           <rect width="24" height="8" y="0" fill="#ff2d6f" />
           <rect width="24" height="8" y="8" fill="#ff9a2e" />
           <rect width="24" height="8" y="16" fill="#ffe14d" />
@@ -42,16 +47,72 @@ export function NyanUnicorn({ size = 240 }: NyanUnicornProps) {
         <circle cx="166" cy="70" r="6" fill="#00c2ff" />
       </g>
 
-      <ellipse cx="180" cy="62" rx="42" ry="24" fill="url(#nyanBody)" stroke="#b8c7ff" strokeWidth="1.5" />
+      <ellipse
+        cx="180"
+        cy="62"
+        rx="42"
+        ry="24"
+        fill="url(#nyanBody)"
+        stroke="#b8c7ff"
+        strokeWidth="1.5"
+      />
 
-      <rect x="150" y="80" width="8" height="16" rx="3" fill="#eef1ff" stroke="#b8c7ff" strokeWidth="1" />
-      <rect x="170" y="82" width="8" height="16" rx="3" fill="#eef1ff" stroke="#b8c7ff" strokeWidth="1" />
-      <rect x="192" y="82" width="8" height="16" rx="3" fill="#eef1ff" stroke="#b8c7ff" strokeWidth="1" />
-      <rect x="208" y="80" width="8" height="16" rx="3" fill="#eef1ff" stroke="#b8c7ff" strokeWidth="1" />
+      <rect
+        x="150"
+        y="80"
+        width="8"
+        height="16"
+        rx="3"
+        fill="#eef1ff"
+        stroke="#b8c7ff"
+        strokeWidth="1"
+      />
+      <rect
+        x="170"
+        y="82"
+        width="8"
+        height="16"
+        rx="3"
+        fill="#eef1ff"
+        stroke="#b8c7ff"
+        strokeWidth="1"
+      />
+      <rect
+        x="192"
+        y="82"
+        width="8"
+        height="16"
+        rx="3"
+        fill="#eef1ff"
+        stroke="#b8c7ff"
+        strokeWidth="1"
+      />
+      <rect
+        x="208"
+        y="80"
+        width="8"
+        height="16"
+        rx="3"
+        fill="#eef1ff"
+        stroke="#b8c7ff"
+        strokeWidth="1"
+      />
 
-      <circle cx="205" cy="34" r="20" fill="url(#nyanBody)" stroke="#b8c7ff" strokeWidth="1.5" />
+      <circle
+        cx="205"
+        cy="34"
+        r="20"
+        fill="url(#nyanBody)"
+        stroke="#b8c7ff"
+        strokeWidth="1.5"
+      />
 
-      <path d="M 191 21 L 195 9 L 200 19 Z" fill="#eef1ff" stroke="#b8c7ff" strokeWidth="1" />
+      <path
+        d="M 191 21 L 195 9 L 200 19 Z"
+        fill="#eef1ff"
+        stroke="#b8c7ff"
+        strokeWidth="1"
+      />
       <path d="M 201 18 L 205 0 L 209 18 Z" fill="url(#nyanHorn)" />
 
       <g>
@@ -63,11 +124,29 @@ export function NyanUnicorn({ size = 240 }: NyanUnicornProps) {
 
       <circle cx="213" cy="32" r="2.2" fill="#12202f" />
       <circle cx="222" cy="40" r="3" fill="#ff9ac2" opacity="0.7" />
-      <path d="M 212 40 Q 215 43 218 40" stroke="#12202f" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+      <path
+        d="M 212 40 Q 215 43 218 40"
+        stroke="#12202f"
+        strokeWidth="1.4"
+        fill="none"
+        strokeLinecap="round"
+      />
 
-      <path className="nyan-star nyan-star-1" d="M40 12 L42 18 L48 18 L43 22 L45 28 L40 24 L35 28 L37 22 L32 18 L38 18 Z" fill="#e6feff" />
-      <path className="nyan-star nyan-star-2" d="M85 55 L86.5 59 L90.5 59 L87 61.5 L88 65.5 L85 63 L82 65.5 L83 61.5 L79.5 59 L83.5 59 Z" fill="#e6feff" />
-      <path className="nyan-star nyan-star-3" d="M110 20 L111 23 L114 23 L111.5 25 L112.5 28 L110 26 L107.5 28 L108.5 25 L106 23 L109 23 Z" fill="#e6feff" />
+      <path
+        className="nyan-star nyan-star-1"
+        d="M40 12 L42 18 L48 18 L43 22 L45 28 L40 24 L35 28 L37 22 L32 18 L38 18 Z"
+        fill="#e6feff"
+      />
+      <path
+        className="nyan-star nyan-star-2"
+        d="M85 55 L86.5 59 L90.5 59 L87 61.5 L88 65.5 L85 63 L82 65.5 L83 61.5 L79.5 59 L83.5 59 Z"
+        fill="#e6feff"
+      />
+      <path
+        className="nyan-star nyan-star-3"
+        d="M110 20 L111 23 L114 23 L111.5 25 L112.5 28 L110 26 L107.5 28 L108.5 25 L106 23 L109 23 Z"
+        fill="#e6feff"
+      />
     </svg>
-  );
+  )
 }
