@@ -193,4 +193,41 @@ describe('uploadToWordPress', () => {
     expect(connectionState.connected).toBe(true)
     expect(connectionState.reason).toBeNull()
   })
+
+  it('forwards the abort signal through to wpAxios.post', async () => {
+    const postSpy = vi.spyOn(wpAxios, 'post').mockResolvedValue({
+      data: {
+        id: 7,
+        title: { rendered: 'Photo' },
+        source_url: 'https://example.invalid/photo.png',
+        mime_type: 'image/png',
+      },
+    } as unknown as AxiosResponse)
+    const controller = new AbortController()
+
+    await uploadToWordPress(file, { signal: controller.signal })
+
+    expect(postSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      expect.objectContaining({ signal: controller.signal }),
+    )
+  })
+
+  it('rejects with a normalised WpError when the request is cancelled', async () => {
+    vi.spyOn(wpAxios, 'post').mockRejectedValue({
+      isAxiosError: true,
+      code: 'ERR_CANCELED',
+      message: 'canceled',
+    })
+    const controller = new AbortController()
+
+    await expect(
+      uploadToWordPress(file, { signal: controller.signal }),
+    ).rejects.toEqual({
+      status: 502,
+      code: 'wp_unreachable',
+      message: expect.stringContaining('ERR_CANCELED'),
+    })
+  })
 })

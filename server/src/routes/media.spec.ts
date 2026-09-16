@@ -144,5 +144,65 @@ describe('media', () => {
         message: 'Could not reach WordPress.',
       })
     })
+
+    it('aborts the upstream request and releases the slot when the client disconnects mid-upload', async () => {
+      const CAP = 8 // env.uploadConcurrency default when UPLOAD_CONCURRENCY is unset
+      let capturedSignal: AbortSignal | undefined
+      let invoked = false
+
+      vi.mocked(uploadToWordPress).mockImplementation((_file, options) => {
+        capturedSignal = options?.signal
+        invoked = true
+        // Simulates a WP call that hangs until the client goes away, matching
+        // the real timing of the bug: abort happens while the upstream
+        // request is still in flight, not before or after it.
+        return new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => {
+            reject({ status: 502, code: 'wp_unreachable', message: 'canceled' })
+          })
+        })
+      })
+      const unlinkSpy = vi.spyOn(fs, 'unlink')
+      const app = buildApp()
+
+      // Saturate all but one slot so this request's own acquire lands on the
+      // last free one.
+      for (let i = 0; i < CAP - 1; i++) await acquireSlot()
+
+      const req = request(app)
+        .post('/media')
+        .attach('file', Buffer.from('fake-image-bytes'), 'photo.png')
+      const settled = req.then(
+        (res) => ({ res }),
+        (err) => ({ err }),
+      )
+
+      await vi.waitFor(() => expect(invoked).toBe(true))
+
+      // Only queue this once the request holds the last slot - if this ran
+      // any earlier it would grab that slot itself, starving the request's
+      // own acquireSlot() and deadlocking the test.
+      let queuedResolved = false
+      const queued = acquireSlot().then(() => {
+        queuedResolved = true
+      })
+
+      req.abort()
+      await settled
+
+      // The server only learns of the disconnect once the socket teardown
+      // propagates to it, which can land a tick or two after the client-side
+      // abort has already settled - so poll rather than assert immediately.
+      await vi.waitFor(() => expect(capturedSignal?.aborted).toBe(true))
+      await vi.waitFor(() => expect(unlinkSpy).toHaveBeenCalled())
+
+      await queued
+      expect(queuedResolved).toBe(true)
+
+      // The release above closed one of the original CAP - 1 acquisitions and
+      // handed it straight to the queued one, so CAP outstanding slots (not
+      // CAP - 1) still need releasing to return to baseline.
+      for (let i = 0; i < CAP; i++) releaseSlot()
+    })
   })
 })
