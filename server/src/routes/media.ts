@@ -30,6 +30,12 @@ export function releaseSlot(): void {
   else activeUploads--;
 }
 
+// Read live (not cached) by /api/server-load, since it's cheap and more
+// time-sensitive than the periodic OS-metric snapshot.
+export function getActiveUploadCount(): number {
+  return activeUploads;
+}
+
 export const mediaRouter = Router();
 
 mediaRouter.post('/media', (req, res, next) => {

@@ -4,9 +4,11 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { env } from './config/env.ts';
 import { checkConnection } from './config/wpClient.ts';
+import { sampleOnce, startServerLoadSampler } from './config/serverLoad.ts';
 import { basicAuth } from './middleware/basicAuth.ts';
 import { mediaRouter } from './routes/media.ts';
 import { statusRouter } from './routes/status.ts';
+import { serverLoadRouter } from './routes/serverLoad.ts';
 import { errorHandler } from './middleware/errorHandler.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,6 +23,7 @@ app.use(basicAuth);
 
 app.use('/api', mediaRouter);
 app.use('/api', statusRouter);
+app.use('/api', serverLoadRouter);
 
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
@@ -30,6 +33,8 @@ if (fs.existsSync(clientDist)) {
 app.use(errorHandler);
 
 await checkConnection();
+await sampleOnce();
+startServerLoadSampler();
 
 app.listen(env.port, env.host, () => {
   console.log(`Server listening on http://${env.host}:${env.port}`);

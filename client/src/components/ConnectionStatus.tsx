@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Box, Group, Text } from '@mantine/core';
+import { ServerLoadStats } from './ServerLoadStats';
 
 export const STATUS_BAR_HEIGHT = 36;
 const POLL_INTERVAL_MS = 90_000;
@@ -74,11 +75,14 @@ export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
 
   return (
     <Box className="cyber-statusbar" h={STATUS_BAR_HEIGHT} px="md">
-      <Group gap={8} wrap="nowrap" justify="center" h="100%">
-        <Box w={7} h={7} bg={DOT_COLOR[state]} style={{ borderRadius: '50%', flexShrink: 0 }} />
-        <Text size="xs" c="dimmed" truncate maw="90%">
-          {label}
-        </Text>
+      <Group gap={16} wrap="wrap" justify="center" h="100%">
+        <Group gap={8} wrap="nowrap">
+          <Box w={7} h={7} bg={DOT_COLOR[state]} style={{ borderRadius: '50%', flexShrink: 0 }} />
+          <Text size="xs" c="dimmed" truncate maw="90%">
+            {label}
+          </Text>
+        </Group>
+        <ServerLoadStats />
       </Group>
     </Box>
   );
