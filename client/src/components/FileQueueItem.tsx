@@ -1,17 +1,18 @@
 import { Paper, Group, Stack, Text, Progress, Badge, Button, Anchor, Image, Center } from '@mantine/core';
+import type { FileEntry, UploadStatus } from '../hooks/useUploadQueue';
 
-function formatSize(bytes) {
+function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function fileExtension(name) {
+function fileExtension(name: string): string {
   const dot = name.lastIndexOf('.');
   return dot === -1 ? '' : name.slice(dot + 1).toUpperCase();
 }
 
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<UploadStatus, string> = {
   queued: 'Queued',
   uploading: 'Uploading',
   finalizing: 'Finalizing…',
@@ -19,7 +20,7 @@ const STATUS_LABEL = {
   error: 'Failed',
 };
 
-const STATUS_COLOR = {
+const STATUS_COLOR: Record<UploadStatus, string> = {
   queued: 'gray',
   uploading: 'neon',
   finalizing: 'neon',
@@ -27,7 +28,7 @@ const STATUS_COLOR = {
   error: 'red',
 };
 
-function Thumbnail({ item }) {
+function Thumbnail({ item }: { item: FileEntry }) {
   if (item.previewUrl) {
     return <Image src={item.previewUrl} w={48} h={48} radius="sm" fit="cover" alt="" />;
   }
@@ -41,7 +42,13 @@ function Thumbnail({ item }) {
   );
 }
 
-export function FileQueueItem({ item, onRetry, onRemove }) {
+interface FileQueueItemProps {
+  item: FileEntry;
+  onRetry: (id: string) => void;
+  onRemove: (id: string) => void;
+}
+
+export function FileQueueItem({ item, onRetry, onRemove }: FileQueueItemProps) {
   const isFinalizing = item.status === 'finalizing';
 
   return (

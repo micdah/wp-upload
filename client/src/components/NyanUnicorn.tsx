@@ -1,4 +1,8 @@
-export function NyanUnicorn({ size = 240 }) {
+interface NyanUnicornProps {
+  size?: number;
+}
+
+export function NyanUnicorn({ size = 240 }: NyanUnicornProps) {
   const height = Math.round((size * 110) / 240);
 
   return (

@@ -14,22 +14,23 @@ concurrency:
 
 jobs:
   build:
-    name: Install, build & syntax-check
+    name: Install, typecheck & build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - run: npm ci
 
-      # No bundler/tsc for the server workspace, so a syntax check is the
-      # closest equivalent of "does it compile" for plain ESM Node source.
-      - name: Syntax-check server source
-        run: find server/src -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Typecheck server
+        run: npm run typecheck -w server
+
+      - name: Typecheck client
+        run: npm run typecheck -w client
 
       - name: Build client
         run: npm run build

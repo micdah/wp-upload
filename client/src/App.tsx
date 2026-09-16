@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Container, Stack, Title, Text, Center } from '@mantine/core';
-import { ConnectionStatus, STATUS_BAR_HEIGHT } from './components/ConnectionStatus';
+import { ConnectionStatus, STATUS_BAR_HEIGHT, type StatusResponse } from './components/ConnectionStatus';
 import { Dropzone } from './components/Dropzone';
 import { FileQueue } from './components/FileQueue';
 import { SummaryBar } from './components/SummaryBar';
@@ -10,8 +10,16 @@ import { useUploadQueue } from './hooks/useUploadQueue';
 export default function App() {
   const { items, concurrency, addFiles, retry, retryAllFailed, removeFile, clearCompleted, setConcurrency } =
     useUploadQueue();
-  const [maxFileSizeMb, setMaxFileSizeMb] = useState(null);
-  const [serverConcurrency, setServerConcurrency] = useState(null);
+  const [maxFileSizeMb, setMaxFileSizeMb] = useState<number | null>(null);
+  const [serverConcurrency, setServerConcurrency] = useState<number | null>(null);
+
+  const handleStatus = (status: StatusResponse) => {
+    setMaxFileSizeMb(status.maxFileSizeMb);
+    setServerConcurrency(status.uploadConcurrency);
+    if (status.uploadConcurrency && concurrency > status.uploadConcurrency) {
+      setConcurrency(status.uploadConcurrency);
+    }
+  };
 
   return (
     <>
@@ -44,15 +52,7 @@ export default function App() {
         </Stack>
       </Container>
 
-      <ConnectionStatus
-        onStatus={(status) => {
-          setMaxFileSizeMb(status.maxFileSizeMb);
-          setServerConcurrency(status.uploadConcurrency);
-          if (status.uploadConcurrency && concurrency > status.uploadConcurrency) {
-            setConcurrency(status.uploadConcurrency);
-          }
-        }}
-      />
+      <ConnectionStatus onStatus={handleStatus} />
     </>
   );
 }

@@ -1,7 +1,14 @@
 import { Stack, Text } from '@mantine/core';
 import { FileQueueItem } from './FileQueueItem';
+import type { FileEntry } from '../hooks/useUploadQueue';
 
-export function FileQueue({ items, onRetry, onRemove }) {
+interface FileQueueProps {
+  items: FileEntry[];
+  onRetry: (id: string) => void;
+  onRemove: (id: string) => void;
+}
+
+export function FileQueue({ items, onRetry, onRemove }: FileQueueProps) {
   if (items.length === 0) {
     return (
       <Text c="dimmed" size="sm">

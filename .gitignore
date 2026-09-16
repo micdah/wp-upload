@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+*.tsbuildinfo
 
 # Claude Code local state (worktrees, session data)
 .claude/

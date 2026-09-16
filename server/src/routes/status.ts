@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { env } from '../config/env.js';
-import { connectionState, refreshConnectionIfStale } from '../config/wpClient.js';
+import { env } from '../config/env.ts';
+import { connectionState, refreshConnectionIfStale } from '../config/wpClient.ts';
 
 export const statusRouter = Router();
 

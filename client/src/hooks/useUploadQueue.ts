@@ -1,10 +1,41 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
-import { uploadFile } from '../lib/uploadClient';
+import { uploadFile, type UploadClientError, type UploadResult } from '../lib/uploadClient';
 
 const CONCURRENCY_KEY = 'wp-upload.concurrency';
 const DEFAULT_CONCURRENCY = 3;
 
-function readStoredConcurrency() {
+export type UploadStatus = 'queued' | 'uploading' | 'finalizing' | 'success' | 'error';
+
+export interface FileEntry {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  status: UploadStatus;
+  progress: number;
+  error: UploadClientError | null;
+  result: UploadResult | null;
+  previewUrl: string | null;
+}
+
+interface State {
+  order: string[];
+  files: Record<string, FileEntry>;
+  concurrency: number;
+}
+
+type Action =
+  | { type: 'ADD_FILES'; entries: FileEntry[] }
+  | { type: 'SET_STATUS'; id: string; status: UploadStatus; progress?: number }
+  | { type: 'SET_PROGRESS'; id: string; progress: number }
+  | { type: 'SET_SUCCESS'; id: string; result: UploadResult }
+  | { type: 'SET_ERROR'; id: string; error: UploadClientError }
+  | { type: 'RESET_TO_QUEUED'; ids: string[] }
+  | { type: 'REMOVE'; id: string }
+  | { type: 'CLEAR_COMPLETED' }
+  | { type: 'SET_CONCURRENCY'; concurrency: number };
+
+function readStoredConcurrency(): number {
   try {
     const stored = Number(localStorage.getItem(CONCURRENCY_KEY));
     return stored >= 1 && stored <= 6 ? stored : DEFAULT_CONCURRENCY;
@@ -13,19 +44,19 @@ function readStoredConcurrency() {
   }
 }
 
-function makeId() {
+function makeId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-const initialState = {
+const initialState: State = {
   order: [],
   files: {},
   concurrency: readStoredConcurrency(),
 };
 
-function reducer(state, action) {
+function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'ADD_FILES': {
       const files = { ...state.files };
@@ -41,20 +72,24 @@ function reducer(state, action) {
         ...state,
         files: {
           ...state.files,
-          [action.id]: { ...state.files[action.id], status: action.status, progress: action.progress ?? state.files[action.id].progress },
+          [action.id]: {
+            ...state.files[action.id]!,
+            status: action.status,
+            progress: action.progress ?? state.files[action.id]!.progress,
+          },
         },
       };
     case 'SET_PROGRESS':
       return {
         ...state,
-        files: { ...state.files, [action.id]: { ...state.files[action.id], progress: action.progress } },
+        files: { ...state.files, [action.id]: { ...state.files[action.id]!, progress: action.progress } },
       };
     case 'SET_SUCCESS':
       return {
         ...state,
         files: {
           ...state.files,
-          [action.id]: { ...state.files[action.id], status: 'success', progress: 100, result: action.result, error: null },
+          [action.id]: { ...state.files[action.id]!, status: 'success', progress: 100, result: action.result, error: null },
         },
       };
     case 'SET_ERROR':
@@ -62,7 +97,7 @@ function reducer(state, action) {
         ...state,
         files: {
           ...state.files,
-          [action.id]: { ...state.files[action.id], status: 'error', error: action.error },
+          [action.id]: { ...state.files[action.id]!, status: 'error', error: action.error },
         },
       };
     case 'RESET_TO_QUEUED':
@@ -71,7 +106,7 @@ function reducer(state, action) {
         files: {
           ...state.files,
           ...Object.fromEntries(
-            action.ids.map((id) => [id, { ...state.files[id], status: 'queued', progress: 0, error: null }])
+            action.ids.map((id) => [id, { ...state.files[id]!, status: 'queued', progress: 0, error: null }])
           ),
         },
       };
@@ -81,11 +116,11 @@ function reducer(state, action) {
       return { ...state, files, order: state.order.filter((id) => id !== action.id) };
     }
     case 'CLEAR_COMPLETED': {
-      const files = {};
-      const order = [];
+      const files: Record<string, FileEntry> = {};
+      const order: string[] = [];
       for (const id of state.order) {
-        if (state.files[id].status !== 'success') {
-          files[id] = state.files[id];
+        if (state.files[id]!.status !== 'success') {
+          files[id] = state.files[id]!;
           order.push(id);
         }
       }
@@ -100,15 +135,15 @@ function reducer(state, action) {
 
 export function useUploadQueue() {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const queueRef = useRef([]);
-  const activeRef = useRef(new Set());
-  const abortControllersRef = useRef(new Map());
-  const filesRef = useRef(state.files);
+  const queueRef = useRef<string[]>([]);
+  const activeRef = useRef<Set<string>>(new Set());
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const filesRef = useRef<Record<string, FileEntry>>(state.files);
   filesRef.current = state.files;
   const concurrencyRef = useRef(state.concurrency);
   concurrencyRef.current = state.concurrency;
 
-  const runUpload = useCallback((id) => {
+  const runUpload = useCallback((id: string) => {
     const entry = filesRef.current[id];
     if (!entry) return;
 
@@ -128,7 +163,7 @@ export function useUploadQueue() {
       },
     })
       .then((result) => dispatch({ type: 'SET_SUCCESS', id, result }))
-      .catch((error) => dispatch({ type: 'SET_ERROR', id, error }))
+      .catch((error: UploadClientError) => dispatch({ type: 'SET_ERROR', id, error }))
       .finally(() => {
         activeRef.current.delete(id);
         abortControllersRef.current.delete(id);
@@ -140,14 +175,14 @@ export function useUploadQueue() {
   const pump = useCallback(() => {
     while (activeRef.current.size < concurrencyRef.current && queueRef.current.length > 0) {
       const id = queueRef.current.shift();
-      runUpload(id);
+      if (id) runUpload(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runUpload]);
 
   const addFiles = useCallback(
-    (fileList) => {
-      const entries = Array.from(fileList).map((file) => ({
+    (fileList: File[]) => {
+      const entries: FileEntry[] = Array.from(fileList).map((file) => ({
         id: makeId(),
         file,
         name: file.name,
@@ -169,7 +204,7 @@ export function useUploadQueue() {
   );
 
   const retry = useCallback(
-    (id) => {
+    (id: string) => {
       dispatch({ type: 'RESET_TO_QUEUED', ids: [id] });
       queueRef.current.push(id);
       pump();
@@ -178,42 +213,39 @@ export function useUploadQueue() {
   );
 
   const retryAllFailed = useCallback(() => {
-    const failedIds = state.order.filter((id) => state.files[id].status === 'error');
+    const failedIds = state.order.filter((id) => state.files[id]!.status === 'error');
     if (failedIds.length === 0) return;
     dispatch({ type: 'RESET_TO_QUEUED', ids: failedIds });
     queueRef.current.push(...failedIds);
     pump();
   }, [state.order, state.files, pump]);
 
-  const removeFile = useCallback((id) => {
+  const removeFile = useCallback((id: string) => {
     abortControllersRef.current.get(id)?.abort();
     queueRef.current = queueRef.current.filter((qid) => qid !== id);
     if (filesRef.current[id]?.previewUrl) {
-      URL.revokeObjectURL(filesRef.current[id].previewUrl);
+      URL.revokeObjectURL(filesRef.current[id]!.previewUrl!);
     }
     dispatch({ type: 'REMOVE', id });
   }, []);
 
   const clearCompleted = useCallback(() => {
     for (const id of state.order) {
-      if (state.files[id].status === 'success' && state.files[id].previewUrl) {
-        URL.revokeObjectURL(state.files[id].previewUrl);
+      if (state.files[id]!.status === 'success' && state.files[id]!.previewUrl) {
+        URL.revokeObjectURL(state.files[id]!.previewUrl!);
       }
     }
     dispatch({ type: 'CLEAR_COMPLETED' });
   }, [state.order, state.files]);
 
-  const setConcurrency = useCallback(
-    (concurrency) => {
-      dispatch({ type: 'SET_CONCURRENCY', concurrency });
-      try {
-        localStorage.setItem(CONCURRENCY_KEY, String(concurrency));
-      } catch {
-        // localStorage may be unavailable (private browsing); non-fatal.
-      }
-    },
-    []
-  );
+  const setConcurrency = useCallback((concurrency: number) => {
+    dispatch({ type: 'SET_CONCURRENCY', concurrency });
+    try {
+      localStorage.setItem(CONCURRENCY_KEY, String(concurrency));
+    } catch {
+      // localStorage may be unavailable (private browsing); non-fatal.
+    }
+  }, []);
 
   // Concurrency was raised while items were already queued.
   useEffect(() => {
@@ -229,7 +261,7 @@ export function useUploadQueue() {
     };
   }, []);
 
-  const items = state.order.map((id) => state.files[id]);
+  const items = state.order.map((id) => state.files[id]!);
 
   return {
     items,
