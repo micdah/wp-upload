@@ -6,8 +6,16 @@ const MAX_FAILURES = 10
 const WINDOW_MS = 5 * 60 * 1000
 
 // IP -> { count, windowStart }. In-memory is fine for a single-process,
-// single-instance app; a restart just resets the lockout.
-const failures = new Map<string, { count: number; windowStart: number }>()
+// single-instance app; a restart just resets the lockout. Exported (not
+// module-private) so the spec can assert on it directly.
+//
+// sweepExpired() below prunes stale entries on every request, not just
+// when the same IP happens to come back - otherwise an IP that fails once
+// and never returns would sit here for the life of the process (see #3).
+export const failures = new Map<
+  string,
+  { count: number; windowStart: number }
+>()
 
 function hash(value: string): Buffer {
   return crypto.createHash('sha256').update(value).digest()
@@ -39,11 +47,20 @@ function recordFailure(ip: string): void {
   }
 }
 
+function sweepExpired(): void {
+  const now = Date.now()
+  for (const [ip, entry] of failures) {
+    if (now - entry.windowStart > WINDOW_MS) failures.delete(ip)
+  }
+}
+
 export function basicAuth(
   req: Request,
   res: Response,
   next: NextFunction,
 ): void {
+  sweepExpired()
+
   const ip = req.ip ?? 'unknown'
 
   if (isLockedOut(ip)) {

@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import { describe, expect, it, vi } from 'vitest'
-import { basicAuth } from './basicAuth.ts'
+import { basicAuth, failures } from './basicAuth.ts'
 
 function basicAuthHeader(user: string, pass: string): string {
   return `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`
@@ -119,6 +119,39 @@ describe.concurrent('basicAuth', () => {
 
       expect(next).toHaveBeenCalledTimes(1)
       expect(res.status).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("opportunistically sweeps other IPs' stale entries on every request", () => {
+    const ipA = '10.0.0.8'
+    const ipB = '10.0.0.9'
+    const ipC = '10.0.0.10'
+    vi.useFakeTimers()
+    try {
+      const failA = createReqRes(ipA, basicAuthHeader('wrong', 'wrong'))
+      basicAuth(failA.req, failA.res, failA.next)
+      const failB = createReqRes(ipB, basicAuthHeader('wrong', 'wrong'))
+      basicAuth(failB.req, failB.res, failB.next)
+
+      expect(failures.has(ipA)).toBe(true)
+      expect(failures.has(ipB)).toBe(true)
+
+      vi.advanceTimersByTime(5 * 60 * 1000 + 1)
+
+      // A request from an unrelated IP should sweep A and B's now-expired
+      // entries too, not just its own - an IP that never comes back must
+      // not linger in the map forever (issue #3).
+      const { req, res, next } = createReqRes(
+        ipC,
+        basicAuthHeader('test-auth-user', 'test-auth-password'),
+      )
+      basicAuth(req, res, next)
+
+      expect(failures.has(ipA)).toBe(false)
+      expect(failures.has(ipB)).toBe(false)
+      expect(next).toHaveBeenCalledTimes(1)
     } finally {
       vi.useRealTimers()
     }
