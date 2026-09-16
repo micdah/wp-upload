@@ -30,7 +30,15 @@ export function SummaryBar({
       acc[item.status] = (acc[item.status] || 0) + 1
       return acc
     },
-    { queued: 0, uploading: 0, finalizing: 0, success: 0, error: 0 },
+    {
+      checking: 0,
+      queued: 0,
+      uploading: 0,
+      finalizing: 0,
+      duplicate: 0,
+      success: 0,
+      error: 0,
+    },
   )
 
   return (
@@ -39,8 +47,17 @@ export function SummaryBar({
         <Text size='sm'>{items.length} total</Text>
         <Text size='sm'>{counts.success} uploaded</Text>
         <Text size='sm'>{counts.error} failed</Text>
+        {counts.duplicate > 0 && (
+          <Text size='sm' c='yellow'>
+            {counts.duplicate} need confirmation
+          </Text>
+        )}
         <Text size='sm'>
-          {counts.queued + counts.uploading + counts.finalizing} in progress
+          {counts.checking +
+            counts.queued +
+            counts.uploading +
+            counts.finalizing}{' '}
+          in progress
         </Text>
       </Group>
 

@@ -3,7 +3,13 @@ import fs from 'node:fs'
 import type { AxiosResponse } from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { connectionState, wpAxios } from '../config/wpClient.ts'
-import { isWpError, normaliseWpError, uploadToWordPress } from './wpUpload.ts'
+import {
+  filenameToSlug,
+  findExistingMediaBySlug,
+  isWpError,
+  normaliseWpError,
+  uploadToWordPress,
+} from './wpUpload.ts'
 
 describe.concurrent('normaliseWpError', () => {
   it('maps ECONNABORTED to a 504 timeout error', () => {
@@ -228,6 +234,96 @@ describe('uploadToWordPress', () => {
       status: 502,
       code: 'wp_unreachable',
       message: expect.stringContaining('ERR_CANCELED'),
+    })
+  })
+})
+
+describe.concurrent('filenameToSlug', () => {
+  it('strips the extension and lowercases', () => {
+    expect(filenameToSlug('Photo.PNG')).toBe('photo')
+  })
+
+  it('replaces runs of non-alphanumeric characters with a single dash', () => {
+    expect(filenameToSlug('My Summer Trip (2024)!!.jpg')).toBe(
+      'my-summer-trip-2024',
+    )
+  })
+
+  it('strips leading/trailing dashes left by punctuation at the edges', () => {
+    expect(filenameToSlug('-- weird_name --.jpg')).toBe('weird-name')
+  })
+
+  it('strips accents', () => {
+    expect(filenameToSlug('café.jpg')).toBe('cafe')
+  })
+
+  it('returns an empty string for a filename with no sluggable characters', () => {
+    expect(filenameToSlug('.jpg')).toBe('')
+  })
+})
+
+// Plain describe: spies on the shared wpAxios.get instance.
+describe('findExistingMediaBySlug', () => {
+  it('returns [] without calling WordPress when the slug is empty', async () => {
+    const getSpy = vi.spyOn(wpAxios, 'get')
+
+    const result = await findExistingMediaBySlug('.jpg')
+
+    expect(result).toEqual([])
+    expect(getSpy).not.toHaveBeenCalled()
+  })
+
+  it('maps matching media items from the slug lookup', async () => {
+    vi.spyOn(wpAxios, 'get').mockResolvedValue({
+      data: [
+        {
+          id: 7,
+          title: { rendered: 'Photo' },
+          source_url: 'https://example.invalid/photo.png',
+        },
+      ],
+    } as unknown as AxiosResponse)
+
+    const result = await findExistingMediaBySlug('Photo.png')
+
+    expect(result).toEqual([
+      { id: 7, title: 'Photo', sourceUrl: 'https://example.invalid/photo.png' },
+    ])
+  })
+
+  it('queries by the slugified filename', async () => {
+    const getSpy = vi
+      .spyOn(wpAxios, 'get')
+      .mockResolvedValue({ data: [] } as unknown as AxiosResponse)
+
+    await findExistingMediaBySlug('My Photo.png')
+
+    expect(getSpy).toHaveBeenCalledWith(
+      '/wp-json/wp/v2/media',
+      expect.objectContaining({
+        params: expect.objectContaining({ slug: 'my-photo' }),
+      }),
+    )
+  })
+
+  it('returns [] when WordPress responds with something unexpected', async () => {
+    vi.spyOn(wpAxios, 'get').mockResolvedValue({
+      data: null,
+    } as unknown as AxiosResponse)
+
+    const result = await findExistingMediaBySlug('photo.png')
+
+    expect(result).toEqual([])
+  })
+
+  it('throws a normalised WpError when the lookup fails', async () => {
+    vi.spyOn(wpAxios, 'get').mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 500, data: {} },
+    })
+
+    await expect(findExistingMediaBySlug('photo.png')).rejects.toMatchObject({
+      status: 500,
     })
   })
 })

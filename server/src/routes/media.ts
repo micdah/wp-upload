@@ -3,7 +3,11 @@ import os from 'node:os'
 import { Router } from 'express'
 import multer from 'multer'
 import { env } from '../config/env.ts'
-import { isWpError, uploadToWordPress } from '../lib/wpUpload.ts'
+import {
+  findExistingMediaBySlug,
+  isWpError,
+  uploadToWordPress,
+} from '../lib/wpUpload.ts'
 
 const upload = multer({
   dest: os.tmpdir(),
@@ -37,6 +41,29 @@ export function getActiveUploadCount(): number {
 }
 
 export const mediaRouter = Router()
+
+// Lightweight pre-flight check the client runs before queuing an upload, so
+// it can warn the user rather than silently creating a same-named duplicate.
+// Doesn't touch the upload concurrency gate above - it's a single cheap GET,
+// not a proxy of the heavy media upload itself.
+mediaRouter.get('/media/check', async (req, res, next) => {
+  const filename = req.query.filename
+  if (typeof filename !== 'string' || !filename) {
+    return res
+      .status(400)
+      .json({ code: 'no_filename', message: 'No filename was provided.' })
+  }
+
+  try {
+    const matches = await findExistingMediaBySlug(filename)
+    res.json({ duplicate: matches.length > 0, matches })
+  } catch (wpError) {
+    if (!isWpError(wpError)) return next(wpError)
+    res
+      .status(wpError.status || 502)
+      .json({ code: wpError.code, message: wpError.message })
+  }
+})
 
 mediaRouter.post('/media', (req, res, next) => {
   upload.single('file')(req, res, async (err) => {

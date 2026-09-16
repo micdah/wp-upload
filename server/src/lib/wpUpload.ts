@@ -25,6 +25,49 @@ export interface UploadResult {
   mimeType: string
 }
 
+export interface ExistingMedia {
+  id: number
+  title: string
+  sourceUrl: string
+}
+
+// Approximates WordPress's sanitize_title_with_dashes() closely enough to
+// find likely name collisions - it doesn't need to be byte-for-byte
+// identical, since a missed match just means no warning is shown (see #28).
+export function filenameToSlug(filename: string): string {
+  const base = filename.replace(/\.[^./]+$/, '')
+  return base
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+// Looks up existing media by the filename's likely slug. WordPress only
+// dedupes filenames within the same year/month upload folder, so this is a
+// best-effort "have I already uploaded this?" nudge, not a guarantee - see
+// the investigation notes on issue #28.
+export async function findExistingMediaBySlug(
+  filename: string,
+): Promise<ExistingMedia[]> {
+  const slug = filenameToSlug(filename)
+  if (!slug) return []
+
+  try {
+    const { data } = await wpAxios.get('/wp-json/wp/v2/media', {
+      params: { slug, _fields: 'id,title,source_url' },
+    })
+    return (Array.isArray(data) ? data : []).map((item) => ({
+      id: item.id,
+      title: item.title?.rendered ?? slug,
+      sourceUrl: item.source_url,
+    }))
+  } catch (err) {
+    throw normaliseWpError(err)
+  }
+}
+
 // Streams a multer temp file to WordPress's media endpoint. Never buffers
 // the whole file in memory. Throws a normalised { status, code, message }
 // on any failure so the route handler can respond consistently.
