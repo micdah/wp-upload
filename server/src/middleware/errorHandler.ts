@@ -2,11 +2,16 @@ import type { ErrorRequestHandler } from 'express'
 import multer from 'multer'
 
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
-  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-    res.status(413).json({
-      code: 'file_too_large',
-      message: 'File exceeds the configured maximum size (MAX_FILE_SIZE_MB).',
-    })
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({
+        code: 'file_too_large',
+        message: 'File exceeds the configured maximum size (MAX_FILE_SIZE_MB).',
+      })
+      return
+    }
+
+    res.status(400).json({ code: 'upload_error', message: err.message })
     return
   }
 

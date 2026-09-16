@@ -61,7 +61,13 @@ mediaRouter.post('/media', (req, res, next) => {
         .json({ code: wpError.code, message: wpError.message })
     } finally {
       releaseSlot()
-      fs.unlink(file.path, () => {})
+      fs.unlink(file.path, (unlinkErr) => {
+        if (unlinkErr)
+          console.error(
+            `Failed to remove temp upload file ${file.path}:`,
+            unlinkErr,
+          )
+      })
     }
   })
 })
