@@ -67,7 +67,7 @@ docker run -d -p 3001:3001 \
   wp-upload
 ```
 
-The image is a multi-stage build ending on `gcr.io/distroless/nodejs22-debian12:nonroot` — no shell, no package manager, and the process runs as a non-root user (UID 65532). There's no `.env` file inside the image; every variable in `server/.env.example` (`WP_URL`, `WP_USERNAME`, `WP_APP_PASSWORD`, `AUTH_USERNAME`, `AUTH_PASSWORD`, and the optional `HOST`/`PORT`/`UPLOAD_CONCURRENCY`/`MAX_FILE_SIZE_MB`/`TRUST_PROXY`) is passed in via `-e` (or your orchestrator's env/secret mechanism) instead. `PORT` defaults to `3001` and `HOST` to `0.0.0.0` inside the container already, so you generally only need to set `-p <host-port>:3001` to match.
+The image is a multi-stage build ending on `gcr.io/distroless/nodejs22-debian12:nonroot` — no shell, no package manager, and the process runs as a non-root user (UID 65532). There's no `.env` file inside the image; every variable in `server/.env.example` (`WP_URL`, `WP_USERNAME`, `WP_APP_PASSWORD`, `AUTH_USERNAME`, `AUTH_PASSWORD`, and the optional `HOST`/`PORT`/`UPLOAD_CONCURRENCY`/`MAX_FILE_SIZE_MB`/`WP_REQUEST_TIMEOUT_MS`/`TRUST_PROXY`) is passed in via `-e` (or your orchestrator's env/secret mechanism) instead. `PORT` defaults to `3001` and `HOST` to `0.0.0.0` inside the container already, so you generally only need to set `-p <host-port>:3001` to match.
 
 A `GET /healthz` route (no login required) is available for container/orchestrator health checks — it just confirms the process is up, without touching WordPress or requiring credentials.
 
@@ -100,3 +100,4 @@ The app is protected by a login (HTTP Basic Auth, checked against `AUTH_USERNAME
 - Credentials are only ever stored server-side in `server/.env` — the browser never sees them.
 - Changes to `.env` require restarting the server (`npm run dev` / `npm run start`).
 - Parallel upload count is adjustable in the UI (capped at the server's `UPLOAD_CONCURRENCY`) and remembered in the browser.
+- `WP_REQUEST_TIMEOUT_MS` (default 5 minutes) bounds how long the server waits on each WordPress upload request before giving up. It's set well above a normal network round trip because WordPress keeps the connection open while it generates scaled-down image versions after receiving the file, which can take a while under many parallel uploads.

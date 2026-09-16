@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { wpAxios } from '../config/wpClient.js';
+import { invalidateConnection, wpAxios } from '../config/wpClient.js';
 
 // Streams a multer temp file to WordPress's media endpoint. Never buffers
 // the whole file in memory. Throws a normalised { status, code, message }
@@ -25,11 +25,23 @@ export async function uploadToWordPress(file) {
       mimeType: data.mime_type,
     };
   } catch (err) {
-    throw normaliseWpError(err);
+    const wpError = normaliseWpError(err);
+    if (wpError.status === 401 || wpError.status === 403) {
+      invalidateConnection('WordPress rejected the configured credentials.');
+    }
+    throw wpError;
   }
 }
 
 function normaliseWpError(err) {
+  if (err.code === 'ECONNABORTED') {
+    return {
+      status: 504,
+      code: 'wp_timeout',
+      message: 'WordPress did not respond in time. The upload was aborted so it would not block others.',
+    };
+  }
+
   if (err.response) {
     const { status, data } = err.response;
     // WordPress normally returns JSON like { code, message }, but a WAF,
