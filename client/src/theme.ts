@@ -1,4 +1,4 @@
-import { createTheme, type MantineColorsTuple } from '@mantine/core';
+import { createTheme, type MantineColorsTuple } from '@mantine/core'
 
 // A cyan-to-blue "neon" palette, lightest to darkest.
 const neon: MantineColorsTuple = [
@@ -12,7 +12,7 @@ const neon: MantineColorsTuple = [
   '#0099ff',
   '#0070e0',
   '#0047a3',
-];
+]
 
 // Mantine's neutral "dark" palette, shifted from gray to a blue-black tint
 // so surfaces/borders/body background all carry the cyberpunk hue instead
@@ -28,7 +28,7 @@ const dark: MantineColorsTuple = [
   '#0d1420',
   '#080d16',
   '#03060b',
-];
+]
 
 export const theme = createTheme({
   primaryColor: 'neon',
@@ -41,4 +41,4 @@ export const theme = createTheme({
     fontFamily: 'Orbitron, sans-serif',
     fontWeight: '700',
   },
-});
+})

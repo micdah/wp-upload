@@ -1,40 +1,46 @@
-import dotenv from 'dotenv';
+import dotenv from 'dotenv'
 
-dotenv.config();
+dotenv.config()
 
-const REQUIRED_VARS = ['WP_URL', 'WP_USERNAME', 'WP_APP_PASSWORD', 'AUTH_USERNAME', 'AUTH_PASSWORD'];
+const REQUIRED_VARS = [
+  'WP_URL',
+  'WP_USERNAME',
+  'WP_APP_PASSWORD',
+  'AUTH_USERNAME',
+  'AUTH_PASSWORD',
+]
 
 export interface Env {
-  wpUrl: string;
-  wpUsername: string;
-  wpAppPassword: string;
-  host: string;
-  port: number;
-  uploadConcurrency: number;
-  maxFileSizeMb: number;
-  wpRequestTimeoutMs: number;
-  authUsername: string;
-  authPassword: string;
-  trustProxy: boolean;
+  wpUrl: string
+  wpUsername: string
+  wpAppPassword: string
+  host: string
+  port: number
+  uploadConcurrency: number
+  maxFileSizeMb: number
+  wpRequestTimeoutMs: number
+  authUsername: string
+  authPassword: string
+  trustProxy: boolean
 }
 
 export function loadEnv(): Env {
-  const missing = REQUIRED_VARS.filter((key) => !process.env[key]);
+  const missing = REQUIRED_VARS.filter((key) => !process.env[key])
   if (missing.length > 0) {
     console.error(
       `Missing required environment variable(s): ${missing.join(', ')}.\n` +
         'Copy server/.env.example to server/.env and fill in your WordPress site details ' +
-        '(create an Application Password under wp-admin -> Users -> Profile).'
-    );
-    process.exit(1);
+        '(create an Application Password under wp-admin -> Users -> Profile).',
+    )
+    process.exit(1)
   }
 
-  let wpUrl: URL;
+  let wpUrl: URL
   try {
-    wpUrl = new URL(process.env.WP_URL as string);
+    wpUrl = new URL(process.env.WP_URL as string)
   } catch {
-    console.error(`WP_URL is not a valid URL: "${process.env.WP_URL}"`);
-    process.exit(1);
+    console.error(`WP_URL is not a valid URL: "${process.env.WP_URL}"`)
+    process.exit(1)
   }
 
   return {
@@ -52,7 +58,7 @@ export function loadEnv(): Env {
     // itself and strips any client-supplied one - otherwise this lets clients
     // spoof their IP and bypass the login rate limit entirely.
     trustProxy: process.env.TRUST_PROXY === 'true',
-  };
+  }
 }
 
-export const env = loadEnv();
+export const env = loadEnv()
