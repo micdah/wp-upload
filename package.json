@@ -21,11 +21,13 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "check": "biome ci .",
-    "check:fix": "biome check --write ."
+    "check:fix": "biome check --write .",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
     "concurrently": "^9.1.0",
+    "husky": "^9.1.7",
     "typescript": "^5.8.0"
   }
 }
