@@ -2,6 +2,8 @@
 
 A local web app for uploading multiple media files to your WordPress site in parallel, via the WordPress REST API.
 
+![Screenshot of the WordPress Media Uploader interface, showing three uploaded image files with progress bars and an "Uploaded" status badge each](docs/screenshot.png)
+
 ## Setup
 
 1. Install dependencies:
