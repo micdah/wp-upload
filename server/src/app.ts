@@ -10,7 +10,7 @@ import { serverLoadRouter } from './routes/serverLoad.ts'
 import { statusRouter } from './routes/status.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const clientDist = path.resolve(__dirname, '../../client/dist')
+export const clientDist = path.resolve(__dirname, '../../client/dist')
 
 export const app = express()
 app.set('trust proxy', env.trustProxy)
