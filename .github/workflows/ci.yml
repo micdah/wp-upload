@@ -29,17 +29,17 @@ jobs:
       - name: Check formatting & linting
         run: npm run check
 
-      - name: Typecheck server
-        run: npm run typecheck -w server
-
-      - name: Test server
-        run: npm run test -w server
-
       - name: Typecheck client
         run: npm run typecheck -w client
 
       - name: Build client
         run: npm run build
+
+      - name: Typecheck server
+        run: npm run typecheck -w server
+
+      - name: Test server
+        run: npm run test -w server
 
   docker:
     name: Build & run Docker image
