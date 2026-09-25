@@ -1,4 +1,4 @@
-import { Box, Group, Text } from '@mantine/core'
+import { Box, Flex, Group, Text } from '@mantine/core'
 import { useEffect, useState } from 'react'
 import { ServerLoadStats } from './ServerLoadStats'
 
@@ -74,8 +74,15 @@ export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
   }
 
   return (
-    <Box className='cyber-statusbar' h={STATUS_BAR_HEIGHT} px='md'>
-      <Group gap={16} wrap='wrap' justify='center' h='100%'>
+    <Box className='cyber-statusbar' px='md'>
+      <Flex
+        gap={16}
+        wrap='wrap'
+        justify='center'
+        align='center'
+        mih={STATUS_BAR_HEIGHT}
+        h='100%'
+      >
         <Group gap={8} wrap='nowrap'>
           <Box
             w={7}
@@ -88,7 +95,7 @@ export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
           </Text>
         </Group>
         <ServerLoadStats />
-      </Group>
+      </Flex>
     </Box>
   )
 }
