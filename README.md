@@ -2,7 +2,7 @@
 
 A local web app for uploading multiple media files to your WordPress site in parallel, via the WordPress REST API.
 
-![Screenshot of the WordPress Media Uploader interface, showing a cyberpunk-themed upload queue with image thumbnails, three uploaded files and two finalizing, and a bottom status bar with WordPress connection info and live CPU/memory/disk usage rings](docs/screenshot.png)
+![Screenshot of the WordPress Media Uploader interface, showing a cyberpunk-themed upload queue with image thumbnails, a FileBird folder picker with a nested folder selected as the upload target, queue items labelled with the folder they're being filed into, uploaded, duplicate, failed and finalizing items, and a bottom status bar with WordPress connection info and live CPU/memory/disk usage rings](docs/screenshot.png)
 
 ## Using the Docker image
 
