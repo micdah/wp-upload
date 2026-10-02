@@ -5,7 +5,8 @@ dist/
 *.tsbuildinfo
 
 # Claude Code local state (worktrees, session data)
-.claude/
+.claude/*
+!.claude/skills/
 
 # OS/editor
 .DS_Store
