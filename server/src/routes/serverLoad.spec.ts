@@ -7,13 +7,13 @@ vi.mock('../config/serverLoad.ts', async (importOriginal) => {
     await importOriginal<typeof import('../config/serverLoad.ts')>()
   return { ...actual, getLatestSnapshot: vi.fn() }
 })
-vi.mock('./media.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./media.ts')>()
+vi.mock('../lib/uploadJobs.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/uploadJobs.ts')>()
   return { ...actual, getActiveUploadCount: vi.fn() }
 })
 
 import { getLatestSnapshot } from '../config/serverLoad.ts'
-import { getActiveUploadCount } from './media.ts'
+import { getActiveUploadCount } from '../lib/uploadJobs.ts'
 import { serverLoadRouter } from './serverLoad.ts'
 
 const SNAPSHOT = {

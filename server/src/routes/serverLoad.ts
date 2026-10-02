@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { env } from '../config/env.ts'
 import { getLatestSnapshot } from '../config/serverLoad.ts'
-import { getActiveUploadCount } from './media.ts'
+import { getActiveUploadCount } from '../lib/uploadJobs.ts'
 
 export const serverLoadRouter = Router()
 
