@@ -84,6 +84,7 @@ describe.concurrent('loadEnv', () => {
         MAX_FILE_SIZE_MB: undefined,
         WP_REQUEST_TIMEOUT_MS: undefined,
         TRUST_PROXY: undefined,
+        FILEBIRD_API_KEY: undefined,
       },
       () => {
         expect(loadEnv()).toEqual({
@@ -98,6 +99,7 @@ describe.concurrent('loadEnv', () => {
           authUsername: REQUIRED_ENV.AUTH_USERNAME,
           authPassword: REQUIRED_ENV.AUTH_PASSWORD,
           trustProxy: false,
+          filebirdApiKey: null,
         })
       },
     )
@@ -121,6 +123,15 @@ describe.concurrent('loadEnv', () => {
     })
     withEnv({ ...REQUIRED_ENV, TRUST_PROXY: 'true' }, () => {
       expect(loadEnv().trustProxy).toBe(true)
+    })
+  })
+
+  it('treats a blank FILEBIRD_API_KEY as unset, and trims a set one', () => {
+    withEnv({ ...REQUIRED_ENV, FILEBIRD_API_KEY: '   ' }, () => {
+      expect(loadEnv().filebirdApiKey).toBeNull()
+    })
+    withEnv({ ...REQUIRED_ENV, FILEBIRD_API_KEY: ' fb-key ' }, () => {
+      expect(loadEnv().filebirdApiKey).toBe('fb-key')
     })
   })
 })

@@ -22,6 +22,7 @@ export interface Env {
   authUsername: string
   authPassword: string
   trustProxy: boolean
+  filebirdApiKey: string | null
 }
 
 export function loadEnv(): Env {
@@ -58,6 +59,8 @@ export function loadEnv(): Env {
     // itself and strips any client-supplied one - otherwise this lets clients
     // spoof their IP and bypass the login rate limit entirely.
     trustProxy: process.env.TRUST_PROXY === 'true',
+    // Optional - setting it is what enables FileBird folder support (#38).
+    filebirdApiKey: process.env.FILEBIRD_API_KEY?.trim() || null,
   }
 }
 

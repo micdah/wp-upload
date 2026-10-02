@@ -5,6 +5,7 @@ import express from 'express'
 import { env } from './config/env.ts'
 import { basicAuth } from './middleware/basicAuth.ts'
 import { errorHandler } from './middleware/errorHandler.ts'
+import { foldersRouter } from './routes/folders.ts'
 import { mediaRouter } from './routes/media.ts'
 import { serverLoadRouter } from './routes/serverLoad.ts'
 import { statusRouter } from './routes/status.ts'
@@ -20,6 +21,7 @@ app.get('/healthz', (_req, res) => res.status(200).send('ok'))
 app.use(basicAuth)
 
 app.use('/api', mediaRouter)
+app.use('/api', foldersRouter)
 app.use('/api', statusRouter)
 app.use('/api', serverLoadRouter)
 

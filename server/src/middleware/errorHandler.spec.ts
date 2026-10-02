@@ -53,4 +53,19 @@ describe.concurrent('errorHandler', () => {
       message: err.message,
     })
   })
+
+  it('maps an express.json() parse failure to a 400', () => {
+    const res = createRes()
+    const err = Object.assign(new SyntaxError('Unexpected token'), {
+      type: 'entity.parse.failed',
+    })
+
+    errorHandler(err, {} as Request, res as unknown as Response, vi.fn())
+
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith({
+      code: 'invalid_json',
+      message: 'Request body is not valid JSON.',
+    })
+  })
 })
