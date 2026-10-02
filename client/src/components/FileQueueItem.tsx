@@ -11,6 +11,7 @@ import {
   Text,
 } from '@mantine/core'
 import type { FileEntry, UploadStatus } from '../hooks/useUploadQueue'
+import { FolderIcon } from './FolderIcon'
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -86,6 +87,7 @@ export function FileQueueItem({
 }: FileQueueItemProps) {
   const isFinalizing = item.status === 'finalizing'
   const isDuplicate = item.status === 'duplicate'
+  const folderAssignment = item.result?.folder
 
   return (
     <Paper component='li' withBorder p='sm' radius='md' className='cyber-card'>
@@ -101,6 +103,15 @@ export function FileQueueItem({
               {formatSize(item.size)}
             </Text>
           </Group>
+
+          {item.folder && (
+            <Group gap={4} wrap='nowrap' c='neon.4'>
+              <FolderIcon size={12} />
+              <Text size='xs' c='neon.4' truncate>
+                {item.folder.name}
+              </Text>
+            </Group>
+          )}
 
           <Group gap='sm' align='center' wrap='nowrap'>
             <Progress
@@ -150,6 +161,14 @@ export function FileQueueItem({
               View uploaded file
             </Anchor>
           )}
+          {item.status === 'success' &&
+            folderAssignment &&
+            !folderAssignment.assigned && (
+              <Text c='yellow' size='sm'>
+                Uploaded, but not filed into “{item.folder?.name}” - it's in
+                Uncategorized: {folderAssignment.message}
+              </Text>
+            )}
 
           <Group gap='xs'>
             {item.status === 'error' && (

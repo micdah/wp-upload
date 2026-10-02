@@ -7,9 +7,11 @@ import {
 } from './components/ConnectionStatus'
 import { Dropzone } from './components/Dropzone'
 import { FileQueue } from './components/FileQueue'
+import { FolderPicker } from './components/FolderPicker'
 import { NyanUnicorn } from './components/NyanUnicorn'
 import { SummaryBar } from './components/SummaryBar'
 import { useUploadQueue } from './hooks/useUploadQueue'
+import type { SelectedFolder } from './lib/folderClient'
 
 export default function App() {
   const {
@@ -27,10 +29,13 @@ export default function App() {
   const [serverConcurrency, setServerConcurrency] = useState<number | null>(
     null,
   )
+  const [filebirdEnabled, setFilebirdEnabled] = useState(false)
+  const [folder, setFolder] = useState<SelectedFolder | null>(null)
 
   const handleStatus = (status: StatusResponse) => {
     setMaxFileSizeMb(status.maxFileSizeMb)
     setServerConcurrency(status.uploadConcurrency)
+    setFilebirdEnabled(status.filebirdEnabled)
     if (status.uploadConcurrency && concurrency > status.uploadConcurrency) {
       setConcurrency(status.uploadConcurrency)
     }
@@ -50,13 +55,21 @@ export default function App() {
           </Stack>
 
           <Stack gap={4}>
-            <Dropzone onFiles={addFiles} />
+            <Dropzone
+              onFiles={(files) =>
+                addFiles(files, filebirdEnabled ? folder : null)
+              }
+            />
             {maxFileSizeMb && (
               <Text size='xs' c='dimmed'>
                 Maximum file size: {maxFileSizeMb} MB per file.
               </Text>
             )}
           </Stack>
+
+          {filebirdEnabled && (
+            <FolderPicker value={folder} onChange={setFolder} />
+          )}
 
           <SummaryBar
             items={items}
