@@ -280,7 +280,12 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
               </Text>
             </UnstyledButton>
 
-            {creatingUnder === ROOT_ID && <Box pl={4}>{newFolderInput}</Box>}
+            {creatingUnder === ROOT_ID && (
+              <Group gap={2} wrap='nowrap'>
+                <Box w={22} style={{ flexShrink: 0 }} />
+                {newFolderInput}
+              </Group>
+            )}
 
             {folders.length === 0 && creatingUnder !== ROOT_ID && (
               <Text size='xs' c='dimmed' py={4} pl={8}>
@@ -295,8 +300,12 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
               expandOnClick={false}
               renderNode={({ node, expanded, elementProps }) => {
                 if (node.value === NEW_FOLDER_VALUE) {
+                  // Same layout as a folder row (the Tree's per-level indent
+                  // from elementProps, then a chevron-sized spacer), so the
+                  // input lines up with the subfolders it'll sit among.
                   return (
-                    <Group {...elementProps} gap={0} wrap='nowrap' pl={22}>
+                    <Group {...elementProps} gap={2} wrap='nowrap'>
+                      <Box w={22} style={{ flexShrink: 0 }} />
                       {newFolderInput}
                     </Group>
                   )
