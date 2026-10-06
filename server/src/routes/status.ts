@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { env } from '../config/env.ts'
+import { isFilebirdEnabled } from '../config/filebirdClient.ts'
 import {
   connectionState,
   refreshConnectionIfStale,
@@ -16,5 +17,6 @@ statusRouter.get('/status', (_req, res) => {
     wpUrl: env.wpUrl,
     maxFileSizeMb: env.maxFileSizeMb,
     uploadConcurrency: env.uploadConcurrency,
+    filebirdEnabled: isFilebirdEnabled(),
   })
 })

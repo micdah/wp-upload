@@ -15,6 +15,15 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return
   }
 
+  // Raised by express.json() (e.g. on POST /api/folders) for a malformed body.
+  if (err?.type === 'entity.parse.failed') {
+    res.status(400).json({
+      code: 'invalid_json',
+      message: 'Request body is not valid JSON.',
+    })
+    return
+  }
+
   console.error(err)
   res.status(500).json({
     code: 'internal_error',

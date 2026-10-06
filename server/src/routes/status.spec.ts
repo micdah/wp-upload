@@ -7,6 +7,7 @@ vi.mock('../config/wpClient.ts', async (importOriginal) => {
   return { ...actual, refreshConnectionIfStale: vi.fn() }
 })
 
+import { env } from '../config/env.ts'
 import {
   connectionState,
   refreshConnectionIfStale,
@@ -52,5 +53,23 @@ describe('GET /status', () => {
     await request(app).get('/status')
 
     expect(refreshConnectionIfStale).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports whether FileBird support is enabled', async () => {
+    const app = buildApp()
+    const original = env.filebirdApiKey
+    try {
+      env.filebirdApiKey = null
+      expect((await request(app).get('/status')).body.filebirdEnabled).toBe(
+        false,
+      )
+
+      env.filebirdApiKey = 'fb-key'
+      expect((await request(app).get('/status')).body.filebirdEnabled).toBe(
+        true,
+      )
+    } finally {
+      env.filebirdApiKey = original
+    }
   })
 })

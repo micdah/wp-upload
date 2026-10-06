@@ -3,16 +3,23 @@ export interface UploadClientError {
   message: string
 }
 
+export type FolderAssignment =
+  | { id: number; assigned: true }
+  | { id: number; assigned: false; message: string }
+
 export interface UploadResult {
   id: number
   title: string
   sourceUrl: string
   mimeType: string
+  // Only present when the upload asked to be filed into a FileBird folder.
+  folder?: FolderAssignment
 }
 
 export interface UploadOptions {
   onProgress?: (percent: number) => void
   signal?: AbortSignal
+  folderId?: number
 }
 
 export interface ExistingMedia {
@@ -47,11 +54,13 @@ export async function checkDuplicate(
 // progress events for the browser -> local backend leg.
 export function uploadFile(
   file: File,
-  { onProgress, signal }: UploadOptions = {},
+  { onProgress, signal, folderId }: UploadOptions = {},
 ): Promise<UploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     const formData = new FormData()
+    // Appended before the file so the field is parsed ahead of the upload.
+    if (folderId) formData.append('folderId', String(folderId))
     formData.append('file', file)
 
     xhr.open('POST', '/api/media')
