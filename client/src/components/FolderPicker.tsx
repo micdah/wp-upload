@@ -161,8 +161,10 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
     }
   }
 
+  // pl={10} matches .cyber-folder-row's 2px left border + 8px padding, so the
+  // input's edge lines up with the folder icons rather than the row edges.
   const newFolderInput = (
-    <Stack gap={2} py={2} style={{ flex: 1 }}>
+    <Stack gap={2} py={2} pl={10} style={{ flex: 1 }}>
       <Group gap={6} wrap='nowrap'>
         <TextInput
           size='xs'
