@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import express from 'express'
 import request from 'supertest'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { errorHandler } from '../middleware/errorHandler.ts'
 
 vi.mock('../lib/wpUpload.ts', async (importOriginal) => {
@@ -13,6 +13,13 @@ vi.mock('../lib/wpUpload.ts', async (importOriginal) => {
   }
 })
 
+vi.mock('../lib/filebird.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/filebird.ts')>()
+  return { ...actual, assignToFolder: vi.fn() }
+})
+
+import { env } from '../config/env.ts'
+import { assignToFolder } from '../lib/filebird.ts'
 import { findExistingMediaBySlug, uploadToWordPress } from '../lib/wpUpload.ts'
 import { acquireSlot, mediaRouter, releaseSlot } from './media.ts'
 
@@ -181,6 +188,96 @@ describe('media', () => {
         title: 'Photo',
         sourceUrl: 'https://example.invalid/photo.png',
         mimeType: 'image/png',
+      })
+    })
+
+    describe('FileBird folder assignment', () => {
+      const originalKey = env.filebirdApiKey
+      const uploaded = {
+        id: 1,
+        title: 'Photo',
+        sourceUrl: 'https://example.invalid/photo.png',
+        mimeType: 'image/png',
+      }
+
+      function upload(folderId?: string) {
+        const req = request(buildApp()).post('/media')
+        if (folderId !== undefined) req.field('folderId', folderId)
+        return req.attach('file', Buffer.from('fake-image-bytes'), 'photo.png')
+      }
+
+      beforeEach(() => {
+        env.filebirdApiKey = 'fb-key'
+        vi.mocked(uploadToWordPress).mockResolvedValue(uploaded)
+      })
+
+      afterEach(() => {
+        env.filebirdApiKey = originalKey
+        vi.mocked(assignToFolder).mockReset()
+      })
+
+      it('files the upload into the requested folder', async () => {
+        vi.mocked(assignToFolder).mockResolvedValue()
+
+        const res = await upload('40')
+
+        expect(res.status).toBe(201)
+        expect(assignToFolder).toHaveBeenCalledWith(1, 40)
+        expect(res.body).toEqual({
+          ...uploaded,
+          folder: { id: 40, assigned: true },
+        })
+      })
+
+      it('still responds 201 when filing fails, reporting why', async () => {
+        vi.mocked(assignToFolder).mockRejectedValue({
+          status: 502,
+          code: 'filebird_error',
+          message: 'Folder not found.',
+        })
+        vi.spyOn(console, 'error').mockImplementation(() => {})
+
+        const res = await upload('40')
+
+        expect(res.status).toBe(201)
+        expect(res.body).toEqual({
+          ...uploaded,
+          folder: { id: 40, assigned: false, message: 'Folder not found.' },
+        })
+      })
+
+      it.each([[undefined], ['0'], ['-3'], ['abc']])(
+        'does not file anything for folderId %j',
+        async (folderId) => {
+          const res = await upload(folderId)
+
+          expect(res.status).toBe(201)
+          expect(res.body).toEqual(uploaded)
+          expect(assignToFolder).not.toHaveBeenCalled()
+        },
+      )
+
+      it('ignores folderId when FileBird is disabled', async () => {
+        env.filebirdApiKey = null
+
+        const res = await upload('40')
+
+        expect(res.status).toBe(201)
+        expect(res.body).toEqual(uploaded)
+        expect(assignToFolder).not.toHaveBeenCalled()
+      })
+
+      it('does not file anything when the upload itself fails', async () => {
+        vi.mocked(uploadToWordPress).mockRejectedValue({
+          status: 502,
+          code: 'wp_unreachable',
+          message: 'Could not reach WordPress.',
+        })
+
+        const res = await upload('40')
+
+        expect(res.status).toBe(502)
+        expect(assignToFolder).not.toHaveBeenCalled()
       })
     })
 

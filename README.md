@@ -2,7 +2,7 @@
 
 A local web app for uploading multiple media files to your WordPress site in parallel, via the WordPress REST API.
 
-![Screenshot of the WordPress Media Uploader interface, showing a cyberpunk-themed upload queue with image thumbnails, three uploaded files and two finalizing, and a bottom status bar with WordPress connection info and live CPU/memory/disk usage rings](docs/screenshot.png)
+![Screenshot of the WordPress Media Uploader interface, showing a cyberpunk-themed upload queue with image thumbnails, a FileBird folder picker with a nested folder selected as the upload target, queue items labelled with the folder they're being filed into, uploaded, duplicate, failed and finalizing items, and a bottom status bar with WordPress connection info and live CPU/memory/disk usage rings](docs/screenshot.png)
 
 ## Using the Docker image
 
@@ -45,6 +45,7 @@ services:
       UPLOAD_CONCURRENCY: ${UPLOAD_CONCURRENCY:-8}
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-200}
       TRUST_PROXY: ${TRUST_PROXY:-false}
+      FILEBIRD_API_KEY: ${FILEBIRD_API_KEY:-}
     restart: unless-stopped
 ```
 
@@ -89,8 +90,22 @@ All options are environment variables read once at startup by the server (`serve
 | `MAX_FILE_SIZE_MB` | Default `200` | Maximum accepted upload size, in megabytes. |
 | `WP_REQUEST_TIMEOUT_MS` | Default `300000` (5 minutes) | How long to wait for WordPress before aborting a request. Deliberately generous: WordPress keeps the connection open while it generates scaled-down image versions after receiving the file, which can take minutes when many uploads are processing in parallel. |
 | `TRUST_PROXY` | Default `false` | Set to `true` only if this app sits behind a reverse proxy that you control and that overwrites (not appends to) `X-Forwarded-For` itself. Controls whether that header is trusted for the login rate-limiter's IP check. Enabling this without such a proxy lets any client fake their IP and bypass the rate limit. |
+| `FILEBIRD_API_KEY` | Optional, default unset | FileBird REST API key (wp-admin → Settings → FileBird → API). Setting it enables the [FileBird folder picker](#filebird-folders-optional); leave it unset to disable FileBird support entirely. |
 
 A couple of things worth knowing that aren't configurable: the login lockout (10 failed attempts within 5 minutes, per IP) is fixed in code, not an env var; and the `docker-compose.yml` shown above hardcodes `PORT`/`HOST` *inside* the container to `3001`/`0.0.0.0` — the `${PORT:-3001}` substitution there only changes the **host-side** port mapping, and `WP_REQUEST_TIMEOUT_MS` isn't declared in that file by default, though you can add it to the `environment:` block the same way as the others.
+
+## FileBird folders (optional)
+
+If your site uses the [FileBird](https://ninjateam.gitbook.io/filebird/) media folders plugin, uploads can be filed straight into a FileBird folder:
+
+1. In wp-admin, go to **Settings → FileBird → API** and generate a REST API key.
+2. Set it as `FILEBIRD_API_KEY` (in `server/.env`, or `-e`/`environment:` for Docker) and restart the server.
+
+A folder picker then appears below the drop zone. Folders are shown as a tree, collapsed by default. Click a folder to make it the upload target, or use **+** next to any folder (or **New folder** for the top level) to create one, which is then selected automatically. **No folder (Uncategorized)** is the default and leaves uploads where FileBird normally puts them.
+
+Each file goes into the folder that was selected **when it was dropped** — changing the selection only affects files you drop afterwards, never ones already queued or uploading. If an upload succeeds but filing it into the folder fails (e.g. the folder was deleted in wp-admin meanwhile), the file stays in WordPress, in Uncategorized, and the queue item shows a warning saying so.
+
+Without `FILEBIRD_API_KEY` the picker is hidden entirely and the app behaves exactly as before. The FileBird API key is only ever used server-side, like the WordPress credentials. If FileBird's per-user folders mode is on, the folders shown are those of the user who generated the API key.
 
 ## Network access and exposing this publicly
 

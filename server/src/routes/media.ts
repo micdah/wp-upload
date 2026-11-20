@@ -3,6 +3,8 @@ import os from 'node:os'
 import { Router } from 'express'
 import multer from 'multer'
 import { env } from '../config/env.ts'
+import { isFilebirdEnabled } from '../config/filebirdClient.ts'
+import { assignToFolder } from '../lib/filebird.ts'
 import {
   findExistingMediaBySlug,
   isWpError,
@@ -38,6 +40,14 @@ export function releaseSlot(): void {
 // time-sensitive than the periodic OS-metric snapshot.
 export function getActiveUploadCount(): number {
   return activeUploads
+}
+
+// The optional multipart `folderId` field (#38). Anything that isn't a
+// positive integer - including 0, FileBird's "Uncategorized" - means "don't
+// file it anywhere".
+function parseFolderId(value: unknown): number | null {
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 ? id : null
 }
 
 export const mediaRouter = Router()
@@ -76,6 +86,9 @@ mediaRouter.post('/media', (req, res, next) => {
     }
 
     const file = req.file
+    const folderId = isFilebirdEnabled()
+      ? parseFolderId(req.body?.folderId)
+      : null
 
     // Aborts the upstream WordPress request when the client disconnects
     // mid-upload (e.g. cancels in the UI) - without this, the request to
@@ -100,7 +113,36 @@ mediaRouter.post('/media', (req, res, next) => {
       const result = await uploadToWordPress(file, {
         signal: controller.signal,
       })
-      if (!clientDisconnected) res.status(201).json(result)
+      if (clientDisconnected) return
+      if (folderId === null) {
+        res.status(201).json(result)
+        return
+      }
+
+      // The media item already exists at this point, so a filing failure
+      // must not turn into an upload error (retrying would just create a
+      // duplicate) - it's reported alongside the result instead.
+      try {
+        await assignToFolder(result.id, folderId)
+        if (!clientDisconnected) {
+          res
+            .status(201)
+            .json({ ...result, folder: { id: folderId, assigned: true } })
+        }
+      } catch (folderError) {
+        const message = isWpError(folderError)
+          ? folderError.message
+          : 'Could not file the upload into the FileBird folder.'
+        console.error(
+          `Uploaded media ${result.id} but could not file it into FileBird folder ${folderId}: ${message}`,
+        )
+        if (!clientDisconnected) {
+          res.status(201).json({
+            ...result,
+            folder: { id: folderId, assigned: false, message },
+          })
+        }
+      }
     } catch (wpError) {
       if (!isWpError(wpError)) throw wpError
       if (!clientDisconnected) {

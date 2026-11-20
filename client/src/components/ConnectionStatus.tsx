@@ -12,6 +12,7 @@ export interface StatusResponse {
   wpUrl: string
   maxFileSizeMb: number
   uploadConcurrency: number
+  filebirdEnabled: boolean
 }
 
 interface LocalStatus {

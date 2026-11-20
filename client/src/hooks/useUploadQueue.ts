@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
+import type { SelectedFolder } from '../lib/folderClient'
 import {
   checkDuplicate,
   type ExistingMedia,
@@ -30,6 +31,9 @@ export interface FileEntry {
   result: UploadResult | null
   previewUrl: string | null
   duplicateMatches: ExistingMedia[]
+  // FileBird folder selected when the file was dropped - deliberately not
+  // the live selection, so changing folders only affects later drops (#38).
+  folder: SelectedFolder | null
 }
 
 interface State {
@@ -223,6 +227,7 @@ export function useUploadQueue() {
 
     uploadFile(entry.file, {
       signal: controller.signal,
+      folderId: entry.folder?.id,
       onProgress: (percent) => {
         if (percent >= 100) {
           dispatch({
@@ -268,7 +273,7 @@ export function useUploadQueue() {
   )
 
   const addFiles = useCallback(
-    (fileList: File[]) => {
+    (fileList: File[], folder: SelectedFolder | null = null) => {
       const entries: FileEntry[] = Array.from(fileList).map((file) => ({
         id: makeId(),
         file,
@@ -282,6 +287,7 @@ export function useUploadQueue() {
           ? URL.createObjectURL(file)
           : null,
         duplicateMatches: [],
+        folder,
       }))
       // Keep the ref in sync immediately: runUpload reads from it synchronously
       // below, before React has re-rendered and refreshed it from state.
