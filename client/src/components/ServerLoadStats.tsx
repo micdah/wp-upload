@@ -136,7 +136,7 @@ export function ServerLoadStats() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
-      fetch('/api/server-load', { signal: controller.signal })
+      fetch('api/server-load', { signal: controller.signal })
         .then((res) => (res.ok ? res.json() : null))
         .then((json: ServerLoadResponse | null) => {
           if (cancelled || !json) return

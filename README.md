@@ -118,6 +118,25 @@ The app is protected by a login (HTTP Basic Auth, checked against `AUTH_USERNAME
 - **Set `TRUST_PROXY=true` only if** the reverse proxy in front of it is one you control and it overwrites (not appends to) the `X-Forwarded-For` header itself. Otherwise leave it `false`.
 - Use a long, random `AUTH_PASSWORD` — it's a shared secret with no username enumeration protection beyond the lockout.
 
+### Serving under a sub-path
+
+The app can be served at the root of a domain or under any sub-path (e.g. `https://example.com/wp-upload/`) — the client only uses relative URLs. The reverse proxy must strip the prefix before forwarding, and the page must be loaded with the trailing slash. With nginx, trailing slashes on both the `location` and the `proxy_pass` URL strip the prefix, and nginx redirects `/wp-upload` to `/wp-upload/` on its own:
+
+```nginx
+location /wp-upload/ {
+    proxy_pass http://127.0.0.1:3001/;
+
+    # Overwrites (not appends to) the header, as TRUST_PROXY=true requires.
+    proxy_set_header X-Forwarded-For $remote_addr;
+
+    # nginx's default (1 MB) is too small for media uploads. Keep it a bit above
+    # MAX_FILE_SIZE_MB to allow for the multipart overhead.
+    client_max_body_size 210m;
+}
+```
+
+The default read timeouts are fine: uploads respond as soon as the file has reached this server, and the WordPress upload continues in the background. The same settings apply when serving the app at the root. Pair `X-Forwarded-For` with `TRUST_PROXY=true`, otherwise every user shares the proxy's IP for the login lockout.
+
 ## Development
 
 ### Prerequisites

@@ -36,7 +36,7 @@ export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
     let cancelled = false
 
     const poll = () => {
-      fetch('/api/status')
+      fetch('api/status')
         .then((res) => res.json())
         .then((data: StatusResponse) => {
           if (cancelled) return
