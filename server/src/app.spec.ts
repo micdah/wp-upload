@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
@@ -44,6 +44,33 @@ describe('app', () => {
       .expect('Content-Type', 'text/html; charset=UTF-8')
       .expect('Content-Length', expectedFile.length.toString())
       .expect(200)
+  })
+
+  // The app must work under any sub-path behind a prefix-stripping reverse
+  // proxy, so the built page may only reference its assets relatively.
+  it('builds index.html with relative asset URLs only', () => {
+    const html = readFileSync(path.join(clientDist, 'index.html'), 'utf8')
+
+    expect(html).toContain('./assets/')
+    expect(html).not.toMatch(/(?:src|href)="\/(?!\/)/)
+  })
+
+  it('builds client scripts that call the API with relative URLs only', () => {
+    const assetsDir = path.join(clientDist, 'assets')
+    const scripts = readdirSync(assetsDir).filter((name) =>
+      name.endsWith('.js'),
+    )
+
+    expect(scripts).not.toHaveLength(0)
+    // Collect just the offending URLs: matching against the whole minified
+    // bundle would make a failure print hundreds of KB of JavaScript.
+    const rootRelativeApiUrls = scripts.flatMap((script) => {
+      const source = readFileSync(path.join(assetsDir, script), 'utf8')
+      return [...source.matchAll(/["'`](\/api\/[^"'`]*)/g)].map(
+        (match) => `${script}: ${match[1]}`,
+      )
+    })
+    expect(rootRelativeApiUrls).toEqual([])
   })
 
   it('serves /healthz without requiring authentication', async () => {

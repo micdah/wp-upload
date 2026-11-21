@@ -43,7 +43,7 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
 }
 
 export async function fetchFolders(): Promise<FolderNode[]> {
-  const { folders } = await request<{ folders: FolderNode[] }>('/api/folders')
+  const { folders } = await request<{ folders: FolderNode[] }>('api/folders')
   return folders
 }
 
@@ -51,7 +51,7 @@ export function createFolder(
   name: string,
   parentId: number,
 ): Promise<{ id: number }> {
-  return request<{ id: number }>('/api/folders', {
+  return request<{ id: number }>('api/folders', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, parentId }),

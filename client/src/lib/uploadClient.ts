@@ -51,7 +51,7 @@ export async function checkDuplicate(
 ): Promise<DuplicateCheckResult> {
   try {
     const res = await fetch(
-      `/api/media/check?filename=${encodeURIComponent(filename)}`,
+      `api/media/check?filename=${encodeURIComponent(filename)}`,
     )
     if (!res.ok) return { duplicate: false, matches: [] }
     return (await res.json()) as DuplicateCheckResult
@@ -75,7 +75,7 @@ export function uploadFile(
     if (folderId) formData.append('folderId', String(folderId))
     formData.append('file', file)
 
-    xhr.open('POST', '/api/media')
+    xhr.open('POST', 'api/media')
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && onProgress) {
@@ -125,7 +125,7 @@ export async function fetchJobStatuses(
   signal?: AbortSignal,
 ): Promise<JobStatus[]> {
   const res = await fetch(
-    `/api/media/jobs?ids=${jobIds.map(encodeURIComponent).join(',')}`,
+    `api/media/jobs?ids=${jobIds.map(encodeURIComponent).join(',')}`,
     { signal },
   )
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -136,7 +136,7 @@ export async function fetchJobStatuses(
 // Fire-and-forget: if this fails, the upload simply finishes in WordPress -
 // the item is already gone from the UI either way.
 export function cancelUploadJob(jobId: string): void {
-  fetch(`/api/media/jobs/${encodeURIComponent(jobId)}`, {
+  fetch(`api/media/jobs/${encodeURIComponent(jobId)}`, {
     method: 'DELETE',
   }).catch(() => {})
 }
