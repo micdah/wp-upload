@@ -117,13 +117,76 @@ describe.concurrent('loadEnv', () => {
     )
   })
 
-  it('only treats the literal string "true" as trustProxy', () => {
-    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: 'yes' }, () => {
-      expect(loadEnv().trustProxy).toBe(false)
+  it('parses TRUST_PROXY booleans case-insensitively, defaulting to false', () => {
+    for (const value of [undefined, '', '  ', 'false', 'FALSE']) {
+      withEnv({ ...REQUIRED_ENV, TRUST_PROXY: value }, () => {
+        expect(loadEnv().trustProxy).toBe(false)
+      })
+    }
+    for (const value of ['true', 'TRUE', ' true ']) {
+      withEnv({ ...REQUIRED_ENV, TRUST_PROXY: value }, () => {
+        expect(loadEnv().trustProxy).toBe(true)
+      })
+    }
+  })
+
+  it('parses a TRUST_PROXY hop count as a number', () => {
+    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: '1' }, () => {
+      expect(loadEnv().trustProxy).toBe(1)
     })
-    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: 'true' }, () => {
-      expect(loadEnv().trustProxy).toBe(true)
+    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: ' 2 ' }, () => {
+      expect(loadEnv().trustProxy).toBe(2)
     })
+    withEnv({ ...REQUIRED_ENV, TRUST_PROXY: '0' }, () => {
+      expect(loadEnv().trustProxy).toBe(0)
+    })
+  })
+
+  it('parses a TRUST_PROXY list of IPs, subnets and presets', () => {
+    withEnv(
+      {
+        ...REQUIRED_ENV,
+        TRUST_PROXY: ' loopback, 10.0.0.1 , 172.16.0.0/12, ::1, fd00::/8 ',
+      },
+      () => {
+        expect(loadEnv().trustProxy).toEqual([
+          'loopback',
+          '10.0.0.1',
+          '172.16.0.0/12',
+          '::1',
+          'fd00::/8',
+        ])
+      },
+    )
+  })
+
+  it('exits with an error when TRUST_PROXY is not valid', () => {
+    for (const value of [
+      'yes',
+      '-1',
+      '1.5',
+      '10.0.0.300',
+      '10.0.0.0/33',
+      '10.0.0.0/0',
+      '::/0',
+      '10.0.0.0/8/1',
+      '10.0.0.0/abc',
+      '::1/129',
+      'loopback,,10.0.0.1',
+    ]) {
+      withEnv({ ...REQUIRED_ENV, TRUST_PROXY: value }, () => {
+        const exit = mockExit()
+        const consoleError = vi
+          .spyOn(console, 'error')
+          .mockImplementation(() => {})
+
+        expect(() => loadEnv(), value).toThrow('process.exit:1')
+        expect(consoleError).toHaveBeenCalledWith(
+          expect.stringContaining('TRUST_PROXY is not valid'),
+        )
+        expect(exit).toHaveBeenCalledWith(1)
+      })
+    }
   })
 
   it('treats a blank FILEBIRD_API_KEY as unset, and trims a set one', () => {

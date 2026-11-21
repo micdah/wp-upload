@@ -1,4 +1,9 @@
-import type { NextFunction, Request, Response } from 'express'
+import express, {
+  type NextFunction,
+  type Request,
+  type Response,
+} from 'express'
+import request from 'supertest'
 import { describe, expect, it, vi } from 'vitest'
 import { basicAuth, failures } from './basicAuth.ts'
 
@@ -34,13 +39,40 @@ describe.concurrent('basicAuth', () => {
     expect(next).not.toHaveBeenCalled()
   })
 
-  it('rejects a non-Basic scheme', () => {
+  it('rejects a non-Basic scheme and counts it as a failed attempt', () => {
     const { req, res, next } = createReqRes('10.0.0.2', 'Bearer abc')
 
     basicAuth(req, res, next)
 
     expect(res.status).toHaveBeenCalledWith(401)
     expect(next).not.toHaveBeenCalled()
+    expect(failures.get('10.0.0.2')?.count).toBe(1)
+  })
+
+  it('does not count requests without credentials toward the lockout', () => {
+    const ip = '10.0.0.11'
+    for (const header of [undefined, '', '   ']) {
+      for (let i = 0; i < 10; i++) {
+        const attempt = createReqRes(ip, header)
+        basicAuth(attempt.req, attempt.res, attempt.next)
+
+        expect(attempt.res.status).toHaveBeenCalledWith(401)
+        expect(attempt.res.set).toHaveBeenCalledWith(
+          'WWW-Authenticate',
+          expect.stringContaining('Basic'),
+        )
+      }
+    }
+    expect(failures.has(ip)).toBe(false)
+
+    const { req, res, next } = createReqRes(
+      ip,
+      basicAuthHeader('test-auth-user', 'test-auth-password'),
+    )
+    basicAuth(req, res, next)
+
+    expect(next).toHaveBeenCalledTimes(1)
+    expect(res.status).not.toHaveBeenCalled()
   })
 
   it('rejects malformed credentials with no ":" separator', () => {
@@ -155,5 +187,52 @@ describe.concurrent('basicAuth', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+// Kept out of the concurrent block above: this test is async, and the
+// fake-timer tests there advance Date.now() past the lockout window, which
+// would let their sweepExpired() wipe this test's real-time entries between
+// requests.
+describe('basicAuth behind a reverse proxy', () => {
+  it('keys the lockout on the proxy-appended address with a trust proxy hop count', async () => {
+    // Mirrors a reverse proxy that appends the real client address to
+    // whatever X-Forwarded-For the client sent: only the rightmost entry is
+    // trustworthy, so spoofing the leftmost must not dodge the lockout.
+    const app = express()
+      .set('trust proxy', 1)
+      .use(basicAuth)
+      .get('/', (_req, res) => {
+        res.send('ok')
+      })
+    const attacker = '203.0.113.5'
+    const otherClient = '198.51.100.7'
+
+    for (let i = 0; i < 10; i++) {
+      await request(app)
+        .get('/')
+        .set('X-Forwarded-For', `192.0.2.${i}, ${attacker}`)
+        .set('Authorization', basicAuthHeader('wrong', 'wrong'))
+        .expect(401)
+    }
+
+    await request(app)
+      .get('/')
+      .set('X-Forwarded-For', `192.0.2.99, ${attacker}`)
+      .set(
+        'Authorization',
+        basicAuthHeader('test-auth-user', 'test-auth-password'),
+      )
+      .expect(429)
+    expect(failures.has('192.0.2.0')).toBe(false)
+
+    await request(app)
+      .get('/')
+      .set('X-Forwarded-For', `192.0.2.1, ${otherClient}`)
+      .set(
+        'Authorization',
+        basicAuthHeader('test-auth-user', 'test-auth-password'),
+      )
+      .expect(200)
   })
 })

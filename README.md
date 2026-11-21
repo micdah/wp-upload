@@ -89,10 +89,10 @@ All options are environment variables read once at startup by the server (`serve
 | `UPLOAD_CONCURRENCY` | Default `8` | Maximum number of uploads sent to WordPress in parallel, across all browsers and tabs. Also reported to the UI as the cap on the user-adjustable, per-browser parallel upload setting (which can go above the browser's own connection limit — see [Notes](#notes)). |
 | `MAX_FILE_SIZE_MB` | Default `200` | Maximum accepted upload size, in megabytes. |
 | `WP_REQUEST_TIMEOUT_MS` | Default `300000` (5 minutes) | How long to wait for WordPress before aborting a request. Deliberately generous: WordPress keeps the connection open while it generates scaled-down image versions after receiving the file, which can take minutes when many uploads are processing in parallel. |
-| `TRUST_PROXY` | Default `false` | Set to `true` only if this app sits behind a reverse proxy that you control and that overwrites (not appends to) `X-Forwarded-For` itself. Controls whether that header is trusted for the login rate-limiter's IP check. Enabling this without such a proxy lets any client fake their IP and bypass the rate limit. |
+| `TRUST_PROXY` | Default `false` | Which client IP the login lockout sees when the app runs behind reverse proxies (passed to Express's [`trust proxy`](https://expressjs.com/en/guide/behind-proxies.html) setting). Leave `false` when clients connect directly. Behind proxies, set it to the **number of proxies** in front of the app — e.g. `1` for a single proxy that appends to `X-Forwarded-For` (such as nginx with `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`) — so the address the proxy appended is used rather than one the client supplied. Also accepts a comma-separated list of trusted proxy IPs/CIDR subnets and the presets `loopback`, `linklocal`, `uniquelocal` (e.g. `loopback, 172.16.0.0/12`). `true` trusts the *leftmost* `X-Forwarded-For` entry, which clients control unless your proxy overwrites the header, so prefer a hop count. Invalid values stop the server at startup. See [Network access](#network-access-and-exposing-this-publicly). |
 | `FILEBIRD_API_KEY` | Optional, default unset | FileBird REST API key (wp-admin → Settings → FileBird → API). Setting it enables the [FileBird folder picker](#filebird-folders-optional); leave it unset to disable FileBird support entirely. |
 
-A couple of things worth knowing that aren't configurable: the login lockout (10 failed attempts within 5 minutes, per IP) is fixed in code, not an env var; and the `docker-compose.yml` shown above hardcodes `PORT`/`HOST` *inside* the container to `3001`/`0.0.0.0` — the `${PORT:-3001}` substitution there only changes the **host-side** port mapping, and `WP_REQUEST_TIMEOUT_MS` isn't declared in that file by default, though you can add it to the `environment:` block the same way as the others.
+A couple of things worth knowing that aren't configurable: the login lockout (10 failed attempts within 5 minutes, per IP) is fixed in code, not an env var — requests that carry no credentials at all, like the browser's first request before it shows the login prompt, don't count as failed attempts; and the `docker-compose.yml` shown above hardcodes `PORT`/`HOST` *inside* the container to `3001`/`0.0.0.0` — the `${PORT:-3001}` substitution there only changes the **host-side** port mapping, and `WP_REQUEST_TIMEOUT_MS` isn't declared in that file by default, though you can add it to the `environment:` block the same way as the others.
 
 ## FileBird folders (optional)
 
@@ -115,7 +115,8 @@ The app is protected by a login (HTTP Basic Auth, checked against `AUTH_USERNAME
 
 - **Always put a TLS-terminating reverse proxy in front of it** (nginx, Caddy, Cloudflare Tunnel, your hosting platform's load balancer, etc.) pointed at this app's port over plain HTTP on localhost/an internal network. This app does not terminate HTTPS itself. Basic Auth credentials are base64-encoded, not encrypted — sent over plain HTTP, they're as good as sent in cleartext.
 - **Never run the development server (`npm run dev`) publicly** — only a build served via `npm run serve` (or the Docker image, which does the same thing) puts the entire app, including the initial page load, behind login. See [Development](#development) below.
-- **Set `TRUST_PROXY=true` only if** the reverse proxy in front of it is one you control and it overwrites (not appends to) the `X-Forwarded-For` header itself. Otherwise leave it `false`.
+- **Set `TRUST_PROXY` to the number of reverse proxies in front of the app** (usually `1`), so the login lockout is keyed on each client's real IP. Left at `false`, every request appears to come from the proxy, so all users share one lockout counter and a few wrong passwords lock everyone out. Avoid `true` unless your proxy overwrites (rather than appends to) `X-Forwarded-For`: it trusts the leftmost entry, which lets clients fake their IP and bypass the lockout.
+- **Only expose the app through the proxy** when `TRUST_PROXY` is set — otherwise clients could connect to it directly with their own `X-Forwarded-For` header and get a fresh lockout counter on every request. The `docker-compose.yml` above publishes the port on all interfaces, and Docker-published ports bypass host firewalls such as ufw; if the proxy runs on the same host, bind it to localhost (`"127.0.0.1:${PORT:-3001}:3001"`), or put the proxy and app on a shared Docker network and drop `ports:` entirely.
 - Use a long, random `AUTH_PASSWORD` — it's a shared secret with no username enumeration protection beyond the lockout.
 
 ### Serving under a sub-path
@@ -126,7 +127,8 @@ The app can be served at the root of a domain or under any sub-path (e.g. `https
 location /wp-upload/ {
     proxy_pass http://127.0.0.1:3001/;
 
-    # Overwrites (not appends to) the header, as TRUST_PROXY=true requires.
+    # The client's address, for the login lockout. Pair with TRUST_PROXY=1
+    # (one proxy in front); $proxy_add_x_forwarded_for works with it too.
     proxy_set_header X-Forwarded-For $remote_addr;
 
     # nginx's default (1 MB) is too small for media uploads. Keep it a bit above
@@ -135,7 +137,7 @@ location /wp-upload/ {
 }
 ```
 
-The default read timeouts are fine: uploads respond as soon as the file has reached this server, and the WordPress upload continues in the background. The same settings apply when serving the app at the root. Pair `X-Forwarded-For` with `TRUST_PROXY=true`, otherwise every user shares the proxy's IP for the login lockout.
+The default read timeouts are fine: uploads respond as soon as the file has reached this server, and the WordPress upload continues in the background. The same settings apply when serving the app at the root. Pair `X-Forwarded-For` with `TRUST_PROXY=1` (the number of proxies in front of the app), otherwise every user shares the proxy's IP for the login lockout.
 
 ## Development
 
