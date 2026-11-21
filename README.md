@@ -86,7 +86,7 @@ All options are environment variables read once at startup by the server (`serve
 | `AUTH_PASSWORD` | Required | Password for logging into this app itself. Pick a long, random value, especially if the app is reachable from the internet. |
 | `HOST` | Default `0.0.0.0` | Network interface the server binds to. `0.0.0.0` is reachable from other devices on your LAN; set to `127.0.0.1` to restrict to this machine only. |
 | `PORT` | Default `3001` | Port the server listens on. |
-| `UPLOAD_CONCURRENCY` | Default `8` | Maximum number of uploads sent to WordPress in parallel. Also reported to the UI as the cap on the user-adjustable, per-browser parallel upload setting. |
+| `UPLOAD_CONCURRENCY` | Default `8` | Maximum number of uploads sent to WordPress in parallel, across all browsers and tabs. Also reported to the UI as the cap on the user-adjustable, per-browser parallel upload setting (which can go above the browser's own connection limit — see [Notes](#notes)). |
 | `MAX_FILE_SIZE_MB` | Default `200` | Maximum accepted upload size, in megabytes. |
 | `WP_REQUEST_TIMEOUT_MS` | Default `300000` (5 minutes) | How long to wait for WordPress before aborting a request. Deliberately generous: WordPress keeps the connection open while it generates scaled-down image versions after receiving the file, which can take minutes when many uploads are processing in parallel. |
 | `TRUST_PROXY` | Default `false` | Set to `true` only if this app sits behind a reverse proxy that you control and that overwrites (not appends to) `X-Forwarded-For` itself. Controls whether that header is trusted for the login rate-limiter's IP check. Enabling this without such a proxy lets any client fake their IP and bypass the rate limit. |
@@ -184,4 +184,5 @@ If you're using Docker Compose, swap `image: ghcr.io/micdah/wp-upload:latest` fo
 
 - Credentials are only ever stored server-side (in `server/.env`, or the environment you pass to the container) — the browser never sees them.
 - Changes to `.env` require restarting the server (`npm run dev` / `npm run start`, or restarting the container).
-- Parallel upload count is adjustable in the UI (capped at the server's `UPLOAD_CONCURRENCY`) and remembered in the browser.
+- Parallel upload count is adjustable in the UI (capped at the server's `UPLOAD_CONCURRENCY`) and remembered in the browser. It isn't limited by the browser's ~6-connections-per-site limit: a file only holds a browser connection while it's being sent to this server (at most 5 at once, leaving one free for the UI's status polling). The server then uploads it to WordPress in the background and the UI follows its progress.
+- Removing a file in the UI cancels its upload, even after it has reached the server, as long as WordPress hasn't finished processing it yet. Once WordPress has created the media item, it stays in the media library (and is still filed into its FileBird folder, if one was selected). Also, once a file has been fully sent to this server, closing the browser tab no longer stops it: the server finishes the WordPress upload anyway.

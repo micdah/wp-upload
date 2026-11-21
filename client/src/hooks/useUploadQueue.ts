@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react'
 import type { SelectedFolder } from '../lib/folderClient'
 import {
+  cancelUploadJob,
   checkDuplicate,
   type ExistingMedia,
+  fetchJobStatuses,
   type UploadClientError,
   type UploadResult,
   uploadFile,
@@ -10,6 +12,23 @@ import {
 
 const CONCURRENCY_KEY = 'wp-upload.concurrency'
 const DEFAULT_CONCURRENCY = 3
+
+// Browsers allow ~6 concurrent HTTP/1.1 connections per origin. Transfers
+// are capped below that so one stays free for the status, server-load, job
+// and duplicate-check requests. This only limits the browser -> server leg:
+// once the server has a file, its WordPress upload runs as a server-side job
+// that no longer holds a connection, so the "parallel uploads" setting can
+// exceed this (see #37).
+const MAX_PARALLEL_TRANSFERS = 5
+
+const JOB_POLL_INTERVAL_MS = 1000
+const JOB_POLL_TIMEOUT_MS = 10_000
+
+const JOB_LOST_ERROR: UploadClientError = {
+  code: 'job_lost',
+  message:
+    'The server lost track of this upload (it may have restarted). Check WordPress before retrying.',
+}
 
 export type UploadStatus =
   | 'checking'
@@ -57,7 +76,11 @@ type Action =
 function readStoredConcurrency(): number {
   try {
     const stored = Number(localStorage.getItem(CONCURRENCY_KEY))
-    return stored >= 1 && stored <= 6 ? stored : DEFAULT_CONCURRENCY
+    // No upper bound here - App clamps it to the server's
+    // UPLOAD_CONCURRENCY once /api/status has loaded.
+    return Number.isInteger(stored) && stored >= 1
+      ? stored
+      : DEFAULT_CONCURRENCY
   } catch {
     return DEFAULT_CONCURRENCY
   }
@@ -208,19 +231,32 @@ function reducer(state: State, action: Action): State {
 export function useUploadQueue() {
   const [state, dispatch] = useReducer(reducer, initialState)
   const queueRef = useRef<string[]>([])
-  const activeRef = useRef<Set<string>>(new Set())
+  // An upload counts against `concurrency` from the start of its transfer
+  // until its server-side job settles - first in transferringRef, then in
+  // processingRef (entry id -> server job id).
+  const transferringRef = useRef<Set<string>>(new Set())
+  const processingRef = useRef<Map<string, string>>(new Map())
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map())
+  // Transfers whose body has been fully sent. Aborting one of those can no
+  // longer stop the server from creating its job - it only throws away the
+  // 202 carrying the job id - so removal instead waits for that id
+  // (removedAfterSendRef) and cancels the job.
+  const bodySentRef = useRef<Set<string>>(new Set())
+  const removedAfterSendRef = useRef<Set<string>>(new Set())
+  const unmountedRef = useRef(false)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pollInFlightRef = useRef(false)
   const filesRef = useRef<Record<string, FileEntry>>(state.files)
   filesRef.current = state.files
   const concurrencyRef = useRef(state.concurrency)
   concurrencyRef.current = state.concurrency
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runUpload and pump recursively reference each other; both stay stable via refs, so adding pump here would just churn the callback identity without changing behavior.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runUpload, pump, pollJobs and schedulePoll recursively reference each other; all stay stable via refs, so adding them here would just churn the callback identity without changing behavior.
   const runUpload = useCallback((id: string) => {
     const entry = filesRef.current[id]
     if (!entry) return
 
-    activeRef.current.add(id)
+    transferringRef.current.add(id)
     const controller = new AbortController()
     abortControllersRef.current.set(id, controller)
     dispatch({ type: 'SET_STATUS', id, status: 'uploading', progress: 0 })
@@ -230,6 +266,7 @@ export function useUploadQueue() {
       folderId: entry.folder?.id,
       onProgress: (percent) => {
         if (percent >= 100) {
+          bodySentRef.current.add(id)
           dispatch({
             type: 'SET_STATUS',
             id,
@@ -241,26 +278,102 @@ export function useUploadQueue() {
         }
       },
     })
-      .then((result) => dispatch({ type: 'SET_SUCCESS', id, result }))
+      .then(({ jobId }) => {
+        // Removed once the body was sent (or right as the transfer
+        // completed) - too late to stop the server creating the job, so
+        // cancel that instead.
+        if (controller.signal.aborted || removedAfterSendRef.current.has(id)) {
+          cancelUploadJob(jobId)
+          return
+        }
+        processingRef.current.set(id, jobId)
+        dispatch({
+          type: 'SET_STATUS',
+          id,
+          status: 'finalizing',
+          progress: 100,
+        })
+        schedulePoll()
+      })
       .catch((error: UploadClientError) =>
         dispatch({ type: 'SET_ERROR', id, error }),
       )
       .finally(() => {
-        activeRef.current.delete(id)
+        transferringRef.current.delete(id)
         abortControllersRef.current.delete(id)
+        bodySentRef.current.delete(id)
+        removedAfterSendRef.current.delete(id)
         pump()
       })
   }, [])
 
   const pump = useCallback(() => {
     while (
-      activeRef.current.size < concurrencyRef.current &&
+      transferringRef.current.size < MAX_PARALLEL_TRANSFERS &&
+      transferringRef.current.size + processingRef.current.size <
+        concurrencyRef.current &&
       queueRef.current.length > 0
     ) {
       const id = queueRef.current.shift()
       if (id) runUpload(id)
     }
   }, [runUpload])
+
+  // Follows every processing job with a single batched request per tick.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see runUpload - schedulePoll is declared below and references this callback back.
+  const pollJobs = useCallback(() => {
+    pollTimerRef.current = null
+    const polled = [...processingRef.current]
+    if (polled.length === 0) return
+
+    pollInFlightRef.current = true
+    const entryIdByJobId = new Map(
+      polled.map(([entryId, jobId]) => [jobId, entryId]),
+    )
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), JOB_POLL_TIMEOUT_MS)
+
+    fetchJobStatuses([...entryIdByJobId.keys()], controller.signal)
+      .then((jobs) => {
+        for (const job of jobs) {
+          const id = entryIdByJobId.get(job.id)
+          // Removed by the user while this poll was in flight.
+          if (!id || processingRef.current.get(id) !== job.id) continue
+
+          if (job.status === 'success') {
+            dispatch({ type: 'SET_SUCCESS', id, result: job.result })
+          } else if (job.status === 'error') {
+            dispatch({ type: 'SET_ERROR', id, error: job.error })
+          } else if (job.status === 'not_found') {
+            dispatch({ type: 'SET_ERROR', id, error: JOB_LOST_ERROR })
+          } else {
+            continue
+          }
+          processingRef.current.delete(id)
+        }
+        pump()
+      })
+      .catch(() => {
+        // Transient (network blip, server briefly unreachable) - the jobs
+        // keep running server-side, so just ask again next tick.
+      })
+      .finally(() => {
+        clearTimeout(timeoutId)
+        pollInFlightRef.current = false
+        schedulePoll()
+      })
+  }, [])
+
+  const schedulePoll = useCallback(() => {
+    if (
+      unmountedRef.current ||
+      pollTimerRef.current !== null ||
+      pollInFlightRef.current ||
+      processingRef.current.size === 0
+    )
+      return
+    pollTimerRef.current = setTimeout(pollJobs, JOB_POLL_INTERVAL_MS)
+  }, [pollJobs])
 
   // Enters an item into the actual upload queue - shared by files that
   // passed the duplicate check and ones the user confirmed despite a match.
@@ -346,15 +459,28 @@ export function useUploadQueue() {
     for (const id of failedIds) enqueue(id)
   }, [state.order, state.files, enqueue])
 
-  const removeFile = useCallback((id: string) => {
-    abortControllersRef.current.get(id)?.abort()
-    queueRef.current = queueRef.current.filter((qid) => qid !== id)
-    const previewUrl = filesRef.current[id]?.previewUrl
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-    }
-    dispatch({ type: 'REMOVE', id })
-  }, [])
+  const removeFile = useCallback(
+    (id: string) => {
+      const transfer = abortControllersRef.current.get(id)
+      if (transfer) {
+        if (bodySentRef.current.has(id)) removedAfterSendRef.current.add(id)
+        else transfer.abort()
+      }
+      const jobId = processingRef.current.get(id)
+      if (jobId) {
+        processingRef.current.delete(id)
+        cancelUploadJob(jobId)
+        pump()
+      }
+      queueRef.current = queueRef.current.filter((qid) => qid !== id)
+      const previewUrl = filesRef.current[id]?.previewUrl
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+      dispatch({ type: 'REMOVE', id })
+    },
+    [pump],
+  )
 
   const clearCompleted = useCallback(() => {
     for (const id of state.order) {
@@ -381,9 +507,16 @@ export function useUploadQueue() {
     pump()
   }, [state.concurrency, pump])
 
-  // Revoke any remaining thumbnail object URLs when the component unmounts.
+  // Revoke any remaining thumbnail object URLs and stop polling when the
+  // component unmounts.
   useEffect(() => {
+    // Reset on (re)mount - StrictMode runs this cleanup once in development.
+    unmountedRef.current = false
     return () => {
+      // An in-flight poll would otherwise reschedule itself from .finally.
+      unmountedRef.current = true
+      if (pollTimerRef.current !== null) clearTimeout(pollTimerRef.current)
+      pollTimerRef.current = null
       for (const file of Object.values(filesRef.current)) {
         if (file.previewUrl) URL.revokeObjectURL(file.previewUrl)
       }

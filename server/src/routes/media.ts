@@ -1,46 +1,15 @@
-import fs from 'node:fs'
 import os from 'node:os'
 import { Router } from 'express'
 import multer from 'multer'
 import { env } from '../config/env.ts'
 import { isFilebirdEnabled } from '../config/filebirdClient.ts'
-import { assignToFolder } from '../lib/filebird.ts'
-import {
-  findExistingMediaBySlug,
-  isWpError,
-  uploadToWordPress,
-} from '../lib/wpUpload.ts'
+import { cancelJob, createJob, getJob } from '../lib/uploadJobs.ts'
+import { findExistingMediaBySlug, isWpError } from '../lib/wpUpload.ts'
 
 const upload = multer({
   dest: os.tmpdir(),
   limits: { fileSize: env.maxFileSizeMb * 1024 * 1024 },
 })
-
-// Caps how many requests are proxying to WordPress at once, regardless of
-// how many parallel requests the client(s) send - protects the WP site from
-// a runaway client or multiple browser tabs each running their own limit.
-let activeUploads = 0
-const waiting: Array<() => void> = []
-
-export function acquireSlot(): Promise<void> {
-  if (activeUploads < env.uploadConcurrency) {
-    activeUploads++
-    return Promise.resolve()
-  }
-  return new Promise((resolve) => waiting.push(resolve))
-}
-
-export function releaseSlot(): void {
-  const next = waiting.shift()
-  if (next) next()
-  else activeUploads--
-}
-
-// Read live (not cached) by /api/server-load, since it's cheap and more
-// time-sensitive than the periodic OS-metric snapshot.
-export function getActiveUploadCount(): number {
-  return activeUploads
-}
 
 // The optional multipart `folderId` field (#38). Anything that isn't a
 // positive integer - including 0, FileBird's "Uncategorized" - means "don't
@@ -54,8 +23,8 @@ export const mediaRouter = Router()
 
 // Lightweight pre-flight check the client runs before queuing an upload, so
 // it can warn the user rather than silently creating a same-named duplicate.
-// Doesn't touch the upload concurrency gate above - it's a single cheap GET,
-// not a proxy of the heavy media upload itself.
+// Doesn't touch the upload concurrency gate - it's a single cheap GET, not a
+// proxy of the heavy media upload itself.
 mediaRouter.get('/media/check', async (req, res, next) => {
   const filename = req.query.filename
   if (typeof filename !== 'string' || !filename) {
@@ -75,8 +44,13 @@ mediaRouter.get('/media/check', async (req, res, next) => {
   }
 })
 
+// Responds as soon as the file is on disk rather than once WordPress has
+// processed it - the WordPress upload continues as a background job, which
+// the client follows via GET /media/jobs. That frees the browser connection
+// for the next file instead of holding it through the (potentially
+// minutes-long) thumbnail generation - see #37.
 mediaRouter.post('/media', (req, res, next) => {
-  upload.single('file')(req, res, async (err) => {
+  upload.single('file')(req, res, (err) => {
     if (err) return next(err)
 
     if (!req.file) {
@@ -85,80 +59,48 @@ mediaRouter.post('/media', (req, res, next) => {
         .json({ code: 'no_file', message: 'No file was provided.' })
     }
 
-    const file = req.file
     const folderId = isFilebirdEnabled()
       ? parseFolderId(req.body?.folderId)
       : null
 
-    // Aborts the upstream WordPress request when the client disconnects
-    // mid-upload (e.g. cancels in the UI) - without this, the request to
-    // WordPress runs to completion regardless, holding a concurrency slot
-    // and still creating the media item after the user "cancelled" it.
-    // Listening on `res` (not `req`) matters: once multer/busboy has fully
-    // consumed the request body, `req` stops receiving further socket
-    // lifecycle events, but `res` still reliably emits 'close' if the
-    // connection is torn down before the response completes.
-    const controller = new AbortController()
-    let clientDisconnected = false
-    res.on('error', () => {})
-    res.on('close', () => {
-      if (!res.writableEnded) {
-        clientDisconnected = true
-        controller.abort()
-      }
-    })
-
-    await acquireSlot()
-    try {
-      const result = await uploadToWordPress(file, {
-        signal: controller.signal,
-      })
-      if (clientDisconnected) return
-      if (folderId === null) {
-        res.status(201).json(result)
-        return
-      }
-
-      // The media item already exists at this point, so a filing failure
-      // must not turn into an upload error (retrying would just create a
-      // duplicate) - it's reported alongside the result instead.
-      try {
-        await assignToFolder(result.id, folderId)
-        if (!clientDisconnected) {
-          res
-            .status(201)
-            .json({ ...result, folder: { id: folderId, assigned: true } })
-        }
-      } catch (folderError) {
-        const message = isWpError(folderError)
-          ? folderError.message
-          : 'Could not file the upload into the FileBird folder.'
-        console.error(
-          `Uploaded media ${result.id} but could not file it into FileBird folder ${folderId}: ${message}`,
-        )
-        if (!clientDisconnected) {
-          res.status(201).json({
-            ...result,
-            folder: { id: folderId, assigned: false, message },
-          })
-        }
-      }
-    } catch (wpError) {
-      if (!isWpError(wpError)) throw wpError
-      if (!clientDisconnected) {
-        res
-          .status(wpError.status || 502)
-          .json({ code: wpError.code, message: wpError.message })
-      }
-    } finally {
-      releaseSlot()
-      fs.unlink(file.path, (unlinkErr) => {
-        if (unlinkErr)
-          console.error(
-            `Failed to remove temp upload file ${file.path}:`,
-            unlinkErr,
-          )
-      })
-    }
+    res.status(202).json({ jobId: createJob(req.file, folderId) })
   })
+})
+
+// Batched status lookup, so a client polls once for all of its in-flight
+// jobs rather than spending one browser connection per job.
+mediaRouter.get('/media/jobs', (req, res) => {
+  const ids =
+    typeof req.query.ids === 'string'
+      ? req.query.ids.split(',').filter(Boolean)
+      : []
+  if (ids.length === 0) {
+    return res
+      .status(400)
+      .json({ code: 'no_ids', message: 'No job ids were provided.' })
+  }
+
+  res.json({
+    jobs: ids.map((id) => {
+      const job = getJob(id)
+      if (!job) return { id, status: 'not_found' }
+      return {
+        id,
+        status: job.status,
+        ...(job.result && { result: job.result }),
+        ...(job.error && {
+          error: { code: job.error.code, message: job.error.message },
+        }),
+      }
+    }),
+  })
+})
+
+mediaRouter.delete('/media/jobs/:id', (req, res) => {
+  if (!cancelJob(req.params.id)) {
+    return res
+      .status(404)
+      .json({ code: 'job_not_found', message: 'No such upload job.' })
+  }
+  res.status(204).end()
 })

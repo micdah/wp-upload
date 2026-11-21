@@ -16,6 +16,16 @@ export interface UploadResult {
   folder?: FolderAssignment
 }
 
+export interface StartedUpload {
+  jobId: string
+}
+
+export type JobStatus =
+  | { id: string; status: 'queued' | 'processing' }
+  | { id: string; status: 'success'; result: UploadResult }
+  | { id: string; status: 'error'; error: UploadClientError }
+  | { id: string; status: 'not_found' }
+
 export interface UploadOptions {
   onProgress?: (percent: number) => void
   signal?: AbortSignal
@@ -51,11 +61,13 @@ export async function checkDuplicate(
 }
 
 // Wraps XMLHttpRequest (not fetch) because it reliably exposes upload
-// progress events for the browser -> local backend leg.
+// progress events for the browser -> local backend leg. Resolves as soon as
+// the server has the file - the WordPress side then runs as a server-side
+// job, followed via fetchJobStatuses().
 export function uploadFile(
   file: File,
   { onProgress, signal, folderId }: UploadOptions = {},
-): Promise<UploadResult> {
+): Promise<StartedUpload> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     const formData = new FormData()
@@ -72,7 +84,7 @@ export function uploadFile(
     }
 
     xhr.onload = () => {
-      let body: UploadResult | UploadClientError
+      let body: StartedUpload | UploadClientError
       try {
         body = JSON.parse(xhr.responseText)
       } catch {
@@ -83,7 +95,7 @@ export function uploadFile(
       }
 
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(body as UploadResult)
+        resolve(body as StartedUpload)
       } else {
         reject(body)
       }
@@ -103,4 +115,28 @@ export function uploadFile(
 
     xhr.send(formData)
   })
+}
+
+// One request for every job the client is following, so polling costs a
+// single browser connection no matter how many uploads are processing.
+// Throws on network/HTTP failure; callers treat that as "try again next tick".
+export async function fetchJobStatuses(
+  jobIds: string[],
+  signal?: AbortSignal,
+): Promise<JobStatus[]> {
+  const res = await fetch(
+    `/api/media/jobs?ids=${jobIds.map(encodeURIComponent).join(',')}`,
+    { signal },
+  )
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const body = (await res.json()) as { jobs: JobStatus[] }
+  return body.jobs
+}
+
+// Fire-and-forget: if this fails, the upload simply finishes in WordPress -
+// the item is already gone from the UI either way.
+export function cancelUploadJob(jobId: string): void {
+  fetch(`/api/media/jobs/${encodeURIComponent(jobId)}`, {
+    method: 'DELETE',
+  }).catch(() => {})
 }
