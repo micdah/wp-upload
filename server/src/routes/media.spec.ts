@@ -144,6 +144,27 @@ describe('media', () => {
         message: 'Could not reach WordPress.',
       })
     })
+
+    // Under /api a 401 must only ever mean "log in again" to the client - a
+    // rejected WordPress Application Password is a server-side problem.
+    it.each([401, 403])(
+      'reports a WordPress %i as a 502, not as a lost session',
+      async (status) => {
+        vi.mocked(findExistingMediaBySlug).mockRejectedValue({
+          status,
+          code: 'rest_not_logged_in',
+          message: 'You are not currently logged in.',
+        })
+        const app = buildApp()
+
+        const res = await request(app)
+          .get('/media/check')
+          .query({ filename: 'photo.png' })
+
+        expect(res.status).toBe(502)
+        expect(res.body.code).toBe('rest_not_logged_in')
+      },
+    )
   })
 
   describe('POST /media', () => {

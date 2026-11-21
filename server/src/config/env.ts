@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import net from 'node:net'
 import dotenv from 'dotenv'
 
@@ -17,6 +18,11 @@ export type TrustProxy = boolean | number | string[]
 
 const TRUST_PROXY_PRESETS = new Set(['loopback', 'linklocal', 'uniquelocal'])
 
+export const MIN_SESSION_SECRET_LENGTH = 32
+const DEFAULT_SESSION_MAX_AGE_DAYS = 30
+// Browsers cap a cookie's lifetime at 400 days anyway.
+export const MAX_SESSION_MAX_AGE_DAYS = 400
+
 export interface Env {
   wpUrl: string
   wpUsername: string
@@ -30,6 +36,9 @@ export interface Env {
   authPassword: string
   trustProxy: TrustProxy
   filebirdApiKey: string | null
+  // HMAC key that signs session cookies.
+  sessionSecret: Buffer
+  sessionMaxAgeDays: number
 }
 
 export function loadEnv(): Env {
@@ -71,7 +80,77 @@ export function loadEnv(): Env {
     trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
     // Optional - setting it is what enables FileBird folder support (#38).
     filebirdApiKey: process.env.FILEBIRD_API_KEY?.trim() || null,
+    sessionSecret: parseSessionSecret(process.env.SESSION_SECRET, {
+      wpAppPassword: process.env.WP_APP_PASSWORD as string,
+      authUsername: process.env.AUTH_USERNAME as string,
+      authPassword: process.env.AUTH_PASSWORD as string,
+    }),
+    sessionMaxAgeDays: parseSessionMaxAgeDays(process.env.SESSION_MAX_AGE_DAYS),
   }
+}
+
+interface SessionSecretSource {
+  wpAppPassword: string
+  authUsername: string
+  authPassword: string
+}
+
+// Returns the key that signs session cookies. It always mixes in the app
+// login (AUTH_USERNAME/AUTH_PASSWORD), so changing the password logs every
+// session out - the natural reaction to a suspected compromise - even with an
+// explicit SESSION_SECRET. Without SESSION_SECRET, the WordPress Application
+// Password stands in for it: it is random and long, which keeps the key out
+// of reach of offline guessing, and needs no new configuration for sessions
+// to survive restarts.
+export function parseSessionSecret(
+  raw: string | undefined,
+  { wpAppPassword, authUsername, authPassword }: SessionSecretSource,
+): Buffer {
+  const value = raw?.trim() ?? ''
+
+  if (value !== '' && value.length < MIN_SESSION_SECRET_LENGTH) {
+    console.error(
+      `SESSION_SECRET is too short (${value.length} characters). Use at ` +
+        `least ${MIN_SESSION_SECRET_LENGTH} random characters, e.g. the ` +
+        'output of "openssl rand -base64 48", or leave it unset.',
+    )
+    process.exit(1)
+  }
+
+  const baseSecret =
+    value !== ''
+      ? { label: 'session-secret', secret: value }
+      : { label: 'wp-app-password', secret: wpAppPassword }
+
+  // JSON keeps the fields unambiguous (no separator that could also appear
+  // inside a value); the fixed label separates this key from any other use.
+  return crypto
+    .createHmac('sha256', 'wp-upload session signing key v1')
+    .update(
+      JSON.stringify([
+        baseSecret.label,
+        baseSecret.secret,
+        authUsername,
+        authPassword,
+      ]),
+    )
+    .digest()
+}
+
+export function parseSessionMaxAgeDays(raw: string | undefined): number {
+  const value = raw?.trim() ?? ''
+  if (value === '') return DEFAULT_SESSION_MAX_AGE_DAYS
+
+  const days = Number(value)
+  if (!/^\d+$/.test(value) || days < 1 || days > MAX_SESSION_MAX_AGE_DAYS) {
+    console.error(
+      `SESSION_MAX_AGE_DAYS is not valid: "${value}". Use a whole number ` +
+        `of days from 1 to ${MAX_SESSION_MAX_AGE_DAYS} ` +
+        `(default ${DEFAULT_SESSION_MAX_AGE_DAYS}).`,
+    )
+    process.exit(1)
+  }
+  return days
 }
 
 function isValidTrustedProxyEntry(entry: string): boolean {

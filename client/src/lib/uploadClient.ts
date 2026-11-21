@@ -1,3 +1,5 @@
+import { apiFetch, notifyUnauthorized } from './api'
+
 export interface UploadClientError {
   code: string
   message: string
@@ -43,16 +45,23 @@ export interface DuplicateCheckResult {
   matches: ExistingMedia[]
 }
 
+// The error code the server's 401 carries when this browser's session is
+// missing or no longer valid.
+export const SESSION_EXPIRED_CODE = 'unauthorized'
+
 // Best-effort pre-flight check - if it fails (network hiccup, WP down) we
 // treat that the same as "no duplicate found" rather than blocking the
-// upload on a check that's a nicety, not a requirement.
+// upload on a check that's a nicety, not a requirement. A lost session is
+// the exception: the upload would fail too, and the check must run again
+// once the user has logged back in.
 export async function checkDuplicate(
   filename: string,
-): Promise<DuplicateCheckResult> {
+): Promise<DuplicateCheckResult | { sessionExpired: true }> {
   try {
-    const res = await fetch(
+    const res = await apiFetch(
       `api/media/check?filename=${encodeURIComponent(filename)}`,
     )
+    if (res.status === 401) return { sessionExpired: true }
     if (!res.ok) return { duplicate: false, matches: [] }
     return (await res.json()) as DuplicateCheckResult
   } catch {
@@ -84,6 +93,8 @@ export function uploadFile(
     }
 
     xhr.onload = () => {
+      if (xhr.status === 401) notifyUnauthorized()
+
       let body: StartedUpload | UploadClientError
       try {
         body = JSON.parse(xhr.responseText)
@@ -124,7 +135,7 @@ export async function fetchJobStatuses(
   jobIds: string[],
   signal?: AbortSignal,
 ): Promise<JobStatus[]> {
-  const res = await fetch(
+  const res = await apiFetch(
     `api/media/jobs?ids=${jobIds.map(encodeURIComponent).join(',')}`,
     { signal },
   )
@@ -136,7 +147,7 @@ export async function fetchJobStatuses(
 // Fire-and-forget: if this fails, the upload simply finishes in WordPress -
 // the item is already gone from the UI either way.
 export function cancelUploadJob(jobId: string): void {
-  fetch(`api/media/jobs/${encodeURIComponent(jobId)}`, {
+  apiFetch(`api/media/jobs/${encodeURIComponent(jobId)}`, {
     method: 'DELETE',
   }).catch(() => {})
 }

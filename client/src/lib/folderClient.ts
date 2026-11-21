@@ -1,3 +1,4 @@
+import { apiFetch } from './api'
 import type { UploadClientError } from './uploadClient'
 
 export interface FolderNode {
@@ -32,7 +33,7 @@ async function parseJson<T>(res: Response): Promise<T> {
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await fetch(input, init)
+    res = await apiFetch(input, init)
   } catch {
     throw {
       code: 'network_error',

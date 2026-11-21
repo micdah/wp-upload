@@ -4,7 +4,11 @@ import multer from 'multer'
 import { env } from '../config/env.ts'
 import { isFilebirdEnabled } from '../config/filebirdClient.ts'
 import { cancelJob, createJob, getJob } from '../lib/uploadJobs.ts'
-import { findExistingMediaBySlug, isWpError } from '../lib/wpUpload.ts'
+import {
+  findExistingMediaBySlug,
+  isWpError,
+  upstreamErrorStatus,
+} from '../lib/wpUpload.ts'
 
 const upload = multer({
   dest: os.tmpdir(),
@@ -39,7 +43,7 @@ mediaRouter.get('/media/check', async (req, res, next) => {
   } catch (wpError) {
     if (!isWpError(wpError)) return next(wpError)
     res
-      .status(wpError.status || 502)
+      .status(upstreamErrorStatus(wpError.status))
       .json({ code: wpError.code, message: wpError.message })
   }
 })

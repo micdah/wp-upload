@@ -10,6 +10,9 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': 'http://localhost:3001',
+      // Login/logout live at the app root, not under /api - see
+      // server/src/lib/session.ts for why.
+      '/session': 'http://localhost:3001',
     },
   },
 })

@@ -1,5 +1,6 @@
 import { Box, Flex, Group, Text } from '@mantine/core'
 import { useEffect, useState } from 'react'
+import { apiFetch } from '../lib/api'
 import { ServerLoadStats } from './ServerLoadStats'
 
 export const STATUS_BAR_HEIGHT = 36
@@ -35,22 +36,30 @@ export function ConnectionStatus({ onStatus }: ConnectionStatusProps) {
   useEffect(() => {
     let cancelled = false
 
+    const showError = (reason: string) => {
+      if (cancelled) return
+      setStatus({ loading: false, connected: false, reason })
+    }
+
     const poll = () => {
-      fetch('api/status')
-        .then((res) => res.json())
-        .then((data: StatusResponse) => {
+      apiFetch('api/status')
+        .then(async (res) => {
+          if (res.status === 401) {
+            showError('Session expired. Log in again.')
+            return
+          }
+          if (!res.ok) {
+            showError(`The local server responded with HTTP ${res.status}.`)
+            return
+          }
+          const data = (await res.json()) as StatusResponse
           if (cancelled) return
           setStatus({ loading: false, ...data })
           onStatus?.(data)
         })
-        .catch(() => {
-          if (cancelled) return
-          setStatus({
-            loading: false,
-            connected: false,
-            reason: 'Could not reach the local server. Is it running?',
-          })
-        })
+        .catch(() =>
+          showError('Could not reach the local server. Is it running?'),
+        )
     }
 
     poll()

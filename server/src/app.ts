@@ -3,11 +3,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import { env } from './config/env.ts'
-import { basicAuth } from './middleware/basicAuth.ts'
 import { errorHandler } from './middleware/errorHandler.ts'
+import { requireSession } from './middleware/requireSession.ts'
+import { sameOriginOnly } from './middleware/sameOriginOnly.ts'
 import { foldersRouter } from './routes/folders.ts'
 import { mediaRouter } from './routes/media.ts'
 import { serverLoadRouter } from './routes/serverLoad.ts'
+import { sessionRouter } from './routes/session.ts'
 import { statusRouter } from './routes/status.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -18,7 +20,21 @@ app.set('trust proxy', env.trustProxy)
 
 app.get('/healthz', (_req, res) => res.status(200).send('ok'))
 
-app.use(basicAuth)
+app.use(sameOriginOnly)
+
+// Login, logout and "who am I". Public, and at the app root rather than
+// under /api so the session cookie's default path is the mount path (see
+// lib/session.ts).
+app.use(sessionRouter)
+
+// The client bundle, index.html and favicons hold no secrets, so they're
+// public: the page shell loads without a session and shows its own login
+// form. That also keeps browsers from ever having to authenticate
+// subresource requests themselves.
+const hasClientBuild = fs.existsSync(clientDist)
+if (hasClientBuild) app.use(express.static(clientDist))
+
+app.use('/api', requireSession)
 
 app.use('/api', mediaRouter)
 app.use('/api', foldersRouter)
@@ -32,8 +48,7 @@ app.use('/api', (_req, res) => {
   })
 })
 
-if (fs.existsSync(clientDist)) {
-  app.use(express.static(clientDist))
+if (hasClientBuild) {
   app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')))
 }
 

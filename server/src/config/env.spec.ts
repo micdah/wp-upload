@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadEnv } from './env.ts'
+import { loadEnv, MIN_SESSION_SECRET_LENGTH } from './env.ts'
 
 const REQUIRED_ENV = {
   WP_URL: 'https://wp.example.invalid',
@@ -85,6 +85,8 @@ describe.concurrent('loadEnv', () => {
         WP_REQUEST_TIMEOUT_MS: undefined,
         TRUST_PROXY: undefined,
         FILEBIRD_API_KEY: undefined,
+        SESSION_SECRET: undefined,
+        SESSION_MAX_AGE_DAYS: undefined,
       },
       () => {
         expect(loadEnv()).toEqual({
@@ -100,6 +102,8 @@ describe.concurrent('loadEnv', () => {
           authPassword: REQUIRED_ENV.AUTH_PASSWORD,
           trustProxy: false,
           filebirdApiKey: null,
+          sessionSecret: expect.any(Buffer),
+          sessionMaxAgeDays: 30,
         })
       },
     )
@@ -196,5 +200,98 @@ describe.concurrent('loadEnv', () => {
     withEnv({ ...REQUIRED_ENV, FILEBIRD_API_KEY: ' fb-key ' }, () => {
       expect(loadEnv().filebirdApiKey).toBe('fb-key')
     })
+  })
+
+  it('derives the session key from SESSION_SECRET and the app login when set', () => {
+    const secret = 'x'.repeat(MIN_SESSION_SECRET_LENGTH)
+    const keyFor = (overrides: Record<string, string>) =>
+      withEnv(
+        { ...REQUIRED_ENV, SESSION_SECRET: ` ${secret} `, ...overrides },
+        () => loadEnv().sessionSecret,
+      )
+
+    const key = keyFor({})
+    expect(key).toHaveLength(32)
+    expect(keyFor({ SESSION_SECRET: secret })).toEqual(key)
+    expect(keyFor({ SESSION_SECRET: 'y'.repeat(40) })).not.toEqual(key)
+    // The WordPress password only stands in when SESSION_SECRET is unset...
+    expect(keyFor({ WP_APP_PASSWORD: 'other' })).toEqual(key)
+    // ...but changing the app login always logs everyone out.
+    expect(keyFor({ AUTH_PASSWORD: 'other' })).not.toEqual(key)
+    expect(keyFor({ AUTH_USERNAME: 'other' })).not.toEqual(key)
+  })
+
+  it('exits with an error when SESSION_SECRET is too short', () => {
+    withEnv(
+      {
+        ...REQUIRED_ENV,
+        SESSION_SECRET: 'x'.repeat(MIN_SESSION_SECRET_LENGTH - 1),
+      },
+      () => {
+        const exit = mockExit()
+        const consoleError = vi
+          .spyOn(console, 'error')
+          .mockImplementation(() => {})
+
+        expect(() => loadEnv()).toThrow('process.exit:1')
+        expect(consoleError).toHaveBeenCalledWith(
+          expect.stringContaining('SESSION_SECRET is too short'),
+        )
+        expect(exit).toHaveBeenCalledWith(1)
+      },
+    )
+  })
+
+  it('derives a stable session key from the credentials when SESSION_SECRET is unset', () => {
+    const keyFor = (overrides: Record<string, string>) =>
+      withEnv(
+        { ...REQUIRED_ENV, SESSION_SECRET: '  ', ...overrides },
+        () => loadEnv().sessionSecret,
+      )
+
+    const key = keyFor({})
+    expect(key).toHaveLength(32)
+    // Stable across restarts, so sessions survive them...
+    expect(keyFor({})).toEqual(key)
+    // ...but rotating any of the credentials it comes from logs everyone out.
+    expect(keyFor({ WP_APP_PASSWORD: 'other' })).not.toEqual(key)
+    expect(keyFor({ AUTH_USERNAME: 'other' })).not.toEqual(key)
+    expect(keyFor({ AUTH_PASSWORD: 'other' })).not.toEqual(key)
+  })
+
+  it('parses SESSION_MAX_AGE_DAYS as a whole number of days', () => {
+    withEnv({ ...REQUIRED_ENV, SESSION_MAX_AGE_DAYS: ' 90 ' }, () => {
+      expect(loadEnv().sessionMaxAgeDays).toBe(90)
+    })
+    withEnv({ ...REQUIRED_ENV, SESSION_MAX_AGE_DAYS: '' }, () => {
+      expect(loadEnv().sessionMaxAgeDays).toBe(30)
+    })
+    withEnv({ ...REQUIRED_ENV, SESSION_MAX_AGE_DAYS: '400' }, () => {
+      expect(loadEnv().sessionMaxAgeDays).toBe(400)
+    })
+  })
+
+  it('exits with an error when SESSION_MAX_AGE_DAYS is not valid', () => {
+    for (const value of [
+      '0',
+      '-1',
+      '1.5',
+      'abc',
+      '401',
+      '99999999999999999999',
+    ]) {
+      withEnv({ ...REQUIRED_ENV, SESSION_MAX_AGE_DAYS: value }, () => {
+        const exit = mockExit()
+        const consoleError = vi
+          .spyOn(console, 'error')
+          .mockImplementation(() => {})
+
+        expect(() => loadEnv(), value).toThrow('process.exit:1')
+        expect(consoleError).toHaveBeenCalledWith(
+          expect.stringContaining('SESSION_MAX_AGE_DAYS is not valid'),
+        )
+        expect(exit).toHaveBeenCalledWith(1)
+      })
+    }
   })
 })
