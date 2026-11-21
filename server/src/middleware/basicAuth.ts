@@ -63,6 +63,9 @@ export function basicAuth(
 
   const ip = req.ip ?? 'unknown'
 
+  // Deliberately checked before the credentials: a locked-out client must
+  // not be able to keep guessing, and a correct guess must not slip through
+  // (and reset its counter) while the lockout is in force.
   if (isLockedOut(ip)) {
     res.set('Retry-After', String(WINDOW_MS / 1000))
     res.status(429).json({
@@ -72,8 +75,7 @@ export function basicAuth(
     return
   }
 
-  const reject = (): void => {
-    recordFailure(ip)
+  const challenge = (): void => {
     res.set(
       'WWW-Authenticate',
       'Basic realm="WP Media Uploader", charset="UTF-8"',
@@ -83,8 +85,22 @@ export function basicAuth(
       .json({ code: 'unauthorized', message: 'Authentication required.' })
   }
 
+  const reject = (): void => {
+    recordFailure(ip)
+    challenge()
+  }
+
   const header = req.headers.authorization
-  if (!header?.startsWith('Basic ')) {
+
+  // No credentials at all isn't a failed login - it's how every browser
+  // visit starts (it only prompts after this 401), so it must not count
+  // toward the lockout. Anything carrying credentials still does.
+  if (!header?.trim()) {
+    challenge()
+    return
+  }
+
+  if (!header.startsWith('Basic ')) {
     reject()
     return
   }
