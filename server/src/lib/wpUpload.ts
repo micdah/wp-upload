@@ -114,6 +114,16 @@ export async function uploadToWordPress(
   }
 }
 
+// The HTTP status to answer the browser with for an upstream (WordPress or
+// FileBird) error. A 401/403 from upstream means the server's own
+// credentials were rejected, so it becomes a 502: under /api, a 401 must only
+// ever mean "this browser's session is gone", which makes the client show
+// its login form.
+export function upstreamErrorStatus(status: number): number {
+  if (!status || status === 401 || status === 403) return 502
+  return status
+}
+
 export function normaliseWpError(err: unknown): WpError {
   if (axios.isAxiosError(err)) {
     if (err.code === 'ECONNABORTED') {

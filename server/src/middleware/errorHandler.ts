@@ -24,6 +24,23 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return
   }
 
+  // Other client-caused body-parser errors (e.g. an oversized or wrongly
+  // encoded body on the public login endpoint): answer with their 4xx status
+  // instead of logging a stack trace that anyone could trigger.
+  if (
+    typeof err?.type === 'string' &&
+    err.expose === true &&
+    Number.isInteger(err.status) &&
+    err.status >= 400 &&
+    err.status < 500
+  ) {
+    res.status(err.status).json({
+      code: 'invalid_request_body',
+      message: err.message,
+    })
+    return
+  }
+
   console.error(err)
   res.status(500).json({
     code: 'internal_error',

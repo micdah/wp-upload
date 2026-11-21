@@ -68,4 +68,26 @@ describe.concurrent('errorHandler', () => {
       message: 'Request body is not valid JSON.',
     })
   })
+
+  it('maps other client-caused body-parser errors to their 4xx status without logging', () => {
+    const res = createRes()
+    // spyOn hands back the spy an earlier test left on console.error, along
+    // with its calls, so start from a clean slate.
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    consoleError.mockClear()
+    const err = Object.assign(new Error('request entity too large'), {
+      type: 'entity.too.large',
+      status: 413,
+      expose: true,
+    })
+
+    errorHandler(err, {} as Request, res as unknown as Response, vi.fn())
+
+    expect(res.status).toHaveBeenCalledWith(413)
+    expect(res.json).toHaveBeenCalledWith({
+      code: 'invalid_request_body',
+      message: 'request entity too large',
+    })
+    expect(consoleError).not.toHaveBeenCalled()
+  })
 })

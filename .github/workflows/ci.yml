@@ -81,21 +81,49 @@ jobs:
           docker logs wp-upload-ci
           exit 1
 
-      - name: Verify Basic Auth is enforced
+      - name: Verify the page is public
         run: |
-          status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/api/status)
-          if [ "$status" != "401" ]; then
-            echo "Expected 401 from an unauthenticated request to /api/status, got $status" >&2
-            docker logs wp-upload-ci
+          status=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001/)
+          if [ "$status" != "200" ]; then
+            echo "Expected 200 from an unauthenticated request to /, got $status" >&2
             exit 1
           fi
 
-      - name: Verify authenticated request succeeds
+      - name: Verify the API requires a session without a browser auth prompt
         run: |
-          status=$(curl -s -o /dev/null -w '%{http_code}' -u ci-user:ci-password-not-real http://localhost:3001/api/status)
-          if [ "$status" != "200" ]; then
-            echo "Expected 200 from an authenticated request to /api/status, got $status" >&2
-            docker logs wp-upload-ci
+          headers_file=$(mktemp)
+          status=$(curl -s -o /dev/null -D "$headers_file" -w '%{http_code}' http://localhost:3001/api/status)
+          if [ "$status" != "401" ]; then
+            echo "Expected 401 from an unauthenticated request to /api/status, got $status" >&2
+            exit 1
+          fi
+          # A WWW-Authenticate challenge would make browsers show their own
+          # login prompt instead of the app's login page.
+          if grep -qi '^www-authenticate:' "$headers_file"; then
+            echo "Unexpected WWW-Authenticate header on the 401:" >&2
+            cat "$headers_file" >&2
+            exit 1
+          fi
+
+      - name: Verify logging in grants access to the API
+        run: |
+          cookie_jar=$(mktemp)
+
+          login_status=$(curl -s -o /dev/null -w '%{http_code}' \
+            -c "$cookie_jar" \
+            -H 'Content-Type: application/json' \
+            -d '{"username": "ci-user", "password": "ci-password-not-real"}' \
+            http://localhost:3001/session)
+          if [ "$login_status" != "200" ]; then
+            echo "Expected 200 from logging in, got $login_status" >&2
+            exit 1
+          fi
+
+          api_status=$(curl -s -o /dev/null -w '%{http_code}' \
+            -b "$cookie_jar" \
+            http://localhost:3001/api/status)
+          if [ "$api_status" != "200" ]; then
+            echo "Expected 200 from /api/status with a session, got $api_status" >&2
             exit 1
           fi
 

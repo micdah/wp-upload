@@ -1,5 +1,6 @@
 import { Box, Group, RingProgress, Text } from '@mantine/core'
 import { useEffect, useRef, useState } from 'react'
+import { apiFetch } from '../lib/api'
 
 const POLL_INTERVAL_MS = 5_000
 const STALE_AFTER_MS = POLL_INTERVAL_MS * 3
@@ -136,7 +137,7 @@ export function ServerLoadStats() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
-      fetch('api/server-load', { signal: controller.signal })
+      apiFetch('api/server-load', { signal: controller.signal })
         .then((res) => (res.ok ? res.json() : null))
         .then((json: ServerLoadResponse | null) => {
           if (cancelled || !json) return

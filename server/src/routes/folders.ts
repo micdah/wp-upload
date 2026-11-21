@@ -1,7 +1,7 @@
 import express, { Router } from 'express'
 import { isFilebirdEnabled } from '../config/filebirdClient.ts'
 import { createFolder, listFolders } from '../lib/filebird.ts'
-import { isWpError } from '../lib/wpUpload.ts'
+import { isWpError, upstreamErrorStatus } from '../lib/wpUpload.ts'
 
 const MAX_FOLDER_NAME_LENGTH = 200
 
@@ -23,7 +23,7 @@ foldersRouter.get('/folders', async (_req, res, next) => {
   } catch (wpError) {
     if (!isWpError(wpError)) return next(wpError)
     res
-      .status(wpError.status || 502)
+      .status(upstreamErrorStatus(wpError.status))
       .json({ code: wpError.code, message: wpError.message })
   }
 })
@@ -50,7 +50,7 @@ foldersRouter.post('/folders', express.json(), async (req, res, next) => {
   } catch (wpError) {
     if (!isWpError(wpError)) return next(wpError)
     res
-      .status(wpError.status || 502)
+      .status(upstreamErrorStatus(wpError.status))
       .json({ code: wpError.code, message: wpError.message })
   }
 })

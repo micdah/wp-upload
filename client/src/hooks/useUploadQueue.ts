@@ -5,6 +5,7 @@ import {
   checkDuplicate,
   type ExistingMedia,
   fetchJobStatuses,
+  SESSION_EXPIRED_CODE,
   type UploadClientError,
   type UploadResult,
   uploadFile,
@@ -28,6 +29,11 @@ const JOB_LOST_ERROR: UploadClientError = {
   code: 'job_lost',
   message:
     'The server lost track of this upload (it may have restarted). Check WordPress before retrying.',
+}
+
+const SESSION_EXPIRED_ERROR: UploadClientError = {
+  code: SESSION_EXPIRED_CODE,
+  message: 'Your session expired. Log in again, then retry.',
 }
 
 export type UploadStatus =
@@ -385,6 +391,31 @@ export function useUploadQueue() {
     [pump],
   )
 
+  // Each file gets its own duplicate check so a slow WP response for one
+  // doesn't hold up the others - only files that come back clear (or whose
+  // check fails, see checkDuplicate) join the upload queue.
+  const runDuplicateCheck = useCallback(
+    (id: string) => {
+      const entry = filesRef.current[id]
+      if (!entry) return
+
+      checkDuplicate(entry.name).then((outcome) => {
+        // The item may have been removed while the check was in flight.
+        if (!filesRef.current[id]) return
+
+        if ('sessionExpired' in outcome) {
+          dispatch({ type: 'SET_ERROR', id, error: SESSION_EXPIRED_ERROR })
+        } else if (outcome.duplicate) {
+          dispatch({ type: 'SET_DUPLICATE', id, matches: outcome.matches })
+        } else {
+          dispatch({ type: 'SET_STATUS', id, status: 'queued' })
+          enqueue(id)
+        }
+      })
+    },
+    [enqueue],
+  )
+
   const addFiles = useCallback(
     (fileList: File[], folder: SelectedFolder | null = null) => {
       const entries: FileEntry[] = Array.from(fileList).map((file) => ({
@@ -410,28 +441,29 @@ export function useUploadQueue() {
       }
       dispatch({ type: 'ADD_FILES', entries })
 
-      // Each file gets its own duplicate check so a slow WP response for one
-      // doesn't hold up the others - only files that come back clear (or
-      // whose check fails, see checkDuplicate) join the upload queue.
-      for (const entry of entries) {
-        checkDuplicate(entry.name).then((result) => {
-          // The item may have been removed while the check was in flight.
-          if (!filesRef.current[entry.id]) return
-
-          if (result.duplicate) {
-            dispatch({
-              type: 'SET_DUPLICATE',
-              id: entry.id,
-              matches: result.matches,
-            })
-          } else {
-            dispatch({ type: 'SET_STATUS', id: entry.id, status: 'queued' })
-            enqueue(entry.id)
-          }
-        })
-      }
+      for (const entry of entries) runDuplicateCheck(entry.id)
     },
-    [enqueue],
+    [runDuplicateCheck],
+  )
+
+  // Puts failed items back in line. Ones that failed because the session
+  // was lost go through the duplicate check again: it may never have run
+  // for them (see checkDuplicate).
+  const requeue = useCallback(
+    (ids: string[]) => {
+      const lostSession = (id: string) =>
+        filesRef.current[id]?.error?.code === SESSION_EXPIRED_CODE
+      const recheckIds = ids.filter(lostSession)
+      const queueIds = ids.filter((id) => !lostSession(id))
+
+      dispatch({ type: 'RESET_TO_QUEUED', ids })
+      for (const id of recheckIds) {
+        dispatch({ type: 'SET_STATUS', id, status: 'checking' })
+        runDuplicateCheck(id)
+      }
+      for (const id of queueIds) enqueue(id)
+    },
+    [enqueue, runDuplicateCheck],
   )
 
   const confirmUpload = useCallback(
@@ -442,22 +474,15 @@ export function useUploadQueue() {
     [enqueue],
   )
 
-  const retry = useCallback(
-    (id: string) => {
-      dispatch({ type: 'RESET_TO_QUEUED', ids: [id] })
-      enqueue(id)
-    },
-    [enqueue],
-  )
+  const retry = useCallback((id: string) => requeue([id]), [requeue])
 
   const retryAllFailed = useCallback(() => {
     const failedIds = state.order.filter(
       (id) => state.files[id]?.status === 'error',
     )
     if (failedIds.length === 0) return
-    dispatch({ type: 'RESET_TO_QUEUED', ids: failedIds })
-    for (const id of failedIds) enqueue(id)
-  }, [state.order, state.files, enqueue])
+    requeue(failedIds)
+  }, [state.order, state.files, requeue])
 
   const removeFile = useCallback(
     (id: string) => {
