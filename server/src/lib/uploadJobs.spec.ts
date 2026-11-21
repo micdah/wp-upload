@@ -14,6 +14,12 @@ vi.mock('./wpUpload.ts', async (importOriginal) => {
   return { ...actual, uploadToWordPress: vi.fn() }
 })
 
+vi.mock('./filebird.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./filebird.ts')>()
+  return { ...actual, assignToFolder: vi.fn() }
+})
+
+import { assignToFolder } from './filebird.ts'
 import {
   acquireSlot,
   cancelJob,
@@ -71,6 +77,7 @@ describe('uploadJobs', () => {
 
   afterEach(() => {
     vi.mocked(uploadToWordPress).mockReset()
+    vi.mocked(assignToFolder).mockReset()
     vi.useRealTimers()
   })
 
@@ -204,16 +211,18 @@ describe('uploadJobs', () => {
       expect(getJob(id)?.status).toBe('queued')
       expect(cancelJob(id)).toBe(true)
 
+      // The temp file goes straight away, not once a slot frees up.
+      expect(unlinkSpy).toHaveBeenCalledWith(
+        '/tmp/queued-upload',
+        expect.any(Function),
+      )
+
       // Hands the freed slot to the cancelled job, which should give it
-      // straight back without uploading.
+      // straight back without uploading - or removing the file again.
       releaseSlot()
 
-      await vi.waitFor(() =>
-        expect(unlinkSpy).toHaveBeenCalledWith(
-          '/tmp/queued-upload',
-          expect.any(Function),
-        ),
-      )
+      await vi.waitFor(() => expect(getActiveUploadCount()).toBe(CAP - 1))
+      expect(unlinkSpy).toHaveBeenCalledTimes(1)
       expect(uploadToWordPress).not.toHaveBeenCalled()
       expect(getActiveUploadCount()).toBe(CAP - 1)
 
@@ -236,6 +245,100 @@ describe('uploadJobs', () => {
 
       vi.advanceTimersByTime(1_000)
       expect(getJob(id)).toBeUndefined()
+    })
+  })
+
+  describe('FileBird folder filing', () => {
+    it('does not file anything without a folderId', async () => {
+      vi.mocked(uploadToWordPress).mockResolvedValueOnce(RESULT)
+
+      const id = createJob(fakeFile())
+
+      await vi.waitFor(() => expect(getJob(id)?.status).toBe('success'))
+      expect(getJob(id)?.result).toEqual(RESULT)
+      expect(assignToFolder).not.toHaveBeenCalled()
+    })
+
+    it('stays processing until the item is filed, then reports the folder', async () => {
+      vi.mocked(uploadToWordPress).mockResolvedValueOnce(RESULT)
+      let fileIt: () => void = () => {}
+      vi.mocked(assignToFolder).mockImplementationOnce(
+        () => new Promise((resolve) => (fileIt = resolve)),
+      )
+
+      const id = createJob(fakeFile(), 40)
+
+      await vi.waitFor(() => expect(assignToFolder).toHaveBeenCalledWith(1, 40))
+      expect(getJob(id)?.status).toBe('processing')
+
+      fileIt()
+
+      await vi.waitFor(() => expect(getJob(id)?.status).toBe('success'))
+      expect(getJob(id)?.result).toEqual({
+        ...RESULT,
+        folder: { id: 40, assigned: true },
+      })
+    })
+
+    it('still succeeds when filing fails, reporting why', async () => {
+      vi.mocked(uploadToWordPress).mockResolvedValueOnce(RESULT)
+      vi.mocked(assignToFolder).mockRejectedValueOnce({
+        status: 502,
+        code: 'filebird_error',
+        message: 'Folder not found.',
+      })
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {})
+
+      const id = createJob(fakeFile(), 40)
+
+      await vi.waitFor(() => expect(getJob(id)?.status).toBe('success'))
+      expect(getJob(id)?.result).toEqual({
+        ...RESULT,
+        folder: { id: 40, assigned: false, message: 'Folder not found.' },
+      })
+      expect(consoleError).toHaveBeenCalled()
+      consoleError.mockRestore()
+    })
+
+    it('lets filing finish when cancelled meanwhile, then cleans up', async () => {
+      vi.mocked(uploadToWordPress).mockResolvedValueOnce(RESULT)
+      let fileIt: () => void = () => {}
+      vi.mocked(assignToFolder).mockImplementationOnce(
+        () => new Promise((resolve) => (fileIt = resolve)),
+      )
+
+      const id = createJob(fakeFile('/tmp/filing-upload'), 40)
+      await vi.waitFor(() => expect(assignToFolder).toHaveBeenCalled())
+
+      expect(cancelJob(id)).toBe(true)
+      expect(getJob(id)).toBeUndefined()
+      // Still filing: the slot is held and the file is kept until it settles.
+      expect(getActiveUploadCount()).toBe(1)
+      expect(unlinkSpy).not.toHaveBeenCalled()
+
+      fileIt()
+
+      await vi.waitFor(() => expect(getActiveUploadCount()).toBe(0))
+      expect(getJob(id)).toBeUndefined()
+      expect(unlinkSpy).toHaveBeenCalledWith(
+        '/tmp/filing-upload',
+        expect.any(Function),
+      )
+    })
+
+    it('does not file anything when the upload itself fails', async () => {
+      vi.mocked(uploadToWordPress).mockRejectedValueOnce({
+        status: 502,
+        code: 'wp_unreachable',
+        message: 'Could not reach WordPress.',
+      })
+
+      const id = createJob(fakeFile(), 40)
+
+      await vi.waitFor(() => expect(getJob(id)?.status).toBe('error'))
+      expect(assignToFolder).not.toHaveBeenCalled()
     })
   })
 })

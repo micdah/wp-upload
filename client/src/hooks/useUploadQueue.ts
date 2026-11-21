@@ -237,6 +237,13 @@ export function useUploadQueue() {
   const transferringRef = useRef<Set<string>>(new Set())
   const processingRef = useRef<Map<string, string>>(new Map())
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map())
+  // Transfers whose body has been fully sent. Aborting one of those can no
+  // longer stop the server from creating its job - it only throws away the
+  // 202 carrying the job id - so removal instead waits for that id
+  // (removedAfterSendRef) and cancels the job.
+  const bodySentRef = useRef<Set<string>>(new Set())
+  const removedAfterSendRef = useRef<Set<string>>(new Set())
+  const unmountedRef = useRef(false)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollInFlightRef = useRef(false)
   const filesRef = useRef<Record<string, FileEntry>>(state.files)
@@ -259,6 +266,7 @@ export function useUploadQueue() {
       folderId: entry.folder?.id,
       onProgress: (percent) => {
         if (percent >= 100) {
+          bodySentRef.current.add(id)
           dispatch({
             type: 'SET_STATUS',
             id,
@@ -271,9 +279,10 @@ export function useUploadQueue() {
       },
     })
       .then(({ jobId }) => {
-        // Removed right as the transfer completed - too late for the abort
-        // to stop the server creating the job, so cancel that instead.
-        if (controller.signal.aborted) {
+        // Removed once the body was sent (or right as the transfer
+        // completed) - too late to stop the server creating the job, so
+        // cancel that instead.
+        if (controller.signal.aborted || removedAfterSendRef.current.has(id)) {
           cancelUploadJob(jobId)
           return
         }
@@ -292,6 +301,8 @@ export function useUploadQueue() {
       .finally(() => {
         transferringRef.current.delete(id)
         abortControllersRef.current.delete(id)
+        bodySentRef.current.delete(id)
+        removedAfterSendRef.current.delete(id)
         pump()
       })
   }, [])
@@ -355,6 +366,7 @@ export function useUploadQueue() {
 
   const schedulePoll = useCallback(() => {
     if (
+      unmountedRef.current ||
       pollTimerRef.current !== null ||
       pollInFlightRef.current ||
       processingRef.current.size === 0
@@ -449,7 +461,11 @@ export function useUploadQueue() {
 
   const removeFile = useCallback(
     (id: string) => {
-      abortControllersRef.current.get(id)?.abort()
+      const transfer = abortControllersRef.current.get(id)
+      if (transfer) {
+        if (bodySentRef.current.has(id)) removedAfterSendRef.current.add(id)
+        else transfer.abort()
+      }
       const jobId = processingRef.current.get(id)
       if (jobId) {
         processingRef.current.delete(id)
@@ -494,7 +510,11 @@ export function useUploadQueue() {
   // Revoke any remaining thumbnail object URLs and stop polling when the
   // component unmounts.
   useEffect(() => {
+    // Reset on (re)mount - StrictMode runs this cleanup once in development.
+    unmountedRef.current = false
     return () => {
+      // An in-flight poll would otherwise reschedule itself from .finally.
+      unmountedRef.current = true
       if (pollTimerRef.current !== null) clearTimeout(pollTimerRef.current)
       pollTimerRef.current = null
       for (const file of Object.values(filesRef.current)) {

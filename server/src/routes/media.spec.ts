@@ -1,6 +1,6 @@
 import express from 'express'
 import request from 'supertest'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { errorHandler } from '../middleware/errorHandler.ts'
 
 vi.mock('../lib/wpUpload.ts', async (importOriginal) => {
@@ -12,6 +12,13 @@ vi.mock('../lib/wpUpload.ts', async (importOriginal) => {
   }
 })
 
+vi.mock('../lib/filebird.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../lib/filebird.ts')>()
+  return { ...actual, assignToFolder: vi.fn() }
+})
+
+import { env } from '../config/env.ts'
+import { assignToFolder } from '../lib/filebird.ts'
 import { findExistingMediaBySlug, uploadToWordPress } from '../lib/wpUpload.ts'
 import { mediaRouter } from './media.ts'
 
@@ -27,6 +34,19 @@ const RESULT = {
   title: 'Photo',
   sourceUrl: 'https://example.invalid/photo.png',
   mimeType: 'image/png',
+}
+
+// Hangs until the job is cancelled, then rejects like an aborted request -
+// so the job settles, frees its slot and removes its temp file.
+function hangUntilAborted() {
+  vi.mocked(uploadToWordPress).mockImplementation(
+    (_file, options) =>
+      new Promise((_resolve, reject) => {
+        options?.signal?.addEventListener('abort', () =>
+          reject({ status: 502, code: 'wp_unreachable', message: 'canceled' }),
+        )
+      }),
+  )
 }
 
 async function startUpload(app: express.Express): Promise<string> {
@@ -145,7 +165,7 @@ describe('media', () => {
 
     it('responds 202 with a job id without waiting for WordPress', async () => {
       // Never settles - the response must not depend on WordPress at all.
-      vi.mocked(uploadToWordPress).mockReturnValue(new Promise(() => {}))
+      hangUntilAborted()
       const app = buildApp()
 
       const res = await request(app)
@@ -214,7 +234,7 @@ describe('media', () => {
     })
 
     it('answers for every requested id, marking unknown ones not_found', async () => {
-      vi.mocked(uploadToWordPress).mockReturnValue(new Promise(() => {}))
+      hangUntilAborted()
       const app = buildApp()
 
       const jobId = await startUpload(app)
@@ -267,6 +287,107 @@ describe('media', () => {
         code: 'job_not_found',
         message: 'No such upload job.',
       })
+    })
+  })
+
+  describe('FileBird folder assignment', () => {
+    const originalKey = env.filebirdApiKey
+
+    async function uploadAndSettle(folderId?: string) {
+      const app = buildApp()
+      const req = request(app).post('/media')
+      if (folderId !== undefined) req.field('folderId', folderId)
+      const res = await req.attach(
+        'file',
+        Buffer.from('fake-image-bytes'),
+        'photo.png',
+      )
+      expect(res.status).toBe(202)
+      const jobId: string = res.body.jobId
+
+      let settled: { status: string } | undefined
+      await vi.waitFor(async () => {
+        ;[settled] = await fetchJobs(app, [jobId])
+        expect(settled?.status).toMatch(/^(success|error)$/)
+      })
+      return settled
+    }
+
+    beforeEach(() => {
+      env.filebirdApiKey = 'fb-key'
+      vi.mocked(uploadToWordPress).mockResolvedValue(RESULT)
+    })
+
+    afterEach(() => {
+      env.filebirdApiKey = originalKey
+      vi.mocked(uploadToWordPress).mockReset()
+      vi.mocked(assignToFolder).mockReset()
+      vi.restoreAllMocks()
+    })
+
+    it('files the upload into the requested folder', async () => {
+      vi.mocked(assignToFolder).mockResolvedValue()
+
+      const job = await uploadAndSettle('40')
+
+      expect(assignToFolder).toHaveBeenCalledWith(1, 40)
+      expect(job).toMatchObject({
+        status: 'success',
+        result: { ...RESULT, folder: { id: 40, assigned: true } },
+      })
+    })
+
+    it('still succeeds when filing fails, reporting why', async () => {
+      vi.mocked(assignToFolder).mockRejectedValue({
+        status: 502,
+        code: 'filebird_error',
+        message: 'Folder not found.',
+      })
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      const job = await uploadAndSettle('40')
+
+      expect(job).toMatchObject({
+        status: 'success',
+        result: {
+          ...RESULT,
+          folder: { id: 40, assigned: false, message: 'Folder not found.' },
+        },
+      })
+    })
+
+    it.each([[undefined], ['0'], ['-3'], ['abc']])(
+      'does not file anything for folderId %j',
+      async (folderId) => {
+        const job = await uploadAndSettle(folderId)
+
+        expect(job).toMatchObject({ status: 'success', result: RESULT })
+        expect(job).not.toHaveProperty('result.folder')
+        expect(assignToFolder).not.toHaveBeenCalled()
+      },
+    )
+
+    it('ignores folderId when FileBird is disabled', async () => {
+      env.filebirdApiKey = null
+
+      const job = await uploadAndSettle('40')
+
+      expect(job).toMatchObject({ status: 'success', result: RESULT })
+      expect(job).not.toHaveProperty('result.folder')
+      expect(assignToFolder).not.toHaveBeenCalled()
+    })
+
+    it('does not file anything when the upload itself fails', async () => {
+      vi.mocked(uploadToWordPress).mockRejectedValue({
+        status: 502,
+        code: 'wp_unreachable',
+        message: 'Could not reach WordPress.',
+      })
+
+      const job = await uploadAndSettle('40')
+
+      expect(job).toMatchObject({ status: 'error' })
+      expect(assignToFolder).not.toHaveBeenCalled()
     })
   })
 })

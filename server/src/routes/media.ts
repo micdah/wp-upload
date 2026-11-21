@@ -2,6 +2,7 @@ import os from 'node:os'
 import { Router } from 'express'
 import multer from 'multer'
 import { env } from '../config/env.ts'
+import { isFilebirdEnabled } from '../config/filebirdClient.ts'
 import { cancelJob, createJob, getJob } from '../lib/uploadJobs.ts'
 import { findExistingMediaBySlug, isWpError } from '../lib/wpUpload.ts'
 
@@ -9,6 +10,14 @@ const upload = multer({
   dest: os.tmpdir(),
   limits: { fileSize: env.maxFileSizeMb * 1024 * 1024 },
 })
+
+// The optional multipart `folderId` field (#38). Anything that isn't a
+// positive integer - including 0, FileBird's "Uncategorized" - means "don't
+// file it anywhere".
+function parseFolderId(value: unknown): number | null {
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 ? id : null
+}
 
 export const mediaRouter = Router()
 
@@ -50,7 +59,11 @@ mediaRouter.post('/media', (req, res, next) => {
         .json({ code: 'no_file', message: 'No file was provided.' })
     }
 
-    res.status(202).json({ jobId: createJob(req.file) })
+    const folderId = isFilebirdEnabled()
+      ? parseFolderId(req.body?.folderId)
+      : null
+
+    res.status(202).json({ jobId: createJob(req.file, folderId) })
   })
 })
 
