@@ -77,7 +77,8 @@ for screenshots.
 
 - **Offline:** the overlay turns amber ("Uploads are paused while WordPress is unreachable"), the drop
   is ignored, and buttons are disabled.
-- **Plugin missing:** the drop is swallowed. The onboarding screen points to the basic uploader.
+- **Plugin missing:** the drop is swallowed. ~~The onboarding screen points to the basic uploader.~~
+  *Amended (D1c, [implementation plan](../../implementation-plan.md) §0): there is no basic uploader; the onboarding screen is the only path.*
 
 ## 2. Delete, trash and download (S13)
 
@@ -167,14 +168,18 @@ Delete permanently", next to Select all and Empty trash.
 - **What the plugin adds:** four items: folders, where it's used, trash and restore, regenerate and
   replace;
 - **Three numbered steps:**
-  1. download `wp-upload-companion.php`;
-  2. put it in `wp-content/mu-plugins/` or install it as a plugin, which needs an Administrator;
+  1. download the plugin zip;
+  2. install it in wp-admin (Plugins → Add New → Upload), which needs an Administrator. A note says the
+     same single PHP file can be placed in `wp-content/mu-plugins/` instead;
   3. check again;
+
+  *Amended (D12, [implementation plan](../../implementation-plan.md) §0): the plugin ships as a regular plugin zip that also works as a
+  mu-plugin.*
 - **Actions:**
   - **Check again** (primary). It shows "Checking…", then "Checked at 14:05 · still not found. Is it in
     mu-plugins, or activated?";
-  - **Use the basic uploader instead**, a link to the existing upload page, which works without the
-    plugin (D1b).
+  - ~~**Use the basic uploader instead**, a link to the existing upload page, which works without the
+    plugin (D1b).~~ *Removed (D1c, [implementation plan](../../implementation-plan.md) §0): the old upload page is deleted.*
 
   The title receives focus on load.
 

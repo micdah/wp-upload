@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/errorHandler.ts'
 import { requireSession } from './middleware/requireSession.ts'
 import { sameOriginOnly } from './middleware/sameOriginOnly.ts'
 import { foldersRouter } from './routes/folders.ts'
+import { libraryRouter } from './routes/library/index.ts'
 import { mediaRouter } from './routes/media.ts'
 import { serverLoadRouter } from './routes/serverLoad.ts'
 import { sessionRouter } from './routes/session.ts'
@@ -35,6 +36,9 @@ const hasClientBuild = fs.existsSync(clientDist)
 if (hasClientBuild) app.use(express.static(clientDist))
 
 app.use('/api', requireSession)
+
+// The media manager's API (docs/media-manager/contracts/server-api.md).
+app.use('/api/library', libraryRouter)
 
 app.use('/api', mediaRouter)
 app.use('/api', foldersRouter)

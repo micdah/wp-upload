@@ -6,3 +6,9 @@ server/.env
 .git
 .gitignore
 README.md
+test-results
+playwright-report
+.cache
+dev
+e2e/test-results
+plugin/dist

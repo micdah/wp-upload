@@ -241,7 +241,7 @@ under the "Folders" group, so the `?` sheet lists them):
 | Bulk assign `{folder, ids[]}` atomically, returning fresh counts | DnD and Move to…; Undo is a second assign per original folder | `assign-folder` |
 | Delete `{id}` recursive, returning the moved-file count | Confirm wording and toast | `delete-folder`; the count comes from the counts diff |
 | Colour `{id, color\|null}` and sort-folders pref | Pro features, only if Pro is detected | `update-folder-color`, `get-folders?orderby=name` |
-| Detect FileBird, its **Pro** licence and **per-user mode** | Scenarios above | Detect `filebird/v1` in `/wp-json/`; Pro and `USER_MODE` need the mu-plugin to report them |
+| Detect FileBird, its **Pro** licence and **per-user mode** | Scenarios above | Detect `filebird/v1` in `/wp-json/`; Pro and `USER_MODE` need the mu-plugin to report them. *Amended (D15/D17, [implementation plan](../../implementation-plan.md) §0): the companion plugin reports them; Pro features are detection-gated and mock-tested only (no licence), and colours are written only through FileBird's own colour function* |
 | Per-user prefs (count mode, folder sort) | FileBird stores them per WP user | `set-user-settings` writes to user 0 with an app password; store them in our app instead |
 | (Optional) restore a deleted subtree | Would allow Undo on delete | Not in FileBird; a backup restore is coarse |
 

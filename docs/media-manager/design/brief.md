@@ -70,7 +70,8 @@ switches between grid and detail.
 - FileBird per-user folder mode (unsupported, shown as a warning).
 
 The media manager requires the companion WordPress plugin, and shows a "plugin missing" screen when it is
-absent. The existing upload page keeps working without the plugin.
+absent. ~~The existing upload page keeps working without the plugin.~~ *Amended (D1c, [implementation
+plan](../implementation-plan.md) §0): the old upload page is removed; the plugin is required.*
 
 ## 4. Layout anatomy (desktop ≥ 1200 px)
 

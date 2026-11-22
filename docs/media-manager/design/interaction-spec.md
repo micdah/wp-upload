@@ -226,7 +226,8 @@ app works under any sub-path:
     count for 25 or more items.
   - **Download** is honest: no ZIP in v1.
 - **States:**
-  - No plugin: an onboarding screen, with the basic uploader as a fallback.
+  - No plugin: an onboarding screen. ~~with the basic uploader as a fallback~~ *(amended, D1c, [implementation plan](../implementation-plan.md) §0:
+    no fallback)*.
   - Offline: a banner, retry with back-off, cached browsing, and mutations disabled.
   - Author: a banner.
   - Loading: a hairline plus skeletons.
@@ -337,7 +338,7 @@ each area spec.
 
 | Area | Need |
 |---|---|
-| Detection | REST namespace on `GET /wp-json/` (plugin present; version); FileBird present, **Pro** licence, **per-user mode**; `MEDIA_TRASH` and `EMPTY_TRASH_DAYS` |
+| Detection | REST namespace on `GET /wp-json/` (plugin present; version); FileBird present, **Pro** licence, **per-user mode**; `MEDIA_TRASH` and `EMPTY_TRASH_DAYS`. *Amended (D15, [implementation plan](../implementation-plan.md) §0): Pro is detection-gated and tested in mock mode only* |
 | Listing | `GET /wp/v2/media?fbv=<id\|0>` with paging and sort; `fbv_folder` field on every item; orderby/filter on size, dimensions, file name, type; missing-alt filter; alt and EXIF search; month list with counts; compact id/width/height list for the justified layout |
 | Folders | Tree with counts in one call; create/rename returning the final (auto-suffixed) name; move/reorder with cycle check; recursive delete returning the moved count; atomic bulk assign returning counts; Pro colour/sort only when Pro is licensed |
 | Metadata | Batch metadata update (or proxy fan-out) with per-item results |

@@ -12,3 +12,9 @@ dist/
 .DS_Store
 .vscode/
 .idea/
+
+# Media manager (docs/media-manager/implementation-plan.md §5)
+test-results/
+playwright-report/
+.cache/
+plugin/dist/
