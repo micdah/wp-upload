@@ -1,0 +1,16 @@
+# Added by dev/run only when CI=true (plan §5.3): the buildx GitHub Actions cache for the image
+# builds. It only affects speed. Needs a docker-container builder (setup-buildx-action) and the
+# Actions runtime token in the environment (ghaction-github-runtime).
+services:
+  runner:
+    build:
+      cache_from:
+        - type=gha,scope=wpu-runner
+      cache_to:
+        - type=gha,mode=max,scope=wpu-runner
+  app:
+    build:
+      cache_from:
+        - type=gha,scope=wpu-app
+      cache_to:
+        - type=gha,mode=max,scope=wpu-app

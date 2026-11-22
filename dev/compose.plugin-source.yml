@@ -1,0 +1,9 @@
+# `dev` mode, added by dev/run only when plugin/wp-upload-companion/ exists: WordPress runs the
+# companion plugin straight from this worktree's source.
+services:
+  wordpress:
+    volumes:
+      - ../plugin/wp-upload-companion:/var/www/html/wp-content/plugins/wp-upload-companion:ro
+  wpcli:
+    volumes:
+      - ../plugin/wp-upload-companion:/var/www/html/wp-content/plugins/wp-upload-companion:ro

@@ -1,0 +1,152 @@
+# The dev/test stack (implementation plan §5). Always start it through `dev/run`, which sets
+# COMPOSE_PROJECT_NAME, the ports and the WPU_* variables below, and adds the mode's override
+# files (compose.dev.yml or compose.test.yml, plus the plugin and CI overrides).
+#
+# Every image is pinned by digest. The handoff note (docs/media-manager/tracks/D-handoff.md)
+# records the tags and how to bump them.
+
+x-wordpress-env: &wordpress-env
+  WORDPRESS_DB_HOST: db
+  WORDPRESS_DB_NAME: wordpress
+  WORDPRESS_DB_USER: wordpress
+  WORDPRESS_DB_PASSWORD: wordpress
+  # The image's wp-config.php evaluates this on every request (and for wp-cli), so both
+  # containers share one config: site URL, environment type, proxy TLS, debug log.
+  WORDPRESS_CONFIG_EXTRA: "require '/opt/wpu/wp-config-extra.php';"
+  WP_ENVIRONMENT_TYPE: local
+  WORDPRESS_DEBUG: "1"
+  WPU_MODE: ${WPU_MODE:?run this stack through dev/run}
+  WPU_SITE_URL: ${WPU_SITE_URL:?run this stack through dev/run}
+  TZ: UTC
+  LANG: C.UTF-8
+
+services:
+  db:
+    image: mariadb:11.4.13@sha256:a8992b5e5404d11e03c54a31d0c1bdea3fd116d283aa6d1a627551f29045309b
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: root
+      TZ: UTC
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  wordpress:
+    image: wordpress:7.1.5-php8.3-apache@sha256:2e5145737f46b8fd53f333a05eb3a4f21321c90e20475b7827082dd5f75b62b0
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/opt/wpu/entrypoint.sh"]
+    command: ["apache2-foreground"]
+    environment:
+      <<: *wordpress-env
+    volumes:
+      - wp_html:/var/www/html
+      - wp_uploads:/var/www/html/wp-content/uploads
+      - ./wordpress:/opt/wpu:ro
+      - ./wordpress/mu-plugins/wpu-dev.php:/var/www/html/wp-content/mu-plugins/wpu-dev.php:ro
+    healthcheck:
+      # A static file: it answers as soon as Apache serves the copied WordPress files,
+      # before WordPress is installed.
+      test:
+        - CMD
+        - php
+        - -r
+        - "exit(@file_get_contents('http://localhost/wp-includes/images/blank.gif') === false ? 1 : 0);"
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  # One-off: install, seed, variants, snapshots. `dev/run` calls `compose run --rm wpcli ...`.
+  wpcli:
+    image: &wpcli-image wordpress:cli-2.12.0-php8.3@sha256:14ad78160eba4c1ee30b33f9edeb44341c0de28a051fc472ee60136c775f0f0f
+    profiles: [tools]
+    # www-data in the Debian-based wordpress image is 33; the Alpine cli image's is 82.
+    # Running as 33 keeps every file on the shared volumes owned by the web server.
+    user: "33:33"
+    working_dir: /var/www/html
+    environment:
+      <<: *wordpress-env
+      HOME: /tmp
+    volumes:
+      - wp_html:/var/www/html
+      - wp_uploads:/var/www/html/wp-content/uploads
+      - ./wordpress:/opt/wpu:ro
+      - ./wordpress/mu-plugins/wpu-dev.php:/var/www/html/wp-content/mu-plugins/wpu-dev.php:ro
+      - ./fixtures:/opt/wpu-fixtures:ro
+      - ./.cache/downloads:/cache/downloads
+      - snapshots:/snapshots
+
+  # One-off: creates the `test` mode's dev CA (it reuses the wp-cli image for its openssl).
+  ca:
+    image: *wpcli-image
+    profiles: [tools]
+    user: "${WPU_UID:?run this stack through dev/run}:${WPU_GID:?run this stack through dev/run}"
+    entrypoint: ["sh", "/opt/make-dev-ca.sh"]
+    volumes:
+      - ./lib/make-dev-ca.sh:/opt/make-dev-ca.sh:ro
+      - ${WPU_STATE_DIR:?run this stack through dev/run}/ca:/ca
+
+  # Runs every test command (§5.2). It mounts the repo at its host path, so git works in
+  # worktrees too, and keeps node_modules in a named volume so host binaries never leak in.
+  runner:
+    profiles: [runner]
+    image: wpu-runner:playwright-${WPU_PLAYWRIGHT_VERSION:?run this stack through dev/run}
+    build:
+      context: ./runner
+      args:
+        PLAYWRIGHT_VERSION: ${WPU_PLAYWRIGHT_VERSION}
+        PLAYWRIGHT_IMAGE: ${WPU_PLAYWRIGHT_IMAGE:?run this stack through dev/run}
+        NODE_IMAGE: ${WPU_NODE_IMAGE:?run this stack through dev/run}
+    user: "${WPU_UID:?run this stack through dev/run}:${WPU_GID:?run this stack through dev/run}"
+    init: true
+    shm_size: 1gb
+    working_dir: ${WPU_REPO_ROOT:?run this stack through dev/run}
+    environment:
+      HOME: /home/runner
+      npm_config_cache: /cache/npm
+      HUSKY: "0"
+      CI: ${CI:-false}
+      TZ: UTC
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      WPU_MODE: ${WPU_MODE}
+      WPU_RESULTS_DIR: ${WPU_REPO_ROOT}/test-results
+    tmpfs:
+      - /home/runner:mode=1777,exec
+    volumes:
+      - ${WPU_REPO_ROOT}:${WPU_REPO_ROOT}
+      - ${WPU_GIT_COMMON_DIR:?run this stack through dev/run}:${WPU_GIT_COMMON_DIR}:ro
+      - runner_node_modules:${WPU_REPO_ROOT}/node_modules
+      - ./.cache/npm:/cache/npm
+
+  # `plugin-static` runs `php -l` on the oldest and newest supported PHP versions.
+  php81:
+    profiles: [php]
+    image: php:8.1.34-cli@sha256:76e563191d1ade120313a8736df24154d21da5155c0756f147c0b01bd19d9087
+    user: "${WPU_UID}:${WPU_GID}"
+    working_dir: ${WPU_REPO_ROOT}
+    volumes:
+      - ${WPU_REPO_ROOT}:${WPU_REPO_ROOT}:ro
+
+  php84:
+    profiles: [php]
+    image: php:8.4.28-cli@sha256:6b13a8678b38ca38e4e3950be57b664ed8c8706131a0586111f68792aede4c58
+    user: "${WPU_UID}:${WPU_GID}"
+    working_dir: ${WPU_REPO_ROOT}
+    volumes:
+      - ${WPU_REPO_ROOT}:${WPU_REPO_ROOT}:ro
+
+# The project name differs per worktree and mode, so every stack gets its own volumes.
+volumes:
+  db_data:
+  wp_html:
+  wp_uploads:
+  snapshots:
+  runner_node_modules:

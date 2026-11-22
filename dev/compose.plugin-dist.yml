@@ -1,0 +1,9 @@
+# `test` mode, added by dev/run only when plugin/dist/wp-upload-companion/ exists: WordPress
+# runs the built single-file plugin, installed as a regular plugin (plan §2.6).
+services:
+  wordpress:
+    volumes:
+      - ../plugin/dist/wp-upload-companion:/var/www/html/wp-content/plugins/wp-upload-companion:ro
+  wpcli:
+    volumes:
+      - ../plugin/dist/wp-upload-companion:/var/www/html/wp-content/plugins/wp-upload-companion:ro
