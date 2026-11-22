@@ -1,0 +1,303 @@
+# 00 — Synthesis: what's possible, what's missing, what to decide
+
+Phase 1 research for the media-manager idea: turning wp-upload into a modern alternative to the WordPress
+Media Library, with a large grid, an optional resizable FileBird folder column and a Lightroom-style detail
+mode (filmstrip and toggleable side panels). This doc condenses tracks A–G into one capability matrix, the
+architectural forks, UX principles for the design phase and the decisions that are needed.
+
+Baseline versions: WordPress 7.1.5, FileBird Lite 6.5.9, wp-upload `origin/master` @ `cfd647b`.
+All API claims are from reading source code, not from a live site. See [Verification](#verification-done-during-synthesis).
+
+---
+
+## TL;DR
+
+1. **It is feasible.** Browsing, filtering, searching, previewing, metadata editing, deleting and uploading
+   all work through core REST and the existing server proxy. All the UX ingredients (shared-element
+   transitions, virtualised grids, filmstrip, resizable panels) are supported in today's browsers.
+2. **FileBird is the weak link.** Its public API can list folders, create folders and assign files. It
+   can't rename, delete or move folders, can't tell us which folder a file is in, and **`/wp/v2/media`
+   can't be filtered by folder**. FileBird's internal `filebird/v1` routes probably work with our
+   Application Password, but they are undocumented. A **~20-line companion mu-plugin** would make folders
+   first-class in REST.
+3. **Core REST has hard gaps:**
+   - no batch for media;
+   - delete is permanent unless `MEDIA_TRASH` is set;
+   - image edits always create a *new* attachment;
+   - no replace-file, restore-original or regenerate;
+   - no "where is this used?";
+   - no sorting or filtering by size or dimensions.
+
+   Each gap is closed by either a **server-side index in our proxy** or the **companion plugin**.
+4. **The stack needs a step 0.** Most of the libraries the UX needs (React `<ViewTransition>`, Mantine 9
+   Tree with drag-and-drop and lazy loading, several drag-and-drop and selection libraries) need
+   **React 19**. wp-upload is on React 18 + Mantine 8, and Mantine 8 is no longer updated.
+5. **The visual direction changes.** Every reference app keeps its chrome neutral grey so that the images
+   are the only colour on screen. The current cyberpunk theme (blue-tinted darks, neon glow) would tint how
+   photos look. Neon can survive as the *accent* for focus and selection only.
+6. **No existing web app combines all of it** (a detail view you can link to, a filmstrip in grid order,
+   toggleable panels and a folder column). Immich, Google Photos, Eagle and Lightroom each provide pieces.
+   That is the opportunity.
+
+---
+
+## Capability matrix
+
+Legend:
+
+- **WP UI**: the built-in Media Library (doc 03). **FB UI**: FileBird's own interface (doc 04).
+- **API** values:
+  - ✅ core REST or FileBird public API covers it;
+  - 🟡 possible but needs extra work in our proxy;
+  - 🔶 only through FileBird's internal `filebird/v1` routes (undocumented);
+  - 🧩 needs the companion mu-plugin;
+  - ❌ not possible.
+- **Prio**: suggested priority. **M** = must (parity), **H** = high-value beyond parity, **N** = nice,
+  **?** = needs a decision.
+
+### Browse, filter, search
+
+| Capability | WP UI | FB UI | API | How / workaround | Prio |
+|---|---|---|---|---|---|
+| Paged grid of all media with total count | ✅ | ✅ | ✅ | `/wp/v2/media`, `per_page` ≤ 100, `X-WP-Total`; `HEAD` for counts (01 §1.4) | M |
+| Filter by type (image/video/audio/document) | ✅ | ✅ | ✅ | `media_type`/`mime_type` (arrays since 6.9). Video and audio come from `mime_type` (01 §1.1) | M |
+| Filter by date range | month only | — | ✅ | `after`/`before`, `modified_*` | M |
+| List of months that have media (for the date dropdown) | ✅ | — | 🟡/🧩 | Not in REST. Use a server index or the plugin | N |
+| Unattached / attached filter | ✅ | — | ✅ | `parent=0` | M |
+| "Mine" filter | ✅ | — | ✅* | *Always the one Application Password user. Low value | N |
+| Search title, caption, description, file name | ✅ | ✅ | ✅ | REST adds filename matching when `search` is set (verified, see below) | M |
+| Search alt text or EXIF keywords | ❌ | ❌ | 🟡/🧩 | Server index or plugin | N |
+| Sort by date, title, modified, author, id | list view only | Pro | ✅ | `orderby` enum (01 §1.1) | M |
+| Sort or filter by size, dimensions, file name, type | ❌ | Pro (some) | 🟡/🧩 | No `orderby` for these. Server index or plugin | H |
+| "Missing alt text" filter | ❌ | ❌ | 🟡/🧩 | Alt is postmeta and REST can't filter on it. Index or plugin | H |
+| Justified (aspect-preserving) grid | ❌ | ❌ | 🟡 | Needs every item's dimensions up front. Server index, or estimate-then-correct (07 §2) | H |
+
+### Folders (FileBird, optional)
+
+| Capability | WP UI | FB UI | API | How / workaround | Prio |
+|---|---|---|---|---|---|
+| Folder tree with counts | — | ✅ | ✅ | Public `GET /folders`. Recursive counts can be computed ourselves | M |
+| All Files / Uncategorized pseudo-folders | — | ✅ | 🟡 | Uncategorized: the public API gives only a count. Use internal routes plus an `exclude` list, or 🧩 | M |
+| Files in a folder, paged and sorted | — | ✅ | 🟡 → 🧩 | Without the plugin: `GET /attachment-id?folder_id=` then `/wp/v2/media?include=` (`POST ?_method=GET` for large folders), with cached ID lists. With the plugin: native `/wp/v2/media?fbv=` | M |
+| Which folder a file is in (detail panel) | — | ✅ | 🟡/🧩 | No API. Build a reverse index from per-folder ID lists, or add a plugin REST field | M |
+| Create folder (nested) | — | ✅ | ✅ | Public API (already used). Duplicate names are auto-renamed since 6.5.2 | M |
+| Rename, delete, move or reorder folders | — | ✅ | 🔶 / 🧩 | `filebird/v1` checks `current_user_can('upload_files')`, so it should accept the app password (untested) | M |
+| Move files to a folder (bulk) | — | ✅ | ✅ / 🔶 | Public `set-attachment` (no permission check) or internal `assign-folder` (capability-checked). Prefer internal | M |
+| Upload straight into a folder | — | ✅ | ✅ | Works today (upload, then assign). `POST /wp/v2/media?fbv=<id>` may do it in one call (untested) | M (exists) |
+| Folder colours, sort folders by name | — | Pro | 🔶 | Internal routes have no licence check, so using them **bypasses FileBird's paywall** → decision D3 | ? |
+| Download folder as ZIP | — | Pro | 🟡 | No route exists. Our server can stream a zip of the source URLs | N |
+| Custom file order within a folder; multiple folders per file | — | ❌ | ❌ | Not possible on FileBird's data model | — |
+| Per-user folder mode | — | ✅ | ⚠️ | Probably broken for app-password callers (owner resolves to user 0). Treat as unsupported or warn (02 §2.1) | ? |
+
+### Detail mode, metadata, actions
+
+| Capability | WP UI | FB UI | API | How / workaround | Prio |
+|---|---|---|---|---|---|
+| Responsive preview (srcset from sub-sizes) | ✅ | — | ✅ | `media_details.sizes`; original = `source_url` + `original_image` | M |
+| Video, audio, PDF previews | ✅ | — | ✅ | Native players; PDF preview sub-sizes | M |
+| Prev/next in grid order + filmstrip | Alt+←/→ | — | ✅ | Client-side from the paged list | M |
+| Edit title, alt, caption, description | ✅ autosave | — | ✅ | `POST /wp/v2/media/{id}` | M |
+| Batch metadata edit (N items) | ❌ | ❌ | 🟡 | Media is not batchable (`allow_batch=false`). The proxy fans out with limited concurrency | H |
+| "Save & next" alt-text flow | ❌ | ❌ | ✅ | Pure UX on top of single updates | H |
+| EXIF / file details panel | partial | — | ✅ | `media_details.image_meta` subset, `filesize`, `filename` (7.0+) | N |
+| Attach to / detach from post | ✅ | — | ✅ | `post` field | M |
+| Copy URL, download, open in wp-admin | ✅ | — | ✅ | Trivial | M |
+| Delete permanently | ✅ | — | ✅ | `DELETE ?force=true`. Silently clears any featured image that used it → confirm dialog | M |
+| Trash / restore | if `MEDIA_TRASH` | — | 🟡/🧩 | Trash works if `MEDIA_TRASH` is on (else 501). Restore has no clean REST path | ? |
+| Crop, rotate, flip | ✅ in place | — | ✅* | *`/edit` always creates a **new** attachment (`-edited`, parent reset). Proxy can re-apply folder and parent | ? |
+| Scale, restore original, apply to thumbnail only | ✅ | — | 🧩 | Not in REST | N |
+| Regenerate thumbnails | ❌ (plugin) | — | 🧩 | `post-process` only creates *missing* sizes | N |
+| Replace file, keep URL | ❌ | — | 🧩 | Long-standing core gap (Trac #20602) | N |
+| "Where is this used?" | partial | — | 🧩 | No cheap REST query. A plugin index is the right tool | N |
+| Per-item permission hints | ✅ | — | ✅ | `_links.self.targetHints.allow` | M |
+| Change detection / sync | — | — | 🟡 | No ETags. `modified_after` misses deletes, regenerations and folder moves → periodic ID sweep | M |
+
+**Reading the matrix:** everything marked **M** is reachable without the plugin. A few M items (folder
+CRUD, Uncategorized, "folder of file") rely on FileBird's internal routes or on proxy-side indexing. The
+plugin turns the 🟡 folder items into single native calls and unlocks most of the **H/N** gaps.
+
+---
+
+## Architectural forks (decide before or early in design)
+
+### Fork 1 — How do we close the API gaps?
+
+| Option | Unlocks | Cost / risk |
+|---|---|---|
+| **a. Core REST + FileBird public API only** | Parity for browse and edit; folder tree read, create and assign | No folder rename, delete or move; folder listing via ID lists; no Uncategorized list |
+| **b. a + FileBird internal `filebird/v1` via app password** | Full folder CRUD and bulk assign | Undocumented, changed in recent security releases. Needs a live test. Still no `?fbv=` on `/wp/v2/media` |
+| **c. a + companion mu-plugin** (namespace e.g. `wp-upload/v1`) | `?fbv=` on `/wp/v2/media` (native paging, sort and search incl. Uncategorized), folder REST field, clean folder CRUD over FileBird's own functions, optional: size/dimension orderby, missing-alt filter, month list, used-in, regenerate, replace, restore | Users must install a file into `wp-content/mu-plugins`. We own a PHP artifact (tests, versioning) |
+
+Recommendation: **design for c, degrade to b, then to a.** The app detects capabilities from the
+`/wp-json/` namespace index and hides or disables what's missing. FileBird stays optional either way.
+
+### Fork 2 — Thin live proxy vs server-side index
+
+The research points to a **lightweight index in the proxy** with these columns: id, dates, mime, size,
+width, height, alt-present and folder. It is built by crawling (100 items per request) and kept fresh with
+`modified_after` plus periodic ID sweeps. The index enables:
+
+- a justified grid (dimensions up front);
+- sorting and filtering by size or dimensions and "missing alt";
+- an instant scrubber, select-all across pages and "folder of file";
+
+all **without** the plugin. The cost is sync complexity, an initial crawl and somewhere to store it (the
+container is stateless today). If the plugin is accepted (Fork 1c), much of this moves into SQL on the WP
+side and the index can stay small or become a cache.
+
+### Fork 3 — Frontend platform
+
+- Upgrade to **React 19.3 + Mantine 9** first (doc 07 §Summary). Mantine 8 is no longer updated.
+- Libraries that come up repeatedly: TanStack Virtual for the grid, filmstrip and tree; TanStack Query for
+  paged lists, item cache and mutations; Pragmatic drag-and-drop or Headless Tree for drag-and-drop; Mantine
+  Spotlight for a command palette.
+- **Detail mode should be an overlay above a grid that stays mounted and is marked `inert`.** Scroll,
+  virtualiser state and selection then survive switching for free, and the return animation always has a
+  target.
+- State lives in **URL query parameters** (`?folder=…&sort=…&item=123`), not paths. A path like
+  `/item/123` would break the relative asset URLs that let the app run under a sub-path.
+- Making that choice is out of scope for this phase. It only needs settling before implementation, not
+  before design.
+
+---
+
+## Contradictions between tracks (resolved)
+
+| Topic | Tracks said | Resolution |
+|---|---|---|
+| Does REST `search` match file names? | 03: no; 01: yes | **Yes.** `class-wp-rest-attachments-controller.php:388-391` adds `wp_allow_query_attachment_by_filename` when `s` is set. Doc 03 corrected. |
+| Detail mode as "its own route" (06) vs "overlay over the grid" (07) | — | Compatible. Detail state lives in the URL (`?item=`, Back works), but is *rendered* as an overlay above the mounted grid. |
+| Justified grid by default (06) vs square first (07) | — | Justified is the target look. Whether it ships first depends on Fork 2 (an index gives dimensions up front). Design both; square stays a density/layout option for mixed media. |
+| `Delete` key: "trash" (06) vs context-sensitive (05) | — | Adopt 05's rule. Inside a folder, `Delete` = remove from folder. `Shift+Delete` = delete from library (with confirm, since WP delete is permanent). |
+| File sort by size listed as FileBird-parity "must" (04) | — | Not possible in core REST. It moves to **H**, gated on Fork 2 or the plugin. |
+| WordPress delete without `MEDIA_TRASH` (07 cited from memory) | — | Confirmed in source: `class-wp-rest-posts-controller.php:1102, 1150-1153` returns 501 `rest_trash_not_supported` unless `force=true`. |
+
+---
+
+## UX principles for the design phase
+
+Distilled from docs 05, 06 and 07. Ranked by how much they contribute to "seamless, pretty, engaging".
+
+1. **One collection, many views.** Grid, detail and filmstrip are views of one ordered, filtered list with
+   one selection and one focused item. Switching never loses position, order or selection. (All reference
+   apps)
+2. **Spatial continuity.** The thumbnail grows into the detail hero image and shrinks back into its cell.
+   When you return, the grid scrolls to the last-viewed item and briefly highlights it. Reduced-motion
+   users get a cross-fade instead. (Apple Photos, Google Photos)
+3. **Stable chrome around a changing centre.** The left folder column and right panel stay put in both
+   modes. Only the stage changes.
+4. **Right panel = one slot plus an icon rail.** Info/metadata, Edit image, Details/usage. Click the
+   active icon to collapse. The width can be dragged and is remembered. (Lightroom cloud; avoid Lightroom
+   Classic's stacked solo panels.)
+5. **Selection-aware inspector.** Nothing selected shows the folder summary. One item shows editable
+   fields. Several items show "Editing 12 items", with differing values marked "Mixed" and left untouched
+   unless edited. (Eagle; avoid Lightroom Classic's Target/Auto Sync.)
+6. **Autosave inline, quietly.** Fields save on blur or `Ctrl/⌘+Enter` with an inline "Saved ✓" and no
+   Save buttons. "Save & next" (`Enter` in the alt field moves to the next item with focus kept) plus a
+   "Missing alt" filter turns accessibility into a quick pass.
+7. **Images are the only colour.** A near-black neutral canvas (#0A0A0A–#121212) with surfaces one or two
+   steps lighter. One accent, lighter and desaturated in dark mode, used for focus and selection. Tight
+   2–4 px grid gaps against generous 16–24 px panel padding.
+8. **Quiet tiles, controls on hover.** A hover-revealed check circle on a soft gradient. Once anything is
+   selected, clicks toggle. Shift-click selects a range. The top bar turns into "✕ N selected · actions".
+   Selected tiles shrink to about 85 % with an accent overlay. (Google Photos, Immich)
+9. **No layout shift, no spinners.** Boxes are reserved from known dimensions, filled with a placeholder
+   colour or hash that fades in over about 100 ms. Skeletons are shaped like the content. Empty states
+   are illustrated.
+10. **Drop anywhere to upload.** A full-window drop overlay. New items appear in place as tiles with
+    progress rings, plus a compact upload tray. The upload queue becomes part of the library, not a
+    separate page.
+11. **Keyboard-first, discoverable.**
+    - `G`/`Esc` for grid; `Enter`/`E` for detail; `←`/`→` for previous/next.
+    - `[` and `]` toggle the left and right panels; `Tab`/`Shift+Tab` remain normal focus navigation
+      (open question).
+    - `?` shows a shortcut sheet; `Mod+K` opens a command palette.
+    - `Esc` steps back one layer at a time: field, then panel, then detail.
+12. **Short, meaningful motion.** About 100 ms for fades, 150 ms for panels and 200–250 ms for overlays.
+    Ease-out on enter, ease-in on exit.
+
+**Avoid:**
+
+- modal or tabbed asset dialogs;
+- explicit Apply/Close edit dialogs;
+- masonry as the default for a sorted library;
+- square crops as the *only* option;
+- F-key shortcuts;
+- edge-hover auto-show panels;
+- develop/editing modules and a full IPTC field set;
+- a toast for every save;
+- more than about two density controls in the main toolbar.
+
+---
+
+## Decisions needed (for the owner)
+
+| # | Decision | Why it matters | Research leaning |
+|---|---|---|---|
+| D1 | **Is a companion mu-plugin acceptable?** | Decides folder-filtered REST, Uncategorized, "folder of file", restore/regenerate/replace, used-in | Yes, as an *optional* enhancement with graceful degradation |
+| D2 | **Use FileBird's internal `filebird/v1` routes?** | Only way to get folder rename/delete/move without the plugin | Yes as a fallback, behind capability detection; live-test first |
+| D3 | **Expose FileBird Pro-gated features (colours, folder sort) that Lite's API doesn't enforce?** | Ethics and relationship with the vendor | Product call; at minimum make it opt-in, or skip |
+| D4 | **Server-side index vs thin proxy** | Justified grid, size/dimension sort, missing-alt, instant select-all | Small index (or cache) in the proxy; smaller if D1 = yes |
+| D5 | **React 19.3 + Mantine 9 upgrade as step 0** | Library availability (`<ViewTransition>`, Mantine 9 Tree drag-and-drop, drag-and-drop and selection libraries) | Yes |
+| D6 | **Visual direction: neutral imagery-first vs keep cyberpunk** | Neutral chrome is a strong convention for media apps; a tinted canvas distorts images | Neutral canvas; neon accent for focus/selection only |
+| D7 | **Image edit semantics** | REST `/edit` creates a new attachment | Offer "Save as copy" honestly, or hide edit until the plugin adds in-place edit |
+| D8 | **Delete semantics** | Permanent unless `MEDIA_TRASH` | Confirm dialog for permanent delete; detect trash support; undo only where reversible |
+| D9 | **Required WP role** for the app-password user | With Author, other users' media is read-only | Document Editor (or higher); detect via `users/me?context=edit` |
+| D10 | **Per-user FileBird folder mode** | Probably broken for API callers | Unsupported, with a visible warning |
+| D11 | **Live test WordPress site** | Several claims are source-read only (list below) | Set one up (WP 7.1 + FileBird Lite) before implementation |
+
+---
+
+## Needs live verification (source-read only)
+
+- `filebird/v1` internal routes accept Application Password auth (expect 200).
+- `POST /wp/v2/media?fbv=<id>` auto-assigns the folder during upload.
+- Per-user folder mode behaviour for app-password callers.
+- `POST /wp/v2/media?_method=GET` with a large JSON `include` passes the reverse proxy or WAF.
+- WP 7.1 client-side processing routes (`/sideload`, `/finalize`) and `image_sizes` in the index behind a
+  TLS-terminating proxy (`is_ssl()`).
+- Performance of FileBird's Uncategorized and count queries, and of REST search, at 50k+ attachments.
+
+## Issues spotted in the current app (outside this branch's scope)
+
+These concern `master`. They are not changed here, only flagged.
+
+1. **Upload filenames are probably mangled.** `server/src/lib/wpUpload.ts:94` sends
+   `filename="${encodeURIComponent(name)}"`. WordPress does not decode this
+   (`get_filename_from_disposition`, `class-wp-rest-attachments-controller.php:2038+`), so `my photo.jpg`
+   likely lands as `my20photo.jpg` after sanitising. Source-verified, not live-tested.
+2. **FileBird error messages are dropped.** `server/src/lib/filebird.ts` `unwrap()` misses FileBird's
+   `data.mess` error field. The `createFolder` duplicate-name comment is also outdated, since FileBird
+   6.5.2+ auto-renames.
+3. **Large uploads may hit PHP memory limits.** Raw-body uploads are read fully into PHP memory;
+   multipart avoids this for very large files (01 §3.1).
+
+## Verification done during synthesis
+
+Checked directly against the downloaded sources:
+
+- media `allow_batch = false`: `class-wp-rest-attachments-controller.php:35`;
+- trash → 501 without `MEDIA_TRASH`: `class-wp-rest-posts-controller.php:1102, 1150-1153`;
+- `/edit` inserts a new attachment: `class-wp-rest-attachments-controller.php:1290-1306`;
+- `filename`/`filesize` fields: lines 1549-1554;
+- `orderby` enum: `class-wp-rest-posts-controller.php:3068+`;
+- REST filename search: lines 388-391;
+- FileBird `filebird/v1` permission callback = `current_user_can('upload_files')`:
+  `includes/Rest/FolderApi.php:108-109`;
+- no `rest_attachment_query` hook in FileBird;
+- `add_attachment` reads `$_REQUEST['fbv']`: `includes/Classes/Core.php:207+`;
+- the `Content-Disposition` filename is not decoded by WP.
+
+## Next phase (design) — inputs ready
+
+- Parity checklists: doc 03 (core) and doc 04 (FileBird).
+- Ranked patterns: doc 05 §8 and doc 06 §5. Keyboard map draft: doc 05 §10.
+- Visual-style observations: doc 06 §7 and doc 05 §7.
+- Feasibility and effort table: doc 07.
+- Open UX questions to settle in design:
+  - `Space` opens or selects?
+  - Does `←`/`→` in detail move through the whole collection or only the selection?
+  - Justified or square default?
+  - Does `Tab` toggle panels or move focus?
+  - Light theme parity?
+  - Mobile layout for detail mode.
