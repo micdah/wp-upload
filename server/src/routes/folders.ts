@@ -1,6 +1,10 @@
 import express, { Router } from 'express'
 import { isFilebirdEnabled } from '../config/filebirdClient.ts'
-import { createFolder, listFolders } from '../lib/filebird.ts'
+import {
+  createFolder,
+  filebirdStoredName,
+  listFolders,
+} from '../lib/filebird.ts'
 import { isWpError, upstreamErrorStatus } from '../lib/wpUpload.ts'
 
 const MAX_FOLDER_NAME_LENGTH = 200
@@ -34,6 +38,14 @@ foldersRouter.post('/folders', express.json(), async (req, res, next) => {
     return res.status(400).json({
       code: 'invalid_folder_name',
       message: `Folder name must be between 1 and ${MAX_FOLDER_NAME_LENGTH} characters.`,
+    })
+  }
+  // FileBird would store such a name as an empty one (see filebirdStoredName).
+  if (!filebirdStoredName(name)) {
+    return res.status(400).json({
+      code: 'invalid_folder_name',
+      message:
+        'Folder name must contain more than spaces and the characters = + - @ |.',
     })
   }
 

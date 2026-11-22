@@ -105,6 +105,10 @@ describe('folders', () => {
       [{ name: '   ' }],
       [{ name: 42 }],
       [{ name: 'x'.repeat(201) }],
+      // FileBird would store these as an empty name.
+      [{ name: '==' }],
+      [{ name: '- -' }],
+      [{ name: '<b>=</b>' }],
     ])('responds 400 for an invalid name: %j', async (body) => {
       const res = await request(buildApp()).post('/folders').send(body)
 
@@ -112,6 +116,18 @@ describe('folders', () => {
       expect(res.body.code).toBe('invalid_folder_name')
       expect(createFolder).not.toHaveBeenCalled()
     })
+
+    it.each([['=Cats'], ['@home'], ['- 2024']])(
+      'accepts a name with leading sigils but other content: %j',
+      async (name) => {
+        vi.mocked(createFolder).mockResolvedValue({ id: 40 })
+
+        const res = await request(buildApp()).post('/folders').send({ name })
+
+        expect(res.status).toBe(201)
+        expect(createFolder).toHaveBeenCalledWith(name, 0)
+      },
+    )
 
     it.each([[-1], [1.5], ['3']])(
       'responds 400 for an invalid parentId: %j',
@@ -135,22 +151,22 @@ describe('folders', () => {
       expect(res.body.code).toBe('invalid_json')
     })
 
-    it('maps a WpError from createFolder to the matching HTTP response', async () => {
-      vi.mocked(createFolder).mockRejectedValue({
-        status: 502,
-        code: 'filebird_error',
-        message: 'A folder with this name already exists.',
-      })
+    it.each([
+      [502, 'filebird_error', 'Required fields are missing.'],
+      [404, 'parent_folder_not_found', 'The parent folder no longer exists.'],
+      [409, 'folder_name_exhausted', 'Too many folders named "Dogs".'],
+    ])(
+      'maps a WpError from createFolder to HTTP %i %s',
+      async (status, code, message) => {
+        vi.mocked(createFolder).mockRejectedValue({ status, code, message })
 
-      const res = await request(buildApp())
-        .post('/folders')
-        .send({ name: 'Dogs' })
+        const res = await request(buildApp())
+          .post('/folders')
+          .send({ name: 'Dogs' })
 
-      expect(res.status).toBe(502)
-      expect(res.body).toEqual({
-        code: 'filebird_error',
-        message: 'A folder with this name already exists.',
-      })
-    })
+        expect(res.status).toBe(status)
+        expect(res.body).toEqual({ code, message })
+      },
+    )
   })
 })
