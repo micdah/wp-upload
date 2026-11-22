@@ -76,8 +76,9 @@ bring the stack up and seed it if needed.
 - `php81` / `php84` one-off services run as the host user (8.1.34, 8.4.28).
 - `shellcheck -x` (0.11.0, in a container) on `dev/run`, which follows every `dev/lib/*.sh`, plus
   `make-dev-ca.sh`, both entrypoints and `snapshot.sh`: clean. `actionlint` on the workflow:
-  clean. `npx biome check dev .github` (in the runner): clean. `dev/run test lint` (`biome ci .`)
-  passes with the workflow included.
+  clean. `npx biome check dev .github` (in the runner) reports no problems, and
+  `dev/run test lint` (`biome ci .`) still passes. Biome doesn't process the shell, PHP or YAML
+  files there, so shellcheck and actionlint are the checks that matter for them.
 - The change requests in §5 were validated in a scratch copy of the repo against the running dev
   stack:
   - `npm run dev` started the server on the worktree's port (22421) and Vite on 22422;
