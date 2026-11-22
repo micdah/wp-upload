@@ -41,6 +41,12 @@ All API claims are from reading source code, not from a live site. See [Verifica
 
 ---
 
+> **Decisions D1–D11 were recorded on 2026-11-22.** See [Decisions](#decisions-recorded-2026-11-22).
+> In short: the companion plugin is always required, the proxy stays thin, FileBird's internal routes
+> are not used, and Pro features are shown only when Pro is detected.
+
+---
+
 ## Capability matrix
 
 Legend:
@@ -131,6 +137,11 @@ plugin turns the 🟡 folder items into single native calls and unlocks most of 
 Recommendation: **design for c, degrade to b, then to a.** The app detects capabilities from the
 `/wp-json/` namespace index and hides or disables what's missing. FileBird stays optional either way.
 
+> **Decided (D1, D1b, D2):** option **c**, and stricter than recommended. The companion plugin is a
+> **hard requirement** of the media manager, whether or not FileBird is used. FileBird's internal
+> `filebird/v1` routes are **not** used (option b dropped). FileBird itself stays optional. The plugin
+> wraps FileBird's own functions when FileBird is active.
+
 ### Fork 2 — Thin live proxy vs server-side index
 
 The research points to a **lightweight index in the proxy** with these columns: id, dates, mime, size,
@@ -145,6 +156,10 @@ all **without** the plugin. The cost is sync complexity, an initial crawl and so
 container is stateless today). If the plugin is accepted (Fork 1c), much of this moves into SQL on the WP
 side and the index can stay small or become a cache.
 
+> **Decided (D4):** **thin proxy.** Filtering, sorting, dimension listing, missing-alt and folder lookups
+> are done in the companion plugin's SQL. The Node server keeps only short-TTL caching and stays
+> stateless.
+
 ### Fork 3 — Frontend platform
 
 - Upgrade to **React 19.3 + Mantine 9** first (doc 07 §Summary). Mantine 8 is no longer updated.
@@ -158,6 +173,10 @@ side and the index can stay small or become a cache.
   `/item/123` would break the relative asset URLs that let the app run under a sub-path.
 - Making that choice is out of scope for this phase. It only needs settling before implementation, not
   before design.
+
+> **Decided (D5):** do the React 19.3 + Mantine 9 upgrade **on `master` first**, as a separate change, so
+> the current app benefits too. Then rebase `feature/media-manager` onto it. Picking the remaining
+> libraries is still an implementation-planning task.
 
 ---
 
@@ -230,27 +249,48 @@ Distilled from docs 05, 06 and 07. Ranked by how much they contribute to "seamle
 
 ---
 
-## Decisions needed (for the owner)
+## Decisions (recorded 2026-11-22)
 
-| # | Decision | Why it matters | Research leaning |
+| # | Question | Decision | Consequences |
 |---|---|---|---|
-| D1 | **Is a companion mu-plugin acceptable?** | Decides folder-filtered REST, Uncategorized, "folder of file", restore/regenerate/replace, used-in | Yes, as an *optional* enhancement with graceful degradation |
-| D2 | **Use FileBird's internal `filebird/v1` routes?** | Only way to get folder rename/delete/move without the plugin | Yes as a fallback, behind capability detection; live-test first |
-| D3 | **Expose FileBird Pro-gated features (colours, folder sort) that Lite's API doesn't enforce?** | Ethics and relationship with the vendor | Product call; at minimum make it opt-in, or skip |
-| D4 | **Server-side index vs thin proxy** | Justified grid, size/dimension sort, missing-alt, instant select-all | Small index (or cache) in the proxy; smaller if D1 = yes |
-| D5 | **React 19.3 + Mantine 9 upgrade as step 0** | Library availability (`<ViewTransition>`, Mantine 9 Tree drag-and-drop, drag-and-drop and selection libraries) | Yes |
-| D6 | **Visual direction: neutral imagery-first vs keep cyberpunk** | Neutral chrome is a strong convention for media apps; a tinted canvas distorts images | Neutral canvas; neon accent for focus/selection only |
-| D7 | **Image edit semantics** | REST `/edit` creates a new attachment | Offer "Save as copy" honestly, or hide edit until the plugin adds in-place edit |
-| D8 | **Delete semantics** | Permanent unless `MEDIA_TRASH` | Confirm dialog for permanent delete; detect trash support; undo only where reversible |
-| D9 | **Required WP role** for the app-password user | With Author, other users' media is read-only | Document Editor (or higher); detect via `users/me?context=edit` |
-| D10 | **Per-user FileBird folder mode** | Probably broken for API callers | Unsupported, with a visible warning |
-| D11 | **Live test WordPress site** | Several claims are source-read only (list below) | Set one up (WP 7.1 + FileBird Lite) before implementation |
+| D1 | Is a companion mu-plugin acceptable? | **Yes, required whenever FileBird support is on** | Folder-filtered `/wp/v2/media?fbv=`, Uncategorized listing, "folder of file" and folder CRUD all come from the plugin. No workaround code paths for missing folder APIs. |
+| D1b | Is the plugin also needed when FileBird is off? | **Always required.** The media manager needs the companion plugin regardless of FileBird | One capability set and no degraded modes. Regenerate, replace, restore original, used-in, size/dimension sort, missing-alt filter and month list are all in scope through the plugin. The app checks for the plugin's REST namespace and explains how to install it when missing. **Confirmed:** the existing core upload feature must keep working without the plugin, for users who can't or won't install it. |
+| D2 | Use FileBird's internal `filebird/v1` routes? | **No** | The plugin calls FileBird's PHP functions or tables directly. The existing public-API calls (upload + assign) can move into the plugin over time. |
+| D3 | Expose FileBird Pro-gated features (colours, folder sort)? | **Only when FileBird Pro is detected** | The plugin reports whether Pro is active. Colours and folder sorting are offered only then, implemented through the plugin, since D2 rules out `filebird/v1`. On Lite they are hidden; existing colours can be shown read-only. How to detect Pro is an implementation detail to settle. |
+| D4 | Server-side index vs thin proxy | **Thin proxy; plugin-side SQL** | The Node server stays stateless with short-TTL caching only. The plugin exposes dimensions in list responses so the justified grid can be laid out up front. |
+| D5 | React 19.3 + Mantine 9 upgrade | **Upgrade on `master` first** as a separate change, then rebase the feature branch | A standalone upgrade task on `master`, done before media-manager implementation starts. |
+| D6 | Visual direction | **Explore in the design phase** | Phase 2 produces 2–3 visual directions (e.g. neutral + neon accent, fully neutral, adapted cyberpunk) and picks one there. The research favours neutral chrome for image fidelity. |
+| D7 | Image edit semantics | **In place, through the plugin** (wp-admin parity) | Same ID and URLs. Restore original, scale and "apply to all / thumbnail / all except thumbnail" are provided by the plugin. Core `/edit` (save as copy) is not used. |
+| D8 | Delete semantics | **Detect and adapt** | `MEDIA_TRASH` on: trash with an undo toast, a Trash view, and restore through the plugin. Off: permanent delete behind a confirm dialog that warns about usage, e.g. featured images, using the plugin's used-in data. |
+| D9 | Required WP role | **Editor or higher; detect and adapt** | Document Editor as the minimum. Read real capabilities from `users/me?context=edit` and per-item `targetHints`, and disable actions the user can't perform. Plugin settings, if any, may need Administrator. |
+| D10 | FileBird per-user folder mode | **Unsupported, with a visible warning** | The plugin reports the setting and the app shows a clear notice. Only shared mode is supported. |
+| D11 | Live test environment | **A Docker Compose dev stack** | WordPress 7.1 + MariaDB + FileBird Lite, with the companion plugin mounted. Used for development, the live checks below and integration tests. A seed script for large libraries was not chosen for now. |
+
+### Follow-up work implied by the decisions
+
+- **On `master`, separate from this branch:**
+  - the React 19.3 + Mantine 9 upgrade (D5);
+  - the three issues listed under "Issues spotted in the current app".
+- **On `feature/media-manager`, before or alongside design:** the Docker Compose WordPress dev stack
+  (D11), then the live checks below. Checks that only concerned FileBird's internal routes are moot after
+  D2.
+- **Phase 2 (design):**
+  - 2–3 visual directions (D6);
+  - interaction design that assumes the full plugin-backed capability set (D1b), including trash vs
+    permanent-delete flows (D8);
+  - in-place image editing UI (D7);
+  - capability-disabled states (D9);
+  - the "plugin missing" onboarding screen.
+- **Companion plugin spec**, a new artifact: REST namespace; `fbv` and dimension/size/missing-alt
+  parameters on `/wp/v2/media`; folder CRUD; folder-of-file field; Pro and per-user-mode detection;
+  in-place edit, restore, regenerate, replace and used-in; versioning, and how the app checks
+  compatibility.
 
 ---
 
 ## Needs live verification (source-read only)
 
-- `filebird/v1` internal routes accept Application Password auth (expect 200).
+- ~~`filebird/v1` internal routes accept Application Password auth~~ — moot after D2.
 - `POST /wp/v2/media?fbv=<id>` auto-assigns the folder during upload.
 - Per-user folder mode behaviour for app-password callers.
 - `POST /wp/v2/media?_method=GET` with a large JSON `include` passes the reverse proxy or WAF.
