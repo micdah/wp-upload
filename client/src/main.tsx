@@ -1,4 +1,4 @@
-import { MantineProvider } from '@mantine/core'
+import { MantineProvider, v8CssVariablesResolver } from '@mantine/core'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@mantine/core/styles.css'
@@ -12,7 +12,14 @@ if (!rootElement) throw new Error('Root element #root not found')
 
 createRoot(rootElement).render(
   <StrictMode>
-    <MantineProvider theme={theme} defaultColorScheme='dark'>
+    {/* Mantine 9 made the `light` variant (Alert, Badge, Button) solid. The
+        8.x resolver keeps it translucent, so the look stays as it was until
+        the visual design is revisited. */}
+    <MantineProvider
+      theme={theme}
+      defaultColorScheme='dark'
+      cssVariablesResolver={v8CssVariablesResolver}
+    >
       <App />
     </MantineProvider>
   </StrictMode>,
