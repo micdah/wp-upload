@@ -11,7 +11,7 @@ npm workspaces:
   fallback. A login page sets a signed session cookie (`server/src/lib/session.ts`) that every `/api` route
   requires. The page shell, static assets and `/healthz` are public. There is no HTTP Basic Auth, and nothing
   may send a `WWW-Authenticate` challenge, because that makes browsers show their own login prompt.
-- `client/` — Vite + React 18 + Mantine. Talks to the server only through its `/api` routes and the
+- `client/` — Vite 8 + React 19 + Mantine 9. Talks to the server only through its `/api` routes and the
   `session` endpoint (log in, log out, current user).
 
 ## Commands

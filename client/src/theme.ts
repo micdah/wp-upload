@@ -1,4 +1,8 @@
-import { createTheme, type MantineColorsTuple } from '@mantine/core'
+import {
+  createTheme,
+  InputWrapper,
+  type MantineColorsTuple,
+} from '@mantine/core'
 
 // A cyan-to-blue "neon" palette, lightest to darkest.
 const neon: MantineColorsTuple = [
@@ -40,5 +44,12 @@ export const theme = createTheme({
   headings: {
     fontFamily: 'Orbitron, sans-serif',
     fontWeight: '700',
+  },
+  components: {
+    // Mantine 9 raised input labels from weight 500 to the theme's "medium"
+    // weight, now 600. Buttons already used 600, so pin only the labels.
+    InputWrapper: InputWrapper.extend({
+      styles: { label: { fontWeight: 500 } },
+    }),
   },
 })
