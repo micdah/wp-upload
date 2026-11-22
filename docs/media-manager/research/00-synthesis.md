@@ -278,7 +278,8 @@ Distilled from docs 05, 06 and 07. Ranked by how much they contribute to "seamle
 | D8 | Delete semantics | **Detect and adapt** | `MEDIA_TRASH` on: trash with an undo toast, a Trash view, and restore through the plugin. Off: permanent delete behind a confirm dialog that warns about usage, e.g. featured images, using the plugin's used-in data. |
 | D9 | Required WP role | **Editor or higher; detect and adapt** | Document Editor as the minimum. Read real capabilities from `users/me?context=edit` and per-item `targetHints`, and disable actions the user can't perform. Plugin settings, if any, may need Administrator. |
 | D10 | FileBird per-user folder mode | **Unsupported, with a visible warning** | The plugin reports the setting and the app shows a clear notice. Only shared mode is supported. |
-| D11 | Live test environment | **A Docker Compose dev stack** | WordPress 7.1 + MariaDB + FileBird Lite, with the companion plugin mounted. Used for development, the live checks below and integration tests. A seed script for large libraries was not chosen for now. |
+| D11 | Live test environment | **A Docker Compose dev stack** | WordPress 7.1 + MariaDB + FileBird Lite, with the companion plugin mounted. Used for development, the live checks below and integration tests. A seed script for large libraries was not chosen for now. *Superseded by D18 in the [implementation plan](../implementation-plan.md) §5: a `large` 50k seed is part of the local Docker test mode.* |
+| D1c | Keep the old upload page? (recorded during implementation planning) | **No — remove it.** Overrides D1b's "the upload page keeps working without the plugin" | The media manager plus the companion plugin becomes the only UI. Without the plugin, the app shows the onboarding screen. The old page stays on the branch until the media manager's upload and onboarding land, then is deleted. See [implementation-plan.md](../implementation-plan.md) §0 (also D12–D18) |
 
 ### Follow-up work implied by the decisions
 
@@ -331,7 +332,8 @@ kept below for the record.
 - The JS bundle is now about 522 kB, above Vite's 500 kB warning. The media manager should be
   code-split.
 - WordPress Playground (`@wp-playground/cli`) worked for live verification without Docker (#47). It
-  is a lightweight complement to the Docker Compose stack (D11).
+  is a lightweight complement to the Docker Compose stack (D11). *Superseded by D18: Playground is not
+  part of the test path.*
 
 ### Original findings
 

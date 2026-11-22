@@ -19,15 +19,15 @@ Library:
 |---|---|---|
 | 1. Research | Done | [`research/`](research/README.md). Start at [`00-synthesis.md`](research/00-synthesis.md): capability matrix, decisions D1–D11, v1 scope, conventions |
 | 2. Design | Done, approved at Checkpoint 3 | [`design/`](design/README.md): design system, clickable prototype, interaction spec, area specs, screen walkthrough |
-| 3. Implementation planning | **Next** — see §6 | A reviewed implementation plan |
-| 4. Implementation | Not started | — |
+| 3. Implementation planning | Done — see §6 | [`implementation-plan.md`](implementation-plan.md): contracts first, parallel tracks, milestones M0–M5 |
+| 4. Implementation | **Next** — start at M0 in the plan | — |
 
 ## 2. Branch and repository rules
 
 - **Branch:** all media-manager work lives on **`feature/media-manager`**. **Never merge into `master`.**
   Parallel sessions or worktrees branch **off `feature/media-manager`** and merge back into it.
-- **CI:** whether the feature branch gets its own CI (so long-running work doesn't block or disturb the
-  current app) is **undecided**. Raise it in the plan.
+- **CI:** decided (D13): the feature branch gets its own workflow, `.github/workflows/media-manager.yml`,
+  described in [implementation-plan.md](implementation-plan.md) §6. `ci.yml` stays untouched.
 - **Master stays healthy:** keep master's existing upload app working throughout. Generic improvements
   that benefit the current app (as with the earlier fixes #46–#48) can go to `master` as separate,
   normal PRs, then `feature/media-manager` is updated from master.
@@ -39,7 +39,8 @@ Library:
 These are standing rules; the user's global and repo `CLAUDE.md` files are authoritative.
 
 - **Commits:** never commit, amend or rebase unless explicitly told. Leave changes uncommitted for
-  review.
+  review. **Exception (D14):** an implementation track agent may commit on its own `mm/<track>` branch
+  (never push, never rebase). Its track brief states this permission explicitly.
 - **Pushing:** never push or open a PR without explicit approval.
 - **Commit format:** conventional-commit prefixes (`feat:`, `fix:`, `docs:`, `chore:`, …) for commits and
   PR titles.
@@ -52,6 +53,8 @@ These are standing rules; the user's global and repo `CLAUDE.md` files are autho
   letters, digits, `, . - + ?`, named keys and `Ctrl/Cmd` + letter; never `[ ] { } \ | @ $ ~` or F-keys.
 - **Parallel work:** the owner likes parallel sub-agents for speed, with clear briefs and exclusive file
   ownership per agent.
+- **Effort:** every session and sub-agent on this initiative runs at **high** effort. Set it explicitly
+  when starting one (`effort: "high"` on the Agent tool or `create_session`, `claude --effort high`).
 
 ## 4. Decisions that shape implementation
 
@@ -59,7 +62,7 @@ From [`research/00-synthesis.md`](research/00-synthesis.md) ("Decisions" and "De
 
 | # | Decision |
 |---|---|
-| D1/D1b | A **companion WordPress plugin** (mu-plugin, REST namespace e.g. `wp-upload/v1`) is **always required** for the media manager. The existing **upload-only page must keep working without it** |
+| D1/D1b | A **companion WordPress plugin** (REST namespace `wp-upload/v1`) is **always required** for the media manager. ~~The existing upload-only page must keep working without it~~ — superseded by D1c |
 | D2 | FileBird's internal `filebird/v1` routes are **not** used; the plugin wraps FileBird's PHP functions or tables |
 | D3 | FileBird Pro features (folder colours, folder sort) only when **Pro is detected** |
 | D4 | A **thin, stateless Node proxy**; filtering, sorting and indexing happen in the plugin's SQL |
@@ -69,7 +72,13 @@ From [`research/00-synthesis.md`](research/00-synthesis.md) ("Decisions" and "De
 | D8 | Delete: detect `MEDIA_TRASH` and use trash with undo, otherwise a permanent-delete confirm showing where items are used |
 | D9 | The WP user is Editor or higher; detect capabilities and disable what isn't allowed |
 | D10 | FileBird per-user folder mode is unsupported and shows a warning |
-| D11 | A dev and test environment with WordPress + FileBird (Lite) + the companion plugin. Docker Compose was the decision. WordPress Playground (`@wp-playground/cli`) has also proven to work for live checks without Docker |
+| D11 | A dev and test environment with WordPress + FileBird (Lite) + the companion plugin. Docker Compose was the decision. WordPress Playground (`@wp-playground/cli`) has also proven to work for live checks without Docker. *Superseded by D18: Playground is not part of the test path; all tests run in the local Docker `test` mode* |
+| D1c | **The old upload page is removed** (overrides D1b's fallback): the media manager plus the plugin is the only UI. It is deleted in M5 of the plan |
+| D12 | The plugin is a **regular WordPress plugin** (single file, also works in `mu-plugins`), bundled as a zip in the app image and offered by onboarding. It is versioned (`WPU_VERSION` + `WPU_API`); updates should be rare and additive (plan §2.6) |
+| D13 | The feature branch gets **its own CI workflow** (`media-manager.yml`); `ci.yml` stays untouched |
+| D14 | Track agents **commit locally on their own track branch**, never push; the owner reviews, the orchestrator merges |
+| D15–D17 | No FileBird Pro licence (Pro features are detection-gated and mock-tested); a folder change replaces the history entry; never modify FileBird (no schema, index or direct writes). See plan §0 |
+| D18 | **No hosted environments.** Two modes of one local Docker Compose project driven by `dev/run`: `dev` (hot reload) and `test` (all automated tests, including the production image under a sub-path). No test needs a real WordPress site; CI calls the same commands, so local runs and CI are interchangeable (plan §5) |
 
 **v1 scope:**
 
@@ -124,8 +133,8 @@ most for planning.
 
 **Tooling notes:**
 
-- Playwright is **not** a repo dependency. It is installed outside the repo, so pass `NODE_PATH` to the
-  scripts. System Chromium is installed on the dev machine.
+- Playwright is **not** a repo dependency yet. It is installed outside the repo, so pass `NODE_PATH` to the
+  design scripts. (Implementation plan §3: it becomes a devDependency of the new `e2e/` workspace.) System Chromium is installed on the dev machine.
 - `design/scripts/screenshots.mjs` runs the prototype's interaction checks and screenshots;
   `token-report.mjs` checks contrast and neutrality.
 
@@ -146,7 +155,7 @@ the repo (e.g. `docs/media-manager/implementation-plan.md`). Owner checkpoints h
 
 1. **Dev and test environment** (D11): WordPress + FileBird Lite + the companion plugin, reproducible
    locally and possibly in CI. Seed data, including a larger library for performance.
-2. **Companion plugin** (PHP mu-plugin): REST namespace, detection and capabilities, listing extensions
+2. **Companion plugin** (PHP; a regular plugin per D12): REST namespace, detection and capabilities, listing extensions
    (`fbv`, size/dimension/missing-alt filters and sorts, month list, dimension index), folder CRUD over
    FileBird, batch metadata, in-place edit / restore / regenerate / replace, where-used index, trash
    list and restore, upload limits and processing status. Include its own tests, versioning, a
