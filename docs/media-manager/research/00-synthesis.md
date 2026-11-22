@@ -59,72 +59,80 @@ Legend:
 - **API** values:
   - ✅ core REST or FileBird public API covers it;
   - 🟡 possible but needs extra work in our proxy;
-  - 🔶 only through FileBird's internal `filebird/v1` routes (undocumented);
+  - 🔶 only through FileBird's internal `filebird/v1` routes (undocumented; **not used**, D2);
   - 🧩 needs the companion mu-plugin;
   - ❌ not possible.
-- **Prio**: suggested priority. **M** = must (parity), **H** = high-value beyond parity, **N** = nice,
-  **?** = needs a decision.
+- **Scope** (recorded 2026-11-22, see [Design-phase scope](#design-phase-scope-and-conventions-recorded-2026-11-22)):
+  **v1** = the design phase designs it for the first version; **later** = deferred; **out** = not planned.
+  The table reflects the decisions: where the plugin is the chosen path, API shows 🧩 even if a
+  workaround existed.
 
 ### Browse, filter, search
 
-| Capability | WP UI | FB UI | API | How / workaround | Prio |
+| Capability | WP UI | FB UI | API | How / workaround | Scope |
 |---|---|---|---|---|---|
-| Paged grid of all media with total count | ✅ | ✅ | ✅ | `/wp/v2/media`, `per_page` ≤ 100, `X-WP-Total`; `HEAD` for counts (01 §1.4) | M |
-| Filter by type (image/video/audio/document) | ✅ | ✅ | ✅ | `media_type`/`mime_type` (arrays since 6.9). Video and audio come from `mime_type` (01 §1.1) | M |
-| Filter by date range | month only | — | ✅ | `after`/`before`, `modified_*` | M |
-| List of months that have media (for the date dropdown) | ✅ | — | 🟡/🧩 | Not in REST. Use a server index or the plugin | N |
-| Unattached / attached filter | ✅ | — | ✅ | `parent=0` | M |
-| "Mine" filter | ✅ | — | ✅* | *Always the one Application Password user. Low value | N |
-| Search title, caption, description, file name | ✅ | ✅ | ✅ | REST adds filename matching when `search` is set (verified, see below) | M |
-| Search alt text or EXIF keywords | ❌ | ❌ | 🟡/🧩 | Server index or plugin | N |
-| Sort by date, title, modified, author, id | list view only | Pro | ✅ | `orderby` enum (01 §1.1) | M |
-| Sort or filter by size, dimensions, file name, type | ❌ | Pro (some) | 🟡/🧩 | No `orderby` for these. Server index or plugin | H |
-| "Missing alt text" filter | ❌ | ❌ | 🟡/🧩 | Alt is postmeta and REST can't filter on it. Index or plugin | H |
-| Justified (aspect-preserving) grid | ❌ | ❌ | 🟡 | Needs every item's dimensions up front. Server index, or estimate-then-correct (07 §2) | H |
+| Paged grid of all media with total count | ✅ | ✅ | ✅ | `/wp/v2/media`, `per_page` ≤ 100, `X-WP-Total`; `HEAD` for counts (01 §1.4) | v1 |
+| Filter by type (image/video/audio/document) | ✅ | ✅ | ✅ | `media_type`/`mime_type` (arrays since 6.9). Video and audio come from `mime_type` (01 §1.1) | v1 |
+| Filter by date range | month only | — | ✅ | `after`/`before`, `modified_*` | v1 |
+| List of months that have media (for the date dropdown) | ✅ | — | 🧩 | Plugin route listing year/months with counts | v1 |
+| Unattached / attached filter | ✅ | — | ✅ | `parent=0` | v1 |
+| "Mine" filter | ✅ | — | ✅* | *Always the one Application Password user. Low value | out — always the one WP user |
+| Search title, caption, description, file name | ✅ | ✅ | ✅ | REST adds filename matching when `search` is set (verified, see below) | v1 |
+| Search alt text or EXIF keywords | ❌ | ❌ | 🧩 | Plugin search parameter | v1 |
+| Sort by date, title, modified, author, id | list view only | Pro | ✅ | `orderby` enum (01 §1.1) | v1 |
+| Sort or filter by size, dimensions, file name, type | ❌ | Pro (some) | 🧩 | Plugin adds `orderby`/filter params to `/wp/v2/media` (SQL on postmeta) | v1 |
+| "Missing alt text" filter | ❌ | ❌ | 🧩 | Plugin filter param; thumbnail badge in the grid | v1 |
+| Justified (aspect-preserving) grid | ❌ | ❌ | 🧩 | Plugin returns a compact id/width/height list for the filtered set, so layout is known up front (D4) | v1 default; square = toggle |
 
 ### Folders (FileBird, optional)
 
-| Capability | WP UI | FB UI | API | How / workaround | Prio |
+| Capability | WP UI | FB UI | API | How / workaround | Scope |
 |---|---|---|---|---|---|
-| Folder tree with counts | — | ✅ | ✅ | Public `GET /folders`. Recursive counts can be computed ourselves | M |
-| All Files / Uncategorized pseudo-folders | — | ✅ | 🟡 | Uncategorized: the public API gives only a count. Use internal routes plus an `exclude` list, or 🧩 | M |
-| Files in a folder, paged and sorted | — | ✅ | 🟡 → 🧩 | Without the plugin: `GET /attachment-id?folder_id=` then `/wp/v2/media?include=` (`POST ?_method=GET` for large folders), with cached ID lists. With the plugin: native `/wp/v2/media?fbv=` | M |
-| Which folder a file is in (detail panel) | — | ✅ | 🟡/🧩 | No API. Build a reverse index from per-folder ID lists, or add a plugin REST field | M |
-| Create folder (nested) | — | ✅ | ✅ | Public API (already used). Duplicate names are auto-renamed since 6.5.2 | M |
-| Rename, delete, move or reorder folders | — | ✅ | 🔶 / 🧩 | `filebird/v1` checks `current_user_can('upload_files')`, so it should accept the app password (untested) | M |
-| Move files to a folder (bulk) | — | ✅ | ✅ / 🔶 | Public `set-attachment` (no permission check) or internal `assign-folder` (capability-checked). Prefer internal | M |
-| Upload straight into a folder | — | ✅ | ✅ | Works today (upload, then assign). `POST /wp/v2/media?fbv=<id>` may do it in one call (untested) | M (exists) |
-| Folder colours, sort folders by name | — | Pro | 🔶 | Internal routes have no licence check, so using them **bypasses FileBird's paywall** → decision D3 | ? |
-| Download folder as ZIP | — | Pro | 🟡 | No route exists. Our server can stream a zip of the source URLs | N |
-| Custom file order within a folder; multiple folders per file | — | ❌ | ❌ | Not possible on FileBird's data model | — |
-| Per-user folder mode | — | ✅ | ⚠️ | Probably broken for app-password callers (owner resolves to user 0). Treat as unsupported or warn (02 §2.1) | ? |
+| Folder tree with counts | — | ✅ | ✅ | Public `GET /folders`, or the plugin (preferred, one surface). Recursive counts computed client- or plugin-side | v1 |
+| All Files / Uncategorized pseudo-folders | — | ✅ | 🧩 | Plugin: `/wp/v2/media?fbv=0` for Uncategorized, `fbv` omitted for All Files | v1 |
+| Files in a folder, paged and sorted | — | ✅ | 🧩 | Plugin: native `/wp/v2/media?fbv=<id>` (paging, sort, search) | v1 |
+| Which folder a file is in (detail panel) | — | ✅ | 🧩 | Plugin REST field on each media item | v1 |
+| Create folder (nested) | — | ✅ | ✅ | Plugin wrapping FileBird's functions (public API remains for the upload-only flow). Duplicate names auto-rename since 6.5.2 | v1 |
+| Rename, delete, move or reorder folders | — | ✅ | 🧩 | Plugin wraps FileBird's PHP functions. FileBird's internal `filebird/v1` routes are **not** used (D2) | v1 |
+| Move files to a folder (bulk) | — | ✅ | 🧩 | Plugin bulk-assign route with capability checks | v1 |
+| Upload straight into a folder | — | ✅ | ✅ | Works today (upload, then assign). `POST /wp/v2/media?fbv=<id>` may do it in one call (verify in dev stack) | v1 (exists) |
+| Folder colours, sort folders by name | — | Pro | 🧩 | Plugin, **only when FileBird Pro is detected** (D3). On Lite: hidden; existing colours shown read-only | v1, Pro only |
+| Download folder as ZIP | — | Pro | 🟡 | Our server could stream a zip; deferred. Folder ZIP is a FileBird Pro feature (D3 spirit) | later / out |
+| Custom file order within a folder; multiple folders per file | — | ❌ | ❌ | Not possible on FileBird's data model | out |
+| Per-user folder mode | — | ✅ | ⚠️ | Unsupported; the plugin reports the setting and the app shows a warning (D10) | unsupported |
 
 ### Detail mode, metadata, actions
 
-| Capability | WP UI | FB UI | API | How / workaround | Prio |
+| Capability | WP UI | FB UI | API | How / workaround | Scope |
 |---|---|---|---|---|---|
-| Responsive preview (srcset from sub-sizes) | ✅ | — | ✅ | `media_details.sizes`; original = `source_url` + `original_image` | M |
-| Video, audio, PDF previews | ✅ | — | ✅ | Native players; PDF preview sub-sizes | M |
-| Prev/next in grid order + filmstrip | Alt+←/→ | — | ✅ | Client-side from the paged list | M |
-| Edit title, alt, caption, description | ✅ autosave | — | ✅ | `POST /wp/v2/media/{id}` | M |
-| Batch metadata edit (N items) | ❌ | ❌ | 🟡 | Media is not batchable (`allow_batch=false`). The proxy fans out with limited concurrency | H |
-| "Save & next" alt-text flow | ❌ | ❌ | ✅ | Pure UX on top of single updates | H |
-| EXIF / file details panel | partial | — | ✅ | `media_details.image_meta` subset, `filesize`, `filename` (7.0+) | N |
-| Attach to / detach from post | ✅ | — | ✅ | `post` field | M |
-| Copy URL, download, open in wp-admin | ✅ | — | ✅ | Trivial | M |
-| Delete permanently | ✅ | — | ✅ | `DELETE ?force=true`. Silently clears any featured image that used it → confirm dialog | M |
-| Trash / restore | if `MEDIA_TRASH` | — | 🟡/🧩 | Trash works if `MEDIA_TRASH` is on (else 501). Restore has no clean REST path | ? |
-| Crop, rotate, flip | ✅ in place | — | ✅* | *`/edit` always creates a **new** attachment (`-edited`, parent reset). Proxy can re-apply folder and parent | ? |
-| Scale, restore original, apply to thumbnail only | ✅ | — | 🧩 | Not in REST | N |
-| Regenerate thumbnails | ❌ (plugin) | — | 🧩 | `post-process` only creates *missing* sizes | N |
-| Replace file, keep URL | ❌ | — | 🧩 | Long-standing core gap (Trac #20602) | N |
-| "Where is this used?" | partial | — | 🧩 | No cheap REST query. A plugin index is the right tool | N |
-| Per-item permission hints | ✅ | — | ✅ | `_links.self.targetHints.allow` | M |
-| Change detection / sync | — | — | 🟡 | No ETags. `modified_after` misses deletes, regenerations and folder moves → periodic ID sweep | M |
+| Responsive preview (srcset from sub-sizes) | ✅ | — | ✅ | `media_details.sizes`; original = `source_url` + `original_image` | v1 |
+| Video, audio, PDF previews | ✅ | — | ✅ | Native players; PDF preview sub-sizes | v1 |
+| Prev/next in grid order + filmstrip | Alt+←/→ | — | ✅ | Client-side from the paged list; always walks the whole collection, not just the selection | v1 |
+| Edit title, alt, caption, description | ✅ autosave | — | ✅ | `POST /wp/v2/media/{id}` | v1 |
+| Batch metadata edit (N items) | ❌ | ❌ | 🟡/🧩 | Proxy fan-out with limited concurrency, or a plugin bulk route (decide in implementation) | v1 |
+| "Save & next" alt-text flow | ❌ | ❌ | ✅ | Pure UX on top of single updates | v1 |
+| EXIF / file details panel | partial | — | ✅ | `media_details.image_meta` subset, `filesize`, `filename` (7.0+) | v1 |
+| Attach to / detach from post | ✅ | — | ✅ | `post` field | v1 |
+| Copy URL, download, open in wp-admin | ✅ | — | ✅ | Trivial (single-file download; multi-file ZIP is later/out) | v1 |
+| Delete permanently | ✅ | — | ✅ | `DELETE ?force=true` behind a confirm that shows where-used data (D8) | v1 |
+| Trash / restore | if `MEDIA_TRASH` | — | ✅/🧩 | Detect `MEDIA_TRASH`: trash + undo + Trash view, restore via plugin; otherwise permanent delete (D8) | v1 |
+| Crop, rotate, flip | ✅ in place | — | 🧩 | **In place via the plugin** (D7), same ID/URL; core `/edit` (copy) not used | v1 |
+| Scale, restore original, apply to thumbnail only | ✅ | — | 🧩 | Not in REST | v1 |
+| Regenerate thumbnails | ❌ (plugin) | — | 🧩 | `post-process` only creates *missing* sizes | v1 |
+| Replace file, keep URL | ❌ | — | 🧩 | Long-standing core gap (Trac #20602) | v1 |
+| "Where is this used?" | partial | — | 🧩 | Plugin index; also powers the delete warning | v1 |
+| Per-item permission hints | ✅ | — | ✅ | `_links.self.targetHints.allow` + `users/me` capabilities (D9) | v1 |
+| Change detection / sync | — | — | 🟡 | No ETags. `modified_after` misses deletes, regenerations and folder moves → periodic ID sweep | v1 |
 
-**Reading the matrix:** everything marked **M** is reachable without the plugin. A few M items (folder
-CRUD, Uncategorized, "folder of file") rely on FileBird's internal routes or on proxy-side indexing. The
-plugin turns the 🟡 folder items into single native calls and unlocks most of the **H/N** gaps.
+**Reading the matrix:** with the companion plugin always required (D1b), almost every gap is in reach,
+and nearly everything is **v1**. Only these are deferred or excluded:
+
+- the "Mine" filter (it always means the one WP user);
+- ZIP downloads (later or out);
+- custom per-folder file order and multiple folders per file (FileBird's data model doesn't allow them);
+- per-user folder mode (unsupported, with a warning).
+
+The core upload feature keeps working without the plugin.
 
 ---
 
@@ -231,10 +239,11 @@ Distilled from docs 05, 06 and 07. Ranked by how much they contribute to "seamle
 10. **Drop anywhere to upload.** A full-window drop overlay. New items appear in place as tiles with
     progress rings, plus a compact upload tray. The upload queue becomes part of the library, not a
     separate page.
-11. **Keyboard-first, discoverable.**
-    - `G`/`Esc` for grid; `Enter`/`E` for detail; `←`/`→` for previous/next.
-    - `[` and `]` toggle the left and right panels; `Tab`/`Shift+Tab` remain normal focus navigation
-      (open question).
+11. **Keyboard-first, discoverable, layout-safe.** Every shortcut must work natively on **US and Danish**
+    keyboards (see [conventions](#design-phase-scope-and-conventions-recorded-2026-11-22)).
+    - `G`/`Esc` for grid; `Enter` for detail; `Space` for a quick peek; `←`/`→` for previous/next.
+    - Separate letter keys toggle the left and right panels (proposed `F` folders, `I` info). `Tab` and
+      `Shift+Tab` remain normal focus navigation.
     - `?` shows a shortcut sheet; `Mod+K` opens a command palette.
     - `Esc` steps back one layer at a time: field, then panel, then detail.
 12. **Short, meaningful motion.** About 100 ms for fades, 150 ms for panels and 200–250 ms for overlays.
@@ -358,10 +367,42 @@ Checked directly against the downloaded sources:
 - Ranked patterns: doc 05 §8 and doc 06 §5. Keyboard map draft: doc 05 §10.
 - Visual-style observations: doc 06 §7 and doc 05 §7.
 - Feasibility and effort table: doc 07.
-- Open UX questions to settle in design:
-  - `Space` opens or selects?
-  - Does `←`/`→` in detail move through the whole collection or only the selection?
-  - Justified or square default?
-  - Does `Tab` toggle panels or move focus?
-  - Light theme parity?
-  - Mobile layout for detail mode.
+- The open UX questions from the research are now settled: see
+  [Design-phase scope and conventions](#design-phase-scope-and-conventions-recorded-2026-11-22).
+- Doc 05 §10's keyboard draft uses `[`, `]` and `\`. Those break on Danish layouts and must be revised
+  in design.
+
+## Design-phase scope and conventions (recorded 2026-11-22)
+
+### v1 scope
+
+**In v1**, on top of core parity (grid, filters, search, folders, metadata editing, delete/trash,
+crop/rotate/flip, upload):
+
+| Group | Included |
+|---|---|
+| Batch editing and alt text | Batch metadata edit across N items ("Mixed" values), a "missing alt" filter and thumbnail badge, and the "Save & next" alt-text flow |
+| Usage and file details | A "where is this used" index (it also powers the delete warning), and a read-only EXIF / file-details section |
+| Image maintenance | Replace file (keeps URL and ID), regenerate thumbnails, restore original, scale, in-place crop/rotate/flip (D7) |
+| Advanced sort and search | Sort/filter by size, dimensions, file name and type; alt-text/EXIF search; a month list for the date filter |
+| FileBird Pro only (D3) | Folder colours and folder sorting, offered only when Pro is detected |
+
+**Later or out:**
+
+- ZIP downloads, both selection and folder (later/out);
+- the "Mine" filter (out);
+- per-folder custom file order and multiple folders per file (out: FileBird's data model);
+- per-user folder mode (unsupported, with a warning).
+
+### Interaction conventions
+
+| Topic | Decision |
+|---|---|
+| Default grid | **Justified** (aspect-preserving) by default, with **square** as a layout toggle (better for mixed media and documents) |
+| `Space` in the grid | **Quick peek** of the focused item (Quick Look style). `Enter` opens detail mode. `X` or `Ctrl/Cmd+click` toggles selection |
+| `←`/`→` and the filmstrip in detail | Always walk the **whole current collection** (folder + filters + sort). The selection is kept and shown in the filmstrip |
+| Panel toggles | **Separate keys** for the left (folders) and right (inspector) panels; proposed `F` and `I`. `Tab`/`Shift+Tab` stay as accessible focus navigation |
+| Keyboard layouts | **All shortcuts must work natively on US and Danish (DK) keyboards.** Match on `event.key` (the typed character), not `event.code`. Use letters, digits and `,` `.` `-` `+` `?`. **Never** use `[ ] { } \ \| @ $ ~`, which need AltGr on DK. Modifier combos (`Ctrl/Cmd+K`) are fine with letters. Design must check the final keymap on both layouts |
+| Themes | **Dark and light from the start**, both first-class, following the system preference with a manual override. The detail-mode stage can stay dark in both, as in Google Photos and Immich |
+| Visual direction | Explore 2–3 directions in design (D6) |
+| Devices | **Responsive, desktop-first.** Desktop and tablet are designed fully. Phones get a usable fallback (one panel at a time, swipe in detail, bottom sheets) without full polish. The upload page stays mobile-friendly |

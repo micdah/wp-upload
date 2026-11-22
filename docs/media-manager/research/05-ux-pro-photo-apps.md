@@ -386,6 +386,10 @@ The reference for *feel*: transitions, restraint, content-first chrome.
 
 ## 10. Proposed keyboard map (draft)
 
+> **Superseded in part (2026-11-22):** shortcuts must work natively on US *and* Danish keyboards, so `[`, `]`, `\`
+> and other AltGr characters are ruled out. Panel toggles become separate letter keys (proposed `F`/`I`), `Space` = quick
+> peek and `Tab` stays focus navigation. See `00-synthesis.md` → "Design-phase scope and conventions".
+
 Principles: single letters for frequent actions, no F-keys, `Esc` always backs out one layer, and no shortcuts fire while a text field has focus (except `Esc`, `Enter`/`Shift+Enter` in the save-and-next flow, and `Mod+S`). `Mod` = `Cmd` on macOS, `Ctrl` elsewhere.
 
 ### Global / navigation
