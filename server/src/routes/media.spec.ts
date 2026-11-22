@@ -198,6 +198,24 @@ describe('media', () => {
 
       await request(app).delete(`/media/jobs/${res.body.jobId}`)
     })
+
+    // Like a browser, supertest sends the filename as raw UTF-8 bytes.
+    it('decodes a non-ASCII filename as UTF-8', async () => {
+      vi.mocked(uploadToWordPress).mockResolvedValue(RESULT)
+      const app = buildApp()
+
+      const res = await request(app)
+        .post('/media')
+        .attach('file', Buffer.from('fake-image-bytes'), 'café 写真.jpg')
+
+      expect(res.status).toBe(202)
+      await vi.waitFor(() =>
+        expect(uploadToWordPress).toHaveBeenCalledWith(
+          expect.objectContaining({ originalname: 'café 写真.jpg' }),
+          expect.anything(),
+        ),
+      )
+    })
   })
 
   describe('GET /media/jobs', () => {
