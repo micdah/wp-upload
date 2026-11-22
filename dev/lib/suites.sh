@@ -204,6 +204,9 @@ suite_all() {
   local unavailable_suites=""
   local passed_suites=""
 
+  # Each suite runs in a subshell, so build the runner image once up front.
+  ensure_runner_ready
+
   for suite in $GATE_SUITES; do
     set +e
     (set -e; run_suite "$suite")
