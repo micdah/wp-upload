@@ -1,0 +1,3625 @@
+[
+  {
+    "id": 1000,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "548",
+    "title": "still-life-joshua-earle-548",
+    "filename": "still-life-joshua-earle-548-scaled.jpg",
+    "alt": "Sample still life photograph by Joshua Earle",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1290746,
+    "uploaded": "2024-12-09T19:36:02.149Z",
+    "modified": "2024-12-09T19:36:02.149Z",
+    "author": "Site Admin",
+    "folder": 5,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 24,
+      "aperture": 4,
+      "shutter": "1/60",
+      "iso": 200,
+      "taken": "2024-11-22T18:51:25.074Z"
+    },
+    "credit": {
+      "author": "Joshua Earle",
+      "url": "https://unsplash.com/photos/YMVCseSYVXI"
+    }
+  },
+  {
+    "id": 1001,
+    "kind": "image",
+    "mime": "image/png",
+    "picsumId": "330",
+    "title": "detail-oisin-conolly-330",
+    "filename": "detail-oisin-conolly-330-scaled.png",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1707,
+    "originalWidth": 4272,
+    "originalHeight": 2848,
+    "filesize": 4543667,
+    "uploaded": "2024-12-14T19:11:42.412Z",
+    "modified": "2024-12-14T19:11:42.412Z",
+    "author": "Jonas Holm",
+    "folder": 0,
+    "attachedTo": {
+      "id": 202,
+      "type": "post",
+      "title": "Behind the scenes at our studio"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 85,
+      "aperture": 4,
+      "shutter": "1/125",
+      "iso": 800,
+      "taken": "2024-11-28T21:41:33.601Z"
+    },
+    "credit": {
+      "author": "Oisin Conolly",
+      "url": "https://unsplash.com/photos/tqNyUz2r6KQ"
+    }
+  },
+  {
+    "id": 1002,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "687",
+    "title": "workspace-davide-ragusa-687",
+    "filename": "workspace-davide-ragusa-687-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1700,
+    "originalWidth": 4288,
+    "originalHeight": 2848,
+    "filesize": 1201141,
+    "uploaded": "2024-12-27T03:22:35.179Z",
+    "modified": "2024-12-27T03:22:35.179Z",
+    "author": "Jonas Holm",
+    "folder": 10,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 85,
+      "aperture": 5.6,
+      "shutter": "1/250",
+      "iso": 200,
+      "taken": "2024-11-27T07:39:37.793Z"
+    },
+    "credit": {
+      "author": "davide ragusa",
+      "url": "https://unsplash.com/photos/3WbWLC6QHBg"
+    }
+  },
+  {
+    "id": 1003,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "337",
+    "title": "portrait-cornelia-bu-chse-337",
+    "filename": "portrait-cornelia-bu-chse-337.jpg",
+    "alt": "Sample portrait photograph by Cornelia Büchse",
+    "caption": "Photo: Cornelia Büchse / Unsplash",
+    "description": "",
+    "width": 1572,
+    "height": 1179,
+    "originalWidth": 1572,
+    "originalHeight": 1179,
+    "filesize": 669979,
+    "uploaded": "2025-01-11T04:18:50.657Z",
+    "modified": "2026-08-16T23:32:48.764Z",
+    "author": "Jonas Holm",
+    "folder": 6,
+    "attachedTo": {
+      "id": 204,
+      "type": "page",
+      "title": "Home"
+    },
+    "usedIn": [
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      },
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      }
+    ],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 70,
+      "aperture": 4,
+      "shutter": "1/1000",
+      "iso": 200,
+      "taken": "2025-01-07T08:17:18.932Z"
+    },
+    "credit": {
+      "author": "Cornelia Büchse",
+      "url": "https://unsplash.com/photos/7eu-KaAJwks"
+    }
+  },
+  {
+    "id": 1004,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "522",
+    "title": "landscape-erik-heddema-522",
+    "filename": "landscape-erik-heddema-522.jpg",
+    "alt": "Sample landscape photograph by Erik Heddema",
+    "caption": "",
+    "description": "",
+    "width": 1500,
+    "height": 2000,
+    "originalWidth": 1500,
+    "originalHeight": 2000,
+    "filesize": 842072,
+    "uploaded": "2025-01-13T11:38:33.767Z",
+    "modified": "2025-02-06T02:29:55.095Z",
+    "author": "Site Admin",
+    "folder": 14,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      }
+    ],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 50,
+      "aperture": 1.8,
+      "shutter": "1/60",
+      "iso": 100,
+      "taken": "2025-01-10T05:12:11.261Z"
+    },
+    "credit": {
+      "author": "Erik Heddema",
+      "url": "https://unsplash.com/photos/7qheceNIy7k"
+    }
+  },
+  {
+    "id": 1005,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "742",
+    "title": "skyline-anthony-delanoix-742",
+    "filename": "skyline-anthony-delanoix-742-scaled.jpg",
+    "alt": "Sample skyline photograph by Anthony DELANOIX",
+    "caption": "",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3333,
+    "originalHeight": 5000,
+    "filesize": 1331042,
+    "uploaded": "2025-01-27T23:56:55.672Z",
+    "modified": "2026-05-10T14:54:59.224Z",
+    "author": "Site Admin",
+    "folder": 0,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 85,
+      "aperture": 4,
+      "shutter": "1/1000",
+      "iso": 800,
+      "taken": "2025-01-04T09:53:00.905Z"
+    },
+    "credit": {
+      "author": "Anthony DELANOIX",
+      "url": "https://unsplash.com/photos/ciJJ57qsQLs"
+    }
+  },
+  {
+    "id": 1006,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "898",
+    "title": "still-life-anthony-delanoix-898",
+    "filename": "still-life-anthony-delanoix-898-scaled.jpg",
+    "alt": "Sample still life photograph by Anthony DELANOIX",
+    "caption": "Photo: Anthony DELANOIX / Unsplash",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3333,
+    "originalHeight": 5000,
+    "filesize": 1669768,
+    "uploaded": "2025-01-31T14:51:25.019Z",
+    "modified": "2025-01-31T14:51:25.019Z",
+    "author": "Site Admin",
+    "folder": 0,
+    "attachedTo": {
+      "id": 202,
+      "type": "post",
+      "title": "Behind the scenes at our studio"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 50,
+      "aperture": 5.6,
+      "shutter": "1/250",
+      "iso": 200,
+      "taken": "2025-01-11T12:17:33.745Z"
+    },
+    "credit": {
+      "author": "Anthony DELANOIX",
+      "url": "https://unsplash.com/photos/nF4lk-9IJH8"
+    }
+  },
+  {
+    "id": 1007,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "23",
+    "title": "interior-alejandro-escamilla-23",
+    "filename": "interior-alejandro-escamilla-23-scaled.jpg",
+    "alt": "Sample interior photograph by Alejandro Escamilla",
+    "caption": "",
+    "description": "",
+    "width": 2031,
+    "height": 2560,
+    "originalWidth": 3887,
+    "originalHeight": 4899,
+    "filesize": 1453135,
+    "uploaded": "2025-02-09T01:05:59.483Z",
+    "modified": "2025-12-19T18:29:38.109Z",
+    "author": "Site Admin",
+    "folder": 0,
+    "attachedTo": {
+      "id": 207,
+      "type": "page",
+      "title": "Press"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 85,
+      "aperture": 4,
+      "shutter": "1/125",
+      "iso": 400,
+      "taken": "2025-01-20T21:19:44.175Z"
+    },
+    "credit": {
+      "author": "Alejandro Escamilla",
+      "url": "https://unsplash.com/photos/8yqds_91OLw"
+    }
+  },
+  {
+    "id": 1008,
+    "kind": "image",
+    "mime": "image/png",
+    "picsumId": "350",
+    "title": "portrait-forrest-cavale-350",
+    "filename": "portrait-forrest-cavale-350-scaled.png",
+    "alt": "Sample portrait photograph by Forrest Cavale",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1709,
+    "originalWidth": 5000,
+    "originalHeight": 3338,
+    "filesize": 4525393,
+    "uploaded": "2025-03-16T17:38:51.484Z",
+    "modified": "2026-02-05T19:45:48.994Z",
+    "author": "Jonas Holm",
+    "folder": 0,
+    "attachedTo": {
+      "id": 207,
+      "type": "page",
+      "title": "Press"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 50,
+      "aperture": 4,
+      "shutter": "1/250",
+      "iso": 200,
+      "taken": "2025-02-22T06:25:13.419Z"
+    },
+    "credit": {
+      "author": "Forrest Cavale",
+      "url": "https://unsplash.com/photos/17x5rTAAvXM"
+    }
+  },
+  {
+    "id": 1009,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "314",
+    "title": "travel-fre-sonneveld-314",
+    "filename": "travel-fre-sonneveld-314-scaled.jpg",
+    "alt": "Sample travel photograph by Fré Sonneveld",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1707,
+    "originalWidth": 4608,
+    "originalHeight": 3072,
+    "filesize": 1604636,
+    "uploaded": "2025-04-08T08:53:55.066Z",
+    "modified": "2025-04-08T08:53:55.066Z",
+    "author": "Site Admin",
+    "folder": 12,
+    "attachedTo": {
+      "id": 203,
+      "type": "page",
+      "title": "About us"
+    },
+    "usedIn": [
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      },
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      },
+      {
+        "id": 203,
+        "type": "page",
+        "title": "About us"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 85,
+      "aperture": 8,
+      "shutter": "1/1000",
+      "iso": 200,
+      "taken": "2025-04-06T05:43:26.644Z"
+    },
+    "credit": {
+      "author": "Fré Sonneveld",
+      "url": "https://unsplash.com/photos/1rZcfdsjoR4"
+    }
+  },
+  {
+    "id": 1010,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "478",
+    "title": "interior-antoine-beauvillain-478",
+    "filename": "interior-antoine-beauvillain-478-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1656250,
+    "uploaded": "2025-04-25T08:58:13.300Z",
+    "modified": "2025-04-25T08:58:13.300Z",
+    "author": "Jonas Holm",
+    "folder": 5,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 24,
+      "aperture": 5.6,
+      "shutter": "1/60",
+      "iso": 400,
+      "taken": "2025-04-04T16:06:38.163Z"
+    },
+    "credit": {
+      "author": "Antoine Beauvillain",
+      "url": "https://unsplash.com/photos/0Kw44ElHN3A"
+    }
+  },
+  {
+    "id": 1011,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "998",
+    "title": "interior-joanna-kosinska-998",
+    "filename": "interior-joanna-kosinska-998-scaled.jpg",
+    "alt": "Sample interior photograph by Joanna Kosinska",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1709,
+    "originalWidth": 5000,
+    "originalHeight": 3338,
+    "filesize": 1256072,
+    "uploaded": "2025-04-27T19:23:58.140Z",
+    "modified": "2026-06-26T02:06:32.892Z",
+    "author": "Jonas Holm",
+    "folder": 0,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 35,
+      "aperture": 8,
+      "shutter": "1/250",
+      "iso": 100,
+      "taken": "2025-04-08T23:42:54.615Z"
+    },
+    "credit": {
+      "author": "Joanna Kosinska",
+      "url": "https://unsplash.com/photos/B6yDtYs2IgY"
+    }
+  },
+  {
+    "id": 1012,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "383",
+    "title": "detail-jacob-valerio-383",
+    "filename": "detail-jacob-valerio-383-scaled.jpg",
+    "alt": "Sample detail photograph by Jacob Valerio",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1700,
+    "originalWidth": 4288,
+    "originalHeight": 2848,
+    "filesize": 1325103,
+    "uploaded": "2025-05-02T21:03:51.512Z",
+    "modified": "2025-05-02T21:03:51.512Z",
+    "author": "Jonas Holm",
+    "folder": 15,
+    "attachedTo": {
+      "id": 205,
+      "type": "post",
+      "title": "Conference 2025 recap"
+    },
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Jacob Valerio",
+      "url": "https://unsplash.com/photos/1tjjwmK5Q10"
+    }
+  },
+  {
+    "id": 1013,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "829",
+    "title": "interior-drew-hays-829",
+    "filename": "interior-drew-hays-829-scaled.jpg",
+    "alt": "Sample interior photograph by Drew Hays",
+    "caption": "",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3333,
+    "originalHeight": 5000,
+    "filesize": 1550985,
+    "uploaded": "2025-05-04T00:27:35.159Z",
+    "modified": "2025-05-04T00:27:35.159Z",
+    "author": "Anna Berg",
+    "folder": 12,
+    "attachedTo": {
+      "id": 204,
+      "type": "page",
+      "title": "Home"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 24,
+      "aperture": 8,
+      "shutter": "1/125",
+      "iso": 100,
+      "taken": "2025-04-24T12:34:12.654Z"
+    },
+    "credit": {
+      "author": "Drew Hays",
+      "url": "https://unsplash.com/photos/e6Fi_FBMfY0"
+    }
+  },
+  {
+    "id": 1014,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "1052",
+    "title": "still-life-annie-spratt-1052",
+    "filename": "still-life-annie-spratt-1052-scaled.jpg",
+    "alt": "Sample still life photograph by Annie Spratt",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1707,
+    "originalWidth": 4000,
+    "originalHeight": 2667,
+    "filesize": 1303660,
+    "uploaded": "2025-05-23T17:43:49.229Z",
+    "modified": "2025-05-23T17:43:49.229Z",
+    "author": "Site Admin",
+    "folder": 14,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      },
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      },
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      }
+    ],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 24,
+      "aperture": 8,
+      "shutter": "1/1000",
+      "iso": 200,
+      "taken": "2025-05-19T13:31:35.626Z"
+    },
+    "credit": {
+      "author": "Annie Spratt",
+      "url": "https://unsplash.com/photos/x8R2oSWZRSE"
+    }
+  },
+  {
+    "id": 1015,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "437",
+    "title": "street-bonnie-meisels-437",
+    "filename": "street-bonnie-meisels-437-scaled.jpg",
+    "alt": "Sample street photograph by Bonnie Meisels",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1684,
+    "originalWidth": 4128,
+    "originalHeight": 2716,
+    "filesize": 1328229,
+    "uploaded": "2025-06-11T17:55:35.460Z",
+    "modified": "2025-06-11T17:55:35.460Z",
+    "author": "Jonas Holm",
+    "folder": 13,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 70,
+      "aperture": 4,
+      "shutter": "1/60",
+      "iso": 100,
+      "taken": "2025-06-07T21:31:35.496Z"
+    },
+    "credit": {
+      "author": "Bonnie Meisels",
+      "url": "https://unsplash.com/photos/Y5uyOoct2pg"
+    }
+  },
+  {
+    "id": 1016,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "605",
+    "title": "detail-david-marcu-605",
+    "filename": "detail-david-marcu-605.jpg",
+    "alt": "Sample detail photograph by David Marcu",
+    "caption": "",
+    "description": "",
+    "width": 2513,
+    "height": 1670,
+    "originalWidth": 2513,
+    "originalHeight": 1670,
+    "filesize": 1182535,
+    "uploaded": "2025-06-18T12:37:59.603Z",
+    "modified": "2025-12-11T17:52:50.297Z",
+    "author": "Anna Berg",
+    "folder": 7,
+    "attachedTo": {
+      "id": 205,
+      "type": "post",
+      "title": "Conference 2025 recap"
+    },
+    "usedIn": [
+      {
+        "id": 203,
+        "type": "page",
+        "title": "About us"
+      },
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 70,
+      "aperture": 8,
+      "shutter": "1/60",
+      "iso": 100,
+      "taken": "2025-06-02T00:59:16.480Z"
+    },
+    "credit": {
+      "author": "David Marcu",
+      "url": "https://unsplash.com/photos/_iVG4MsY2N0"
+    }
+  },
+  {
+    "id": 1017,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "916",
+    "title": "skyline-larry-chen-916",
+    "filename": "skyline-larry-chen-916-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1270,
+    "originalWidth": 5000,
+    "originalHeight": 2480,
+    "filesize": 913412,
+    "uploaded": "2025-06-30T05:30:20.637Z",
+    "modified": "2025-06-30T05:30:20.637Z",
+    "author": "Site Admin",
+    "folder": 12,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 24,
+      "aperture": 2.8,
+      "shutter": "1/250",
+      "iso": 800,
+      "taken": "2025-06-16T04:41:58.097Z"
+    },
+    "credit": {
+      "author": "Larry Chen",
+      "url": "https://unsplash.com/photos/Nte-4RiRfwU"
+    }
+  },
+  {
+    "id": 1018,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "90",
+    "title": "travel-rula-sibai-90",
+    "filename": "travel-rula-sibai-90-scaled.jpg",
+    "alt": "",
+    "caption": "Photo: Rula Sibai / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1700,
+    "originalWidth": 3000,
+    "originalHeight": 1992,
+    "filesize": 1440085,
+    "uploaded": "2025-07-01T03:50:26.901Z",
+    "modified": "2025-07-01T03:50:26.901Z",
+    "author": "Site Admin",
+    "folder": 7,
+    "attachedTo": {
+      "id": 205,
+      "type": "post",
+      "title": "Conference 2025 recap"
+    },
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Rula Sibai",
+      "url": "https://unsplash.com/photos/qVj3KuEikvg"
+    }
+  },
+  {
+    "id": 1019,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "529",
+    "title": "texture-jeff-sheldon-529",
+    "filename": "texture-jeff-sheldon-529-scaled.jpg",
+    "alt": "Sample texture photograph by Jeff Sheldon",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1920,
+    "originalWidth": 4000,
+    "originalHeight": 3000,
+    "filesize": 1808268,
+    "uploaded": "2025-07-06T23:16:02.053Z",
+    "modified": "2025-07-06T23:16:02.053Z",
+    "author": "Anna Berg",
+    "folder": 15,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      },
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 24,
+      "aperture": 8,
+      "shutter": "1/125",
+      "iso": 400,
+      "taken": "2025-06-23T00:15:30.450Z"
+    },
+    "credit": {
+      "author": "Jeff Sheldon",
+      "url": "https://unsplash.com/photos/eOLpJytrbsQ"
+    }
+  },
+  {
+    "id": 1020,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "593",
+    "title": "skyline-paula-borowska-593",
+    "filename": "skyline-paula-borowska-593.jpg",
+    "alt": "Sample skyline photograph by Paula Borowska",
+    "caption": "",
+    "description": "",
+    "width": 1774,
+    "height": 2365,
+    "originalWidth": 1774,
+    "originalHeight": 2365,
+    "filesize": 1154030,
+    "uploaded": "2025-07-13T03:14:20.636Z",
+    "modified": "2025-07-13T03:14:20.636Z",
+    "author": "Jonas Holm",
+    "folder": 16,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      },
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      }
+    ],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 85,
+      "aperture": 5.6,
+      "shutter": "1/250",
+      "iso": 200,
+      "taken": "2025-06-23T07:03:48.514Z"
+    },
+    "credit": {
+      "author": "Paula Borowska",
+      "url": "https://unsplash.com/photos/OM7CvKnhjfs"
+    }
+  },
+  {
+    "id": 1021,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "184",
+    "title": "portrait-tim-de-groot-184",
+    "filename": "portrait-tim-de-groot-184-scaled.jpg",
+    "alt": "",
+    "caption": "Photo: Tim de Groot / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1700,
+    "originalWidth": 4288,
+    "originalHeight": 2848,
+    "filesize": 1538975,
+    "uploaded": "2025-07-24T05:45:02.493Z",
+    "modified": "2025-07-24T05:45:02.493Z",
+    "author": "Site Admin",
+    "folder": 6,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      },
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      },
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      }
+    ],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 35,
+      "aperture": 2.8,
+      "shutter": "1/125",
+      "iso": 400,
+      "taken": "2025-07-11T09:55:24.738Z"
+    },
+    "credit": {
+      "author": "Tim de Groot",
+      "url": "https://unsplash.com/photos/yNGQ830uFB4"
+    }
+  },
+  {
+    "id": 1022,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "1031",
+    "title": "landscape-mike-wilson-1031",
+    "filename": "landscape-mike-wilson-1031-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1440,
+    "originalWidth": 5000,
+    "originalHeight": 2812,
+    "filesize": 1115937,
+    "uploaded": "2025-08-02T19:58:54.478Z",
+    "modified": "2025-08-02T19:58:54.478Z",
+    "author": "Site Admin",
+    "folder": 6,
+    "attachedTo": {
+      "id": 202,
+      "type": "post",
+      "title": "Behind the scenes at our studio"
+    },
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Mike Wilson",
+      "url": "https://unsplash.com/photos/rM7B4DheQc0"
+    }
+  },
+  {
+    "id": 1023,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "668",
+    "title": "detail-william-iven-668",
+    "filename": "detail-william-iven-668-scaled.jpg",
+    "alt": "Sample detail photograph by William Iven",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1700,
+    "originalWidth": 4133,
+    "originalHeight": 2745,
+    "filesize": 1428990,
+    "uploaded": "2025-08-07T20:38:21.980Z",
+    "modified": "2025-08-07T20:38:21.980Z",
+    "author": "Anna Berg",
+    "folder": 0,
+    "attachedTo": {
+      "id": 208,
+      "type": "post",
+      "title": "Product launch: Outdoor line"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 35,
+      "aperture": 2.8,
+      "shutter": "1/250",
+      "iso": 100,
+      "taken": "2025-07-27T04:51:50.806Z"
+    },
+    "credit": {
+      "author": "William Iven",
+      "url": "https://unsplash.com/photos/GANqCr1BRTU"
+    }
+  },
+  {
+    "id": 1024,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "1020",
+    "title": "texture-adam-willoughby-knox-1020",
+    "filename": "texture-adam-willoughby-knox-1020-scaled.jpg",
+    "alt": "",
+    "caption": "Photo: Adam Willoughby-Knox / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1700,
+    "originalWidth": 4288,
+    "originalHeight": 2848,
+    "filesize": 1283270,
+    "uploaded": "2025-08-15T07:58:14.673Z",
+    "modified": "2025-08-15T07:58:14.673Z",
+    "author": "Site Admin",
+    "folder": 5,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 203,
+        "type": "page",
+        "title": "About us"
+      },
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      }
+    ],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 70,
+      "aperture": 1.8,
+      "shutter": "1/60",
+      "iso": 800,
+      "taken": "2025-07-22T17:40:21.323Z"
+    },
+    "credit": {
+      "author": "Adam Willoughby-Knox",
+      "url": "https://unsplash.com/photos/_snqARKTgoc"
+    }
+  },
+  {
+    "id": 1025,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "78",
+    "title": "texture-paul-evans-78",
+    "filename": "texture-paul-evans-78.jpg",
+    "alt": "Sample texture photograph by Paul Evans",
+    "caption": "",
+    "description": "",
+    "width": 1584,
+    "height": 2376,
+    "originalWidth": 1584,
+    "originalHeight": 2376,
+    "filesize": 1308681,
+    "uploaded": "2025-08-24T22:47:36.288Z",
+    "modified": "2026-02-26T21:49:19.799Z",
+    "author": "Anna Berg",
+    "folder": 0,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Paul Evans",
+      "url": "https://unsplash.com/photos/CtkDsu4w-Rs"
+    }
+  },
+  {
+    "id": 1026,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "937",
+    "title": "forest-sergei-akulich-937",
+    "filename": "forest-sergei-akulich-937-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1707,
+    "originalWidth": 4188,
+    "originalHeight": 2792,
+    "filesize": 1328348,
+    "uploaded": "2025-09-04T04:14:50.902Z",
+    "modified": "2025-09-04T04:14:50.902Z",
+    "author": "Site Admin",
+    "folder": 6,
+    "attachedTo": {
+      "id": 201,
+      "type": "post",
+      "title": "Spring newsletter"
+    },
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Sergei Akulich",
+      "url": "https://unsplash.com/photos/hJ2BFoo8DKg"
+    }
+  },
+  {
+    "id": 1027,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "834",
+    "title": "travel-the-anchor-834",
+    "filename": "travel-the-anchor-834-scaled.jpg",
+    "alt": "Sample travel photograph by The Anchor",
+    "caption": "Photo: The Anchor / Unsplash",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3333,
+    "originalHeight": 5000,
+    "filesize": 1499160,
+    "uploaded": "2025-09-14T12:09:15.169Z",
+    "modified": "2025-09-14T12:09:15.169Z",
+    "author": "Jonas Holm",
+    "folder": 13,
+    "attachedTo": {
+      "id": 203,
+      "type": "page",
+      "title": "About us"
+    },
+    "usedIn": [
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      }
+    ],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 35,
+      "aperture": 4,
+      "shutter": "1/250",
+      "iso": 800,
+      "taken": "2025-09-10T05:05:31.843Z"
+    },
+    "credit": {
+      "author": "The Anchor",
+      "url": "https://unsplash.com/photos/6hgsktgpfIE"
+    }
+  },
+  {
+    "id": 1028,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "535",
+    "title": "portrait-jeff-sheldon-535",
+    "filename": "portrait-jeff-sheldon-535-scaled.jpg",
+    "alt": "Sample portrait photograph by Jeff Sheldon",
+    "caption": "",
+    "description": "",
+    "width": 1920,
+    "height": 2560,
+    "originalWidth": 2962,
+    "originalHeight": 3949,
+    "filesize": 1358645,
+    "uploaded": "2025-09-16T02:06:41.877Z",
+    "modified": "2025-09-16T02:06:41.877Z",
+    "author": "Site Admin",
+    "folder": 16,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 70,
+      "aperture": 4,
+      "shutter": "1/250",
+      "iso": 1600,
+      "taken": "2025-08-23T03:17:11.289Z"
+    },
+    "credit": {
+      "author": "Jeff Sheldon",
+      "url": "https://unsplash.com/photos/Lj1S1_KD61k"
+    }
+  },
+  {
+    "id": 1029,
+    "kind": "image",
+    "mime": "image/png",
+    "picsumId": "411",
+    "title": "portrait-philipp-henzler-411",
+    "filename": "portrait-philipp-henzler-411-scaled.png",
+    "alt": "Sample portrait photograph by Philipp Henzler",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1207,
+    "originalWidth": 5000,
+    "originalHeight": 2358,
+    "filesize": 2964080,
+    "uploaded": "2025-09-19T09:29:28.477Z",
+    "modified": "2025-09-19T09:29:28.477Z",
+    "author": "Jonas Holm",
+    "folder": 15,
+    "attachedTo": {
+      "id": 201,
+      "type": "post",
+      "title": "Spring newsletter"
+    },
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Philipp Henzler",
+      "url": "https://unsplash.com/photos/dgE3lWVyDh8"
+    }
+  },
+  {
+    "id": 1030,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "26",
+    "title": "texture-vadim-sherbakov-26",
+    "filename": "texture-vadim-sherbakov-26-scaled.jpg",
+    "alt": "Sample texture photograph by Vadim Sherbakov",
+    "caption": "Photo: Vadim Sherbakov / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1684,
+    "originalWidth": 4209,
+    "originalHeight": 2769,
+    "filesize": 1163335,
+    "uploaded": "2025-09-20T12:17:35.798Z",
+    "modified": "2025-09-20T12:17:35.798Z",
+    "author": "Jonas Holm",
+    "folder": 6,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      },
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      },
+      {
+        "id": 203,
+        "type": "page",
+        "title": "About us"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Vadim Sherbakov",
+      "url": "https://unsplash.com/photos/tCICLJ5ktBE"
+    }
+  },
+  {
+    "id": 1031,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "1009",
+    "title": "portrait-christopher-campbell-1009",
+    "filename": "portrait-christopher-campbell-1009-scaled.jpg",
+    "alt": "Sample portrait photograph by Christopher Campbell",
+    "caption": "",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3332,
+    "originalHeight": 5000,
+    "filesize": 1518716,
+    "uploaded": "2025-10-02T15:17:41.990Z",
+    "modified": "2025-10-02T15:17:41.990Z",
+    "author": "Jonas Holm",
+    "folder": 5,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      },
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      },
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Christopher Campbell",
+      "url": "https://unsplash.com/photos/CMWRIzyMKZk"
+    }
+  },
+  {
+    "id": 1032,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "680",
+    "title": "forest-milada-vigerova-680",
+    "filename": "forest-milada-vigerova-680-scaled.jpg",
+    "alt": "Sample forest photograph by Milada Vigerova",
+    "caption": "",
+    "description": "",
+    "width": 2431,
+    "height": 2560,
+    "originalWidth": 3648,
+    "originalHeight": 3842,
+    "filesize": 1727733,
+    "uploaded": "2025-10-03T10:17:20.043Z",
+    "modified": "2025-10-03T10:17:20.043Z",
+    "author": "Site Admin",
+    "folder": 16,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 85,
+      "aperture": 8,
+      "shutter": "1/250",
+      "iso": 100,
+      "taken": "2025-09-17T21:40:53.403Z"
+    },
+    "credit": {
+      "author": "Milada Vigerova",
+      "url": "https://unsplash.com/photos/kT0tsYZ2YE0"
+    }
+  },
+  {
+    "id": 1033,
+    "kind": "image",
+    "mime": "image/png",
+    "picsumId": "818",
+    "title": "skyline-anthony-delanoix-818",
+    "filename": "skyline-anthony-delanoix-818-scaled.png",
+    "alt": "Sample skyline photograph by Anthony DELANOIX",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1707,
+    "originalWidth": 4108,
+    "originalHeight": 2739,
+    "filesize": 4547969,
+    "uploaded": "2025-10-16T13:08:22.366Z",
+    "modified": "2025-10-16T13:08:22.366Z",
+    "author": "Anna Berg",
+    "folder": 10,
+    "attachedTo": {
+      "id": 204,
+      "type": "page",
+      "title": "Home"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 35,
+      "aperture": 8,
+      "shutter": "1/1000",
+      "iso": 100,
+      "taken": "2025-10-06T20:19:41.612Z"
+    },
+    "credit": {
+      "author": "Anthony DELANOIX",
+      "url": "https://unsplash.com/photos/hv5pLutRkCI"
+    }
+  },
+  {
+    "id": 1034,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "1",
+    "title": "coast-alejandro-escamilla-1",
+    "filename": "coast-alejandro-escamilla-1-scaled.jpg",
+    "alt": "Sample coast photograph by Alejandro Escamilla",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1462842,
+    "uploaded": "2025-10-19T21:43:15.534Z",
+    "modified": "2026-01-23T14:03:40.553Z",
+    "author": "Anna Berg",
+    "folder": 5,
+    "attachedTo": {
+      "id": 205,
+      "type": "post",
+      "title": "Conference 2025 recap"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 24,
+      "aperture": 5.6,
+      "shutter": "1/250",
+      "iso": 100,
+      "taken": "2025-09-24T04:53:56.927Z"
+    },
+    "credit": {
+      "author": "Alejandro Escamilla",
+      "url": "https://unsplash.com/photos/LNRyGwIJr5c"
+    }
+  },
+  {
+    "id": 1035,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "594",
+    "title": "forest-aure-lien-bellanger-594",
+    "filename": "forest-aure-lien-bellanger-594.jpg",
+    "alt": "Sample forest photograph by Aurélien bellanger",
+    "caption": "",
+    "description": "",
+    "width": 2509,
+    "height": 1673,
+    "originalWidth": 2509,
+    "originalHeight": 1673,
+    "filesize": 1274070,
+    "uploaded": "2025-10-25T18:46:20.840Z",
+    "modified": "2025-10-25T18:46:20.840Z",
+    "author": "Site Admin",
+    "folder": 13,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Aurélien bellanger",
+      "url": "https://unsplash.com/photos/uoSEDUu8F-I"
+    }
+  },
+  {
+    "id": 1036,
+    "kind": "image",
+    "mime": "image/png",
+    "picsumId": "53",
+    "title": "portrait-j-duclos-53",
+    "filename": "portrait-j-duclos-53.png",
+    "alt": "",
+    "caption": "Photo: J Duclos / Unsplash",
+    "description": "",
+    "width": 1280,
+    "height": 1280,
+    "originalWidth": 1280,
+    "originalHeight": 1280,
+    "filesize": 1673873,
+    "uploaded": "2025-11-02T00:09:55.235Z",
+    "modified": "2025-11-02T00:09:55.235Z",
+    "author": "Jonas Holm",
+    "folder": 7,
+    "attachedTo": {
+      "id": 201,
+      "type": "post",
+      "title": "Spring newsletter"
+    },
+    "usedIn": [
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "J Duclos",
+      "url": "https://unsplash.com/photos/6qORI5j_6n8"
+    }
+  },
+  {
+    "id": 1037,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "869",
+    "title": "coast-caleb-ralston-869",
+    "filename": "coast-caleb-ralston-869.jpg",
+    "alt": "Sample coast photograph by Caleb Ralston",
+    "caption": "",
+    "description": "",
+    "width": 2000,
+    "height": 1333,
+    "originalWidth": 2000,
+    "originalHeight": 1333,
+    "filesize": 1017573,
+    "uploaded": "2025-11-07T09:03:04.828Z",
+    "modified": "2025-11-07T09:03:04.828Z",
+    "author": "Jonas Holm",
+    "folder": 6,
+    "attachedTo": {
+      "id": 202,
+      "type": "post",
+      "title": "Behind the scenes at our studio"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 50,
+      "aperture": 5.6,
+      "shutter": "1/60",
+      "iso": 400,
+      "taken": "2025-11-04T15:34:18.727Z"
+    },
+    "credit": {
+      "author": "Caleb Ralston",
+      "url": "https://unsplash.com/photos/6hxvm0NzYP8"
+    }
+  },
+  {
+    "id": 1038,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "17",
+    "title": "street-paul-jarvis-17",
+    "filename": "street-paul-jarvis-17.jpg",
+    "alt": "Sample street photograph by Paul Jarvis",
+    "caption": "",
+    "description": "",
+    "width": 2500,
+    "height": 1667,
+    "originalWidth": 2500,
+    "originalHeight": 1667,
+    "filesize": 1149021,
+    "uploaded": "2025-11-21T03:14:21.020Z",
+    "modified": "2026-03-09T22:45:20.230Z",
+    "author": "Jonas Holm",
+    "folder": 10,
+    "attachedTo": {
+      "id": 203,
+      "type": "page",
+      "title": "About us"
+    },
+    "usedIn": [
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Paul Jarvis",
+      "url": "https://unsplash.com/photos/Ven2CV8IJ5A"
+    }
+  },
+  {
+    "id": 1039,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "1038",
+    "title": "skyline-marcelo-quinan-1038",
+    "filename": "skyline-marcelo-quinan-1038-scaled.jpg",
+    "alt": "Sample skyline photograph by Marcelo Quinan",
+    "caption": "",
+    "description": "",
+    "width": 1709,
+    "height": 2560,
+    "originalWidth": 3338,
+    "originalHeight": 5000,
+    "filesize": 1570880,
+    "uploaded": "2025-11-23T17:28:17.216Z",
+    "modified": "2025-11-23T17:28:17.216Z",
+    "author": "Site Admin",
+    "folder": 12,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 203,
+        "type": "page",
+        "title": "About us"
+      },
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      }
+    ],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 50,
+      "aperture": 5.6,
+      "shutter": "1/250",
+      "iso": 100,
+      "taken": "2025-11-11T23:06:07.122Z"
+    },
+    "credit": {
+      "author": "Marcelo Quinan",
+      "url": "https://unsplash.com/photos/upywS5QFwr8"
+    }
+  },
+  {
+    "id": 1040,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "833",
+    "title": "street-paul-green-833",
+    "filename": "street-paul-green-833-scaled.jpg",
+    "alt": "Sample street photograph by Paul Green",
+    "caption": "",
+    "description": "",
+    "width": 1707,
+    "height": 2560,
+    "originalWidth": 3184,
+    "originalHeight": 4776,
+    "filesize": 1471930,
+    "uploaded": "2025-12-07T07:51:26.092Z",
+    "modified": "2026-03-08T07:37:38.605Z",
+    "author": "Site Admin",
+    "folder": 14,
+    "attachedTo": {
+      "id": 203,
+      "type": "page",
+      "title": "About us"
+    },
+    "usedIn": [
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      },
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      }
+    ],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "shutter": "1/250",
+      "iso": 100,
+      "taken": "2025-11-18T19:29:01.941Z"
+    },
+    "credit": {
+      "author": "Paul Green",
+      "url": "https://unsplash.com/photos/OIbwHaG9NC8"
+    }
+  },
+  {
+    "id": 1041,
+    "kind": "image",
+    "mime": "image/png",
+    "picsumId": "277",
+    "title": "travel-taylor-leopold-277",
+    "filename": "travel-taylor-leopold-277-scaled.png",
+    "alt": "Sample travel photograph by Taylor Leopold",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 4230321,
+    "uploaded": "2025-12-12T11:03:29.313Z",
+    "modified": "2026-07-12T09:23:53.529Z",
+    "author": "Anna Berg",
+    "folder": 13,
+    "attachedTo": {
+      "id": 208,
+      "type": "post",
+      "title": "Product launch: Outdoor line"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 70,
+      "aperture": 4,
+      "shutter": "1/1000",
+      "iso": 1600,
+      "taken": "2025-11-22T09:35:53.352Z"
+    },
+    "credit": {
+      "author": "Taylor Leopold",
+      "url": "https://unsplash.com/photos/pElM4yerF5Q"
+    }
+  },
+  {
+    "id": 1042,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "607",
+    "title": "coast-gre-goire-herve-bazin-607",
+    "filename": "coast-gre-goire-herve-bazin-607.jpg",
+    "alt": "Sample coast photograph by Grégoire Hervé-Bazin",
+    "caption": "",
+    "description": "",
+    "width": 1673,
+    "height": 2509,
+    "originalWidth": 1673,
+    "originalHeight": 2509,
+    "filesize": 1269433,
+    "uploaded": "2025-12-13T15:55:50.735Z",
+    "modified": "2025-12-13T15:55:50.735Z",
+    "author": "Site Admin",
+    "folder": 15,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 35,
+      "aperture": 2.8,
+      "shutter": "1/125",
+      "iso": 100,
+      "taken": "2025-12-08T13:45:52.247Z"
+    },
+    "credit": {
+      "author": "Grégoire Hervé-Bazin",
+      "url": "https://unsplash.com/photos/_LLcIlMoUaE"
+    }
+  },
+  {
+    "id": 1043,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "776",
+    "title": "texture-autumn-mott-776",
+    "filename": "texture-autumn-mott-776-scaled.jpg",
+    "alt": "Sample texture photograph by Autumn Mott",
+    "caption": "",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3333,
+    "originalHeight": 5000,
+    "filesize": 1254023,
+    "uploaded": "2025-12-15T14:30:30.862Z",
+    "modified": "2025-12-15T14:30:30.862Z",
+    "author": "Jonas Holm",
+    "folder": 7,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Autumn Mott",
+      "url": "https://unsplash.com/photos/SPd9CSoWCkY"
+    }
+  },
+  {
+    "id": 1044,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "679",
+    "title": "coast-len-dela-cruz-679",
+    "filename": "coast-len-dela-cruz-679.jpg",
+    "alt": "Sample coast photograph by Len  dela Cruz",
+    "caption": "",
+    "description": "",
+    "width": 2448,
+    "height": 2448,
+    "originalWidth": 2448,
+    "originalHeight": 2448,
+    "filesize": 1982377,
+    "uploaded": "2025-12-30T23:34:55.160Z",
+    "modified": "2025-12-30T23:34:55.160Z",
+    "author": "Jonas Holm",
+    "folder": 12,
+    "attachedTo": {
+      "id": 203,
+      "type": "page",
+      "title": "About us"
+    },
+    "usedIn": [
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      },
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Len  dela Cruz",
+      "url": "https://unsplash.com/photos/ScEKf8u7y-c"
+    }
+  },
+  {
+    "id": 1045,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "304",
+    "title": "skyline-drew-patrick-miller-304",
+    "filename": "skyline-drew-patrick-miller-304-scaled.jpg",
+    "alt": "Sample skyline photograph by Drew Patrick Miller",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1702,
+    "originalWidth": 5000,
+    "originalHeight": 3324,
+    "filesize": 1430240,
+    "uploaded": "2026-01-02T00:04:25.069Z",
+    "modified": "2026-01-02T00:04:25.069Z",
+    "author": "Jonas Holm",
+    "folder": 16,
+    "attachedTo": {
+      "id": 206,
+      "type": "post",
+      "title": "Five ideas for summer"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 50,
+      "aperture": 2.8,
+      "shutter": "1/125",
+      "iso": 200,
+      "taken": "2025-12-23T21:51:39.147Z"
+    },
+    "credit": {
+      "author": "Drew Patrick Miller",
+      "url": "https://unsplash.com/photos/_o6AAx9dl_Y"
+    }
+  },
+  {
+    "id": 1046,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "870",
+    "title": "detail-joshua-hibbert-870",
+    "filename": "detail-joshua-hibbert-870-scaled.jpg",
+    "alt": "Sample detail photograph by Joshua Hibbert",
+    "caption": "Photo: Joshua Hibbert / Unsplash",
+    "description": "",
+    "width": 1713,
+    "height": 2560,
+    "originalWidth": 2900,
+    "originalHeight": 4334,
+    "filesize": 1379611,
+    "uploaded": "2026-01-09T22:24:48.823Z",
+    "modified": "2026-01-09T22:24:48.823Z",
+    "author": "Site Admin",
+    "folder": 0,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 85,
+      "aperture": 4,
+      "shutter": "1/1000",
+      "iso": 1600,
+      "taken": "2025-12-18T13:57:45.716Z"
+    },
+    "credit": {
+      "author": "Joshua Hibbert",
+      "url": "https://unsplash.com/photos/Pn6iimgM-wo"
+    }
+  },
+  {
+    "id": 1047,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "210",
+    "title": "workspace-martin-wessely-210",
+    "filename": "workspace-martin-wessely-210.jpg",
+    "alt": "Sample workspace photograph by Martin Wessely",
+    "caption": "Photo: Martin Wessely / Unsplash",
+    "description": "",
+    "width": 1920,
+    "height": 1280,
+    "originalWidth": 1920,
+    "originalHeight": 1280,
+    "filesize": 741591,
+    "uploaded": "2026-01-12T02:15:10.351Z",
+    "modified": "2026-08-05T16:26:52.820Z",
+    "author": "Jonas Holm",
+    "folder": 16,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Martin Wessely",
+      "url": "https://unsplash.com/photos/sX4lxBWV0-A"
+    }
+  },
+  {
+    "id": 1048,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "740",
+    "title": "texture-sebastien-gabriel-740",
+    "filename": "texture-sebastien-gabriel-740-scaled.jpg",
+    "alt": "Sample texture photograph by Sebastien Gabriel",
+    "caption": "",
+    "description": "",
+    "width": 1832,
+    "height": 2560,
+    "originalWidth": 3578,
+    "originalHeight": 5000,
+    "filesize": 1354866,
+    "uploaded": "2026-01-16T02:52:16.162Z",
+    "modified": "2026-11-18T08:55:28.321Z",
+    "author": "Jonas Holm",
+    "folder": 12,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Sebastien Gabriel",
+      "url": "https://unsplash.com/photos/0Q37aMs4Vag"
+    }
+  },
+  {
+    "id": 1049,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "307",
+    "title": "street-keith-misner-307",
+    "filename": "street-keith-misner-307-scaled.jpg",
+    "alt": "Sample street photograph by Keith Misner",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1359541,
+    "uploaded": "2026-01-22T17:37:51.141Z",
+    "modified": "2026-01-22T17:37:51.141Z",
+    "author": "Anna Berg",
+    "folder": 12,
+    "attachedTo": {
+      "id": 201,
+      "type": "post",
+      "title": "Spring newsletter"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 35,
+      "aperture": 2.8,
+      "shutter": "1/60",
+      "iso": 200,
+      "taken": "2026-01-15T13:47:07.836Z"
+    },
+    "credit": {
+      "author": "Keith Misner",
+      "url": "https://unsplash.com/photos/h0Vxgz5tyXA"
+    }
+  },
+  {
+    "id": 1050,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "648",
+    "title": "detail-ales-krivec-648",
+    "filename": "detail-ales-krivec-648.jpg",
+    "alt": "",
+    "caption": "Photo: Ales Krivec / Unsplash",
+    "description": "",
+    "width": 2517,
+    "height": 1667,
+    "originalWidth": 2517,
+    "originalHeight": 1667,
+    "filesize": 1553148,
+    "uploaded": "2026-01-25T22:22:39.777Z",
+    "modified": "2026-04-10T19:54:22.428Z",
+    "author": "Jonas Holm",
+    "folder": 12,
+    "attachedTo": {
+      "id": 202,
+      "type": "post",
+      "title": "Behind the scenes at our studio"
+    },
+    "usedIn": [
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      },
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      },
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 35,
+      "aperture": 4,
+      "shutter": "1/250",
+      "iso": 800,
+      "taken": "2026-01-24T22:00:01.274Z"
+    },
+    "credit": {
+      "author": "Ales Krivec",
+      "url": "https://unsplash.com/photos/s95DnBWUe-8"
+    }
+  },
+  {
+    "id": 1051,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "61",
+    "title": "forest-alex-61",
+    "filename": "forest-alex-61-scaled.jpg",
+    "alt": "Sample forest photograph by Alex",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1920,
+    "originalWidth": 3264,
+    "originalHeight": 2448,
+    "filesize": 1387299,
+    "uploaded": "2026-01-26T07:28:17.791Z",
+    "modified": "2026-01-26T07:28:17.791Z",
+    "author": "Anna Berg",
+    "folder": 16,
+    "attachedTo": {
+      "id": 204,
+      "type": "page",
+      "title": "Home"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 35,
+      "aperture": 5.6,
+      "shutter": "1/250",
+      "iso": 200,
+      "taken": "2026-01-25T22:17:18.699Z"
+    },
+    "credit": {
+      "author": "Alex",
+      "url": "https://unsplash.com/photos/zMz14hsbpuU"
+    }
+  },
+  {
+    "id": 1052,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "424",
+    "title": "skyline-stephy-pariande-424",
+    "filename": "skyline-stephy-pariande-424.jpg",
+    "alt": "Sample skyline photograph by Stephy Pariande",
+    "caption": "Photo: Stephy Pariande / Unsplash",
+    "description": "",
+    "width": 2048,
+    "height": 1536,
+    "originalWidth": 2048,
+    "originalHeight": 1536,
+    "filesize": 1128935,
+    "uploaded": "2026-01-26T19:07:07.955Z",
+    "modified": "2026-01-26T19:07:07.955Z",
+    "author": "Anna Berg",
+    "folder": 0,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": null,
+    "credit": {
+      "author": "Stephy Pariande",
+      "url": "https://unsplash.com/photos/nDqA4d5NL0k"
+    }
+  },
+  {
+    "id": 1053,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "370",
+    "title": "texture-aleksi-tappura-370",
+    "filename": "texture-aleksi-tappura-370-scaled.jpg",
+    "alt": "Sample texture photograph by Aleksi Tappura",
+    "caption": "Photo: Aleksi Tappura / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1696,
+    "originalWidth": 4928,
+    "originalHeight": 3264,
+    "filesize": 1550958,
+    "uploaded": "2026-02-22T04:26:35.516Z",
+    "modified": "2026-02-22T04:26:35.516Z",
+    "author": "Anna Berg",
+    "folder": 16,
+    "attachedTo": {
+      "id": 208,
+      "type": "post",
+      "title": "Product launch: Outdoor line"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 50,
+      "aperture": 1.8,
+      "shutter": "1/250",
+      "iso": 200,
+      "taken": "2026-02-20T13:36:47.979Z"
+    },
+    "credit": {
+      "author": "Aleksi Tappura",
+      "url": "https://unsplash.com/photos/PjH_BkzjxTA"
+    }
+  },
+  {
+    "id": 1054,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "1054",
+    "title": "interior-se-rgio-rola-1054",
+    "filename": "interior-se-rgio-rola-1054-scaled.jpg",
+    "alt": "Sample interior photograph by Sérgio Rola",
+    "caption": "Photo: Sérgio Rola / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1441,
+    "originalWidth": 3079,
+    "originalHeight": 1733,
+    "filesize": 1153735,
+    "uploaded": "2026-02-22T08:17:36.781Z",
+    "modified": "2026-02-22T08:17:36.781Z",
+    "author": "Jonas Holm",
+    "folder": 12,
+    "attachedTo": {
+      "id": 206,
+      "type": "post",
+      "title": "Five ideas for summer"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 70,
+      "aperture": 2.8,
+      "shutter": "1/125",
+      "iso": 200,
+      "taken": "2026-02-08T21:35:35.622Z"
+    },
+    "credit": {
+      "author": "Sérgio Rola",
+      "url": "https://unsplash.com/photos/B1amIgaNkwA"
+    }
+  },
+  {
+    "id": 1055,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "260",
+    "title": "coast-sylwia-bartyzel-260",
+    "filename": "coast-sylwia-bartyzel-260.jpg",
+    "alt": "Sample coast photograph by Sylwia Bartyzel",
+    "caption": "",
+    "description": "",
+    "width": 1500,
+    "height": 2250,
+    "originalWidth": 1500,
+    "originalHeight": 2250,
+    "filesize": 893904,
+    "uploaded": "2026-02-28T09:51:20.234Z",
+    "modified": "2026-06-30T01:59:38.678Z",
+    "author": "Jonas Holm",
+    "folder": 13,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 24,
+      "aperture": 8,
+      "shutter": "1/1000",
+      "iso": 400,
+      "taken": "2026-02-20T06:04:06.044Z"
+    },
+    "credit": {
+      "author": "Sylwia Bartyzel",
+      "url": "https://unsplash.com/photos/OdAqbedkfiA"
+    }
+  },
+  {
+    "id": 1056,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "876",
+    "title": "portrait-carmine-de-fazio-876",
+    "filename": "portrait-carmine-de-fazio-876-scaled.jpg",
+    "alt": "Sample portrait photograph by Carmine De Fazio",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1709,
+    "originalWidth": 5000,
+    "originalHeight": 3338,
+    "filesize": 1212823,
+    "uploaded": "2026-03-02T11:09:15.801Z",
+    "modified": "2026-03-02T11:09:15.801Z",
+    "author": "Anna Berg",
+    "folder": 6,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      },
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Carmine De Fazio",
+      "url": "https://unsplash.com/photos/3ytjETpQMNY"
+    }
+  },
+  {
+    "id": 1057,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "827",
+    "title": "travel-kazuend-827",
+    "filename": "travel-kazuend-827-scaled.jpg",
+    "alt": "Sample travel photograph by kazuend",
+    "caption": "",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3333,
+    "originalHeight": 5000,
+    "filesize": 1617421,
+    "uploaded": "2026-03-08T10:58:02.318Z",
+    "modified": "2026-03-08T10:58:02.318Z",
+    "author": "Site Admin",
+    "folder": 5,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      },
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      },
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "kazuend",
+      "url": "https://unsplash.com/photos/2KXEb_8G5vo"
+    }
+  },
+  {
+    "id": 1058,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "896",
+    "title": "workspace-jenna-beekhuis-896",
+    "filename": "workspace-jenna-beekhuis-896-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1507007,
+    "uploaded": "2026-03-12T01:39:30.621Z",
+    "modified": "2026-08-23T05:43:44.280Z",
+    "author": "Jonas Holm",
+    "folder": 14,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 50,
+      "aperture": 2.8,
+      "shutter": "1/1000",
+      "iso": 200,
+      "taken": "2026-02-22T21:18:36.109Z"
+    },
+    "credit": {
+      "author": "Jenna Beekhuis",
+      "url": "https://unsplash.com/photos/Bm0Ja6LZWl4"
+    }
+  },
+  {
+    "id": 1059,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "259",
+    "title": "skyline-namphuong-van-259",
+    "filename": "skyline-namphuong-van-259-scaled.jpg",
+    "alt": "",
+    "caption": "Photo: Namphuong Van / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1920,
+    "originalWidth": 3264,
+    "originalHeight": 2448,
+    "filesize": 1584197,
+    "uploaded": "2026-03-19T14:39:38.244Z",
+    "modified": "2026-03-19T14:39:38.244Z",
+    "author": "Anna Berg",
+    "folder": 0,
+    "attachedTo": {
+      "id": 204,
+      "type": "page",
+      "title": "Home"
+    },
+    "usedIn": [
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      },
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      }
+    ],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 24,
+      "aperture": 8,
+      "shutter": "1/60",
+      "iso": 800,
+      "taken": "2026-03-05T13:00:54.129Z"
+    },
+    "credit": {
+      "author": "Namphuong Van",
+      "url": "https://unsplash.com/photos/hfIheOEJp9M"
+    }
+  },
+  {
+    "id": 1060,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "18",
+    "title": "workspace-paul-jarvis-18",
+    "filename": "workspace-paul-jarvis-18.jpg",
+    "alt": "Sample workspace photograph by Paul Jarvis",
+    "caption": "",
+    "description": "",
+    "width": 2500,
+    "height": 1667,
+    "originalWidth": 2500,
+    "originalHeight": 1667,
+    "filesize": 1140382,
+    "uploaded": "2026-03-23T08:22:08.872Z",
+    "modified": "2026-07-04T18:38:42.798Z",
+    "author": "Jonas Holm",
+    "folder": 10,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      },
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Paul Jarvis",
+      "url": "https://unsplash.com/photos/Ps2n0rShqaM"
+    }
+  },
+  {
+    "id": 1061,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "756",
+    "title": "skyline-sebastien-gabriel-756",
+    "filename": "skyline-sebastien-gabriel-756-scaled.jpg",
+    "alt": "Sample skyline photograph by Sebastien Gabriel",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1624844,
+    "uploaded": "2026-03-24T00:29:42.447Z",
+    "modified": "2026-03-24T00:29:42.447Z",
+    "author": "Jonas Holm",
+    "folder": 7,
+    "attachedTo": {
+      "id": 204,
+      "type": "page",
+      "title": "Home"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 24,
+      "aperture": 2.8,
+      "shutter": "1/1000",
+      "iso": 100,
+      "taken": "2026-02-23T15:49:15.731Z"
+    },
+    "credit": {
+      "author": "Sebastien Gabriel",
+      "url": "https://unsplash.com/photos/FxU8KV7psMY"
+    }
+  },
+  {
+    "id": 1062,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "566",
+    "title": "skyline-ales-krivec-566",
+    "filename": "skyline-ales-krivec-566.jpg",
+    "alt": "Sample skyline photograph by Ales Krivec",
+    "caption": "Photo: Ales Krivec / Unsplash",
+    "description": "",
+    "width": 2517,
+    "height": 1667,
+    "originalWidth": 2517,
+    "originalHeight": 1667,
+    "filesize": 1316141,
+    "uploaded": "2026-03-28T13:28:15.306Z",
+    "modified": "2026-03-28T13:28:15.306Z",
+    "author": "Jonas Holm",
+    "folder": 7,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 50,
+      "aperture": 8,
+      "shutter": "1/250",
+      "iso": 400,
+      "taken": "2026-03-01T23:25:54.788Z"
+    },
+    "credit": {
+      "author": "Ales Krivec",
+      "url": "https://unsplash.com/photos/XW4C3wPqyJs"
+    }
+  },
+  {
+    "id": 1063,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "234",
+    "title": "still-life-laura-liberal-234",
+    "filename": "still-life-laura-liberal-234.jpg",
+    "alt": "Sample still life photograph by Laura Liberal",
+    "caption": "",
+    "description": "",
+    "width": 2048,
+    "height": 2048,
+    "originalWidth": 2048,
+    "originalHeight": 2048,
+    "filesize": 1115073,
+    "uploaded": "2026-04-29T00:12:33.049Z",
+    "modified": "2026-04-29T00:12:33.049Z",
+    "author": "Anna Berg",
+    "folder": 10,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 35,
+      "aperture": 8,
+      "shutter": "1/125",
+      "iso": 400,
+      "taken": "2026-04-02T01:36:41.214Z"
+    },
+    "credit": {
+      "author": "Laura Liberal",
+      "url": "https://unsplash.com/photos/_py5wlZTI2c"
+    }
+  },
+  {
+    "id": 1064,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "27",
+    "title": "workspace-yoni-kaplan-nadel-27",
+    "filename": "workspace-yoni-kaplan-nadel-27-scaled.jpg",
+    "alt": "Sample workspace photograph by Yoni Kaplan-Nadel",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1440,
+    "originalWidth": 3264,
+    "originalHeight": 1836,
+    "filesize": 1009114,
+    "uploaded": "2026-05-02T20:53:56.259Z",
+    "modified": "2026-08-09T13:56:13.753Z",
+    "author": "Anna Berg",
+    "folder": 15,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 70,
+      "aperture": 1.8,
+      "shutter": "1/1000",
+      "iso": 1600,
+      "taken": "2026-04-04T07:56:07.156Z"
+    },
+    "credit": {
+      "author": "Yoni Kaplan-Nadel",
+      "url": "https://unsplash.com/photos/iJnZwLBOB1I"
+    }
+  },
+  {
+    "id": 1065,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "563",
+    "title": "forest-bec-brown-563",
+    "filename": "forest-bec-brown-563-scaled.jpg",
+    "alt": "Sample forest photograph by Bec Brown",
+    "caption": "Photo: Bec Brown / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1714,
+    "originalWidth": 3872,
+    "originalHeight": 2592,
+    "filesize": 1490085,
+    "uploaded": "2026-05-16T10:10:43.651Z",
+    "modified": "2026-05-20T08:40:53.559Z",
+    "author": "Jonas Holm",
+    "folder": 0,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 50,
+      "aperture": 8,
+      "shutter": "1/125",
+      "iso": 800,
+      "taken": "2026-05-12T21:05:11.967Z"
+    },
+    "credit": {
+      "author": "Bec Brown",
+      "url": "https://unsplash.com/photos/7RIm0GqvvkM"
+    }
+  },
+  {
+    "id": 1066,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "981",
+    "title": "interior-anna-anikina-981",
+    "filename": "interior-anna-anikina-981-scaled.jpg",
+    "alt": "",
+    "caption": "Photo: Anna Anikina / Unsplash",
+    "description": "",
+    "width": 2150,
+    "height": 2560,
+    "originalWidth": 4200,
+    "originalHeight": 5000,
+    "filesize": 1880984,
+    "uploaded": "2026-05-28T14:55:04.556Z",
+    "modified": "2026-05-28T14:55:04.556Z",
+    "author": "Anna Berg",
+    "folder": 9,
+    "attachedTo": {
+      "id": 206,
+      "type": "post",
+      "title": "Five ideas for summer"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 24,
+      "aperture": 1.8,
+      "shutter": "1/250",
+      "iso": 100,
+      "taken": "2026-05-10T00:12:54.469Z"
+    },
+    "credit": {
+      "author": "Anna Anikina",
+      "url": "https://unsplash.com/photos/AtH9GMAkfPE"
+    }
+  },
+  {
+    "id": 1067,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "530",
+    "title": "forest-jeff-sheldon-530",
+    "filename": "forest-jeff-sheldon-530-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 1920,
+    "height": 2560,
+    "originalWidth": 3000,
+    "originalHeight": 4000,
+    "filesize": 1321212,
+    "uploaded": "2026-05-29T19:06:32.192Z",
+    "modified": "2026-05-29T19:06:32.192Z",
+    "author": "Site Admin",
+    "folder": 13,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Canon EOS R6",
+      "lens": "RF 35mm F1.8 Macro",
+      "focalLength": 70,
+      "aperture": 2.8,
+      "shutter": "1/250",
+      "iso": 200,
+      "taken": "2026-05-24T09:31:49.953Z"
+    },
+    "credit": {
+      "author": "Jeff Sheldon",
+      "url": "https://unsplash.com/photos/rDLBArZUl1c"
+    }
+  },
+  {
+    "id": 1068,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "682",
+    "title": "forest-logan-troxell-682",
+    "filename": "forest-logan-troxell-682-scaled.jpg",
+    "alt": "Sample forest photograph by Logan Troxell",
+    "caption": "",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3333,
+    "originalHeight": 5000,
+    "filesize": 1471675,
+    "uploaded": "2026-06-02T21:55:39.843Z",
+    "modified": "2026-07-04T21:45:47.329Z",
+    "author": "Site Admin",
+    "folder": 7,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 70,
+      "aperture": 8,
+      "shutter": "1/60",
+      "iso": 400,
+      "taken": "2026-05-16T12:45:54.371Z"
+    },
+    "credit": {
+      "author": "Logan Troxell",
+      "url": "https://unsplash.com/photos/DsQmBlbywJ8"
+    }
+  },
+  {
+    "id": 1069,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "73",
+    "title": "still-life-jon-eckert-73",
+    "filename": "still-life-jon-eckert-73-scaled.jpg",
+    "alt": "Sample still life photograph by Jon Eckert",
+    "caption": "Photo: Jon Eckert / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1416219,
+    "uploaded": "2026-07-05T11:50:34.413Z",
+    "modified": "2026-07-05T11:50:34.413Z",
+    "author": "Site Admin",
+    "folder": 9,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      },
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      },
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      }
+    ],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 35,
+      "aperture": 1.8,
+      "shutter": "1/1000",
+      "iso": 400,
+      "taken": "2026-07-01T21:47:02.211Z"
+    },
+    "credit": {
+      "author": "Jon Eckert",
+      "url": "https://unsplash.com/photos/umLpP7uCZs0"
+    }
+  },
+  {
+    "id": 1070,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "936",
+    "title": "forest-lobostudio-hamburg-936",
+    "filename": "forest-lobostudio-hamburg-936-scaled.jpg",
+    "alt": "Sample forest photograph by LoboStudio Hamburg",
+    "caption": "",
+    "description": "",
+    "width": 1920,
+    "height": 2560,
+    "originalWidth": 2448,
+    "originalHeight": 3264,
+    "filesize": 1670970,
+    "uploaded": "2026-07-09T03:02:42.639Z",
+    "modified": "2026-11-10T21:37:58.401Z",
+    "author": "Site Admin",
+    "folder": 7,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 85,
+      "aperture": 1.8,
+      "shutter": "1/250",
+      "iso": 400,
+      "taken": "2026-06-10T18:29:14.130Z"
+    },
+    "credit": {
+      "author": "LoboStudio Hamburg",
+      "url": "https://unsplash.com/photos/awnHOXjsdT4"
+    }
+  },
+  {
+    "id": 1071,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "602",
+    "title": "landscape-margot-pandone-602",
+    "filename": "landscape-margot-pandone-602.jpg",
+    "alt": "Sample landscape photograph by margot pandone",
+    "caption": "",
+    "description": "",
+    "width": 2509,
+    "height": 1673,
+    "originalWidth": 2509,
+    "originalHeight": 1673,
+    "filesize": 1504856,
+    "uploaded": "2026-07-17T15:14:41.379Z",
+    "modified": "2026-07-17T15:14:41.379Z",
+    "author": "Site Admin",
+    "folder": 9,
+    "attachedTo": {
+      "id": 204,
+      "type": "page",
+      "title": "Home"
+    },
+    "usedIn": [
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      },
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 50,
+      "aperture": 1.8,
+      "shutter": "1/250",
+      "iso": 1600,
+      "taken": "2026-06-19T00:29:03.017Z"
+    },
+    "credit": {
+      "author": "margot pandone",
+      "url": "https://unsplash.com/photos/QE2QOZqxdr4"
+    }
+  },
+  {
+    "id": 1072,
+    "kind": "image",
+    "mime": "image/png",
+    "picsumId": "31",
+    "title": "portrait-how-soon-ngu-31",
+    "filename": "portrait-how-soon-ngu-31-scaled.png",
+    "alt": "Sample portrait photograph by How-Soon Ngu",
+    "caption": "",
+    "description": "",
+    "width": 1701,
+    "height": 2560,
+    "originalWidth": 3264,
+    "originalHeight": 4912,
+    "filesize": 4838825,
+    "uploaded": "2026-07-26T15:03:59.348Z",
+    "modified": "2026-11-09T10:17:17.935Z",
+    "author": "Site Admin",
+    "folder": 9,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      },
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "How-Soon Ngu",
+      "url": "https://unsplash.com/photos/7Vz3DtQDT3Q"
+    }
+  },
+  {
+    "id": 1073,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "521",
+    "title": "forest-christian-holzinger-521",
+    "filename": "forest-christian-holzinger-521-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1283939,
+    "uploaded": "2026-07-30T16:08:58.747Z",
+    "modified": "2026-09-10T12:04:54.885Z",
+    "author": "Site Admin",
+    "folder": 9,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 50,
+      "aperture": 2.8,
+      "shutter": "1/60",
+      "iso": 400,
+      "taken": "2026-07-16T01:23:39.480Z"
+    },
+    "credit": {
+      "author": "Christian Holzinger",
+      "url": "https://unsplash.com/photos/lqQlmcPt9Qg"
+    }
+  },
+  {
+    "id": 1074,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "1065",
+    "title": "still-life-bertrand-zuchuat-1065",
+    "filename": "still-life-bertrand-zuchuat-1065-scaled.jpg",
+    "alt": "Sample still life photograph by Bertrand Zuchuat",
+    "caption": "",
+    "description": "",
+    "width": 1706,
+    "height": 2560,
+    "originalWidth": 3333,
+    "originalHeight": 5000,
+    "filesize": 1547559,
+    "uploaded": "2026-08-19T07:25:49.488Z",
+    "modified": "2026-08-19T07:25:49.488Z",
+    "author": "Jonas Holm",
+    "folder": 16,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      },
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Bertrand Zuchuat",
+      "url": "https://unsplash.com/photos/Uax2bg5EizU"
+    }
+  },
+  {
+    "id": 1075,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "536",
+    "title": "texture-david-di-veroli-536",
+    "filename": "texture-david-di-veroli-536.jpg",
+    "alt": "Sample texture photograph by David Di Veroli",
+    "caption": "Photo: David Di Veroli / Unsplash",
+    "description": "",
+    "width": 1693,
+    "height": 1129,
+    "originalWidth": 1693,
+    "originalHeight": 1129,
+    "filesize": 690117,
+    "uploaded": "2026-08-24T05:09:11.299Z",
+    "modified": "2026-09-21T09:53:07.583Z",
+    "author": "Jonas Holm",
+    "folder": 16,
+    "attachedTo": {
+      "id": 201,
+      "type": "post",
+      "title": "Spring newsletter"
+    },
+    "usedIn": [
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      }
+    ],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 70,
+      "aperture": 2.8,
+      "shutter": "1/125",
+      "iso": 1600,
+      "taken": "2026-07-26T04:35:53.518Z"
+    },
+    "credit": {
+      "author": "David Di Veroli",
+      "url": "https://unsplash.com/photos/4uCSqP5OKiI"
+    }
+  },
+  {
+    "id": 1076,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "744",
+    "title": "skyline-modestas-urbonas-744",
+    "filename": "skyline-modestas-urbonas-744.jpg",
+    "alt": "Sample skyline photograph by Modestas Urbonas",
+    "caption": "Photo: Modestas Urbonas / Unsplash",
+    "description": "",
+    "width": 2500,
+    "height": 1667,
+    "originalWidth": 2500,
+    "originalHeight": 1667,
+    "filesize": 1238953,
+    "uploaded": "2026-08-25T00:33:46.773Z",
+    "modified": "2026-09-28T15:14:46.796Z",
+    "author": "Jonas Holm",
+    "folder": 10,
+    "attachedTo": {
+      "id": 205,
+      "type": "post",
+      "title": "Conference 2025 recap"
+    },
+    "usedIn": [
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 202,
+        "type": "post",
+        "title": "Behind the scenes at our studio"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Modestas Urbonas",
+      "url": "https://unsplash.com/photos/vj_9l20fzj0"
+    }
+  },
+  {
+    "id": 1077,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "662",
+    "title": "skyline-caleb-ekeroth-662",
+    "filename": "skyline-caleb-ekeroth-662.jpg",
+    "alt": "Sample skyline photograph by Caleb Ekeroth",
+    "caption": "",
+    "description": "",
+    "width": 2048,
+    "height": 2048,
+    "originalWidth": 2048,
+    "originalHeight": 2048,
+    "filesize": 1079583,
+    "uploaded": "2026-08-25T23:50:09.789Z",
+    "modified": "2026-08-25T23:50:09.789Z",
+    "author": "Anna Berg",
+    "folder": 12,
+    "attachedTo": {
+      "id": 203,
+      "type": "page",
+      "title": "About us"
+    },
+    "usedIn": [
+      {
+        "id": 203,
+        "type": "page",
+        "title": "About us"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 85,
+      "aperture": 5.6,
+      "shutter": "1/125",
+      "iso": 200,
+      "taken": "2026-08-10T11:54:49.240Z"
+    },
+    "credit": {
+      "author": "Caleb Ekeroth",
+      "url": "https://unsplash.com/photos/ILz31HBGEak"
+    }
+  },
+  {
+    "id": 1078,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "220",
+    "title": "street-robin-ro-cker-220",
+    "filename": "street-robin-ro-cker-220-scaled.jpg",
+    "alt": "Sample street photograph by Robin Röcker",
+    "caption": "Photo: Robin Röcker / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1597,
+    "originalWidth": 3872,
+    "originalHeight": 2416,
+    "filesize": 1066229,
+    "uploaded": "2026-09-14T14:18:57.304Z",
+    "modified": "2026-11-04T07:48:22.198Z",
+    "author": "Jonas Holm",
+    "folder": 0,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Sony ILCE-7M4",
+      "lens": "FE 24-70mm F2.8 GM II",
+      "focalLength": 35,
+      "aperture": 5.6,
+      "shutter": "1/250",
+      "iso": 200,
+      "taken": "2026-09-05T12:29:14.016Z"
+    },
+    "credit": {
+      "author": "Robin Röcker",
+      "url": "https://unsplash.com/photos/qUToqliACNA"
+    }
+  },
+  {
+    "id": 1079,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "692",
+    "title": "street-nicolai-berntsen-692",
+    "filename": "street-nicolai-berntsen-692-scaled.jpg",
+    "alt": "",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1707,
+    "originalWidth": 3888,
+    "originalHeight": 2592,
+    "filesize": 1672041,
+    "uploaded": "2026-09-25T18:19:04.073Z",
+    "modified": "2026-11-09T14:00:58.083Z",
+    "author": "Jonas Holm",
+    "folder": 7,
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      },
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      },
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      }
+    ],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 70,
+      "aperture": 8,
+      "shutter": "1/250",
+      "iso": 800,
+      "taken": "2026-08-30T22:50:20.015Z"
+    },
+    "credit": {
+      "author": "Nicolai Berntsen",
+      "url": "https://unsplash.com/photos/2Qm47LI0W1c"
+    }
+  },
+  {
+    "id": 1080,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "550",
+    "title": "travel-christopher-sardegna-550",
+    "filename": "travel-christopher-sardegna-550.jpg",
+    "alt": "",
+    "caption": "Photo: Christopher Sardegna / Unsplash",
+    "description": "",
+    "width": 1536,
+    "height": 2304,
+    "originalWidth": 1536,
+    "originalHeight": 2304,
+    "filesize": 1131335,
+    "uploaded": "2026-10-04T22:38:43.228Z",
+    "modified": "2026-10-04T22:38:43.228Z",
+    "author": "Anna Berg",
+    "folder": 13,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 50,
+      "aperture": 4,
+      "shutter": "1/60",
+      "iso": 800,
+      "taken": "2026-09-28T22:49:30.972Z"
+    },
+    "credit": {
+      "author": "Christopher Sardegna",
+      "url": "https://unsplash.com/photos/CMOa3H1SXG0"
+    }
+  },
+  {
+    "id": 1081,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "110",
+    "title": "detail-kenneth-thewissen-110",
+    "filename": "detail-kenneth-thewissen-110-scaled.jpg",
+    "alt": "Sample detail photograph by Kenneth Thewissen",
+    "caption": "",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1408226,
+    "uploaded": "2026-10-16T16:47:32.286Z",
+    "modified": "2026-11-14T08:27:14.586Z",
+    "author": "Site Admin",
+    "folder": 12,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 85,
+      "aperture": 1.8,
+      "shutter": "1/125",
+      "iso": 1600,
+      "taken": "2026-09-30T07:32:59.525Z"
+    },
+    "credit": {
+      "author": "Kenneth Thewissen",
+      "url": "https://unsplash.com/photos/D76DklsG-5U"
+    }
+  },
+  {
+    "id": 1082,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "819",
+    "title": "workspace-verne-ho-819",
+    "filename": "workspace-verne-ho-819-scaled.jpg",
+    "alt": "",
+    "caption": "Photo: Verne Ho / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 2560,
+    "originalWidth": 3264,
+    "originalHeight": 3264,
+    "filesize": 2143718,
+    "uploaded": "2026-10-19T10:10:27.415Z",
+    "modified": "2026-10-19T10:10:27.415Z",
+    "author": "Anna Berg",
+    "folder": 12,
+    "attachedTo": {
+      "id": 207,
+      "type": "page",
+      "title": "Press"
+    },
+    "usedIn": [],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 85,
+      "aperture": 5.6,
+      "shutter": "1/250",
+      "iso": 800,
+      "taken": "2026-10-14T20:03:32.677Z"
+    },
+    "credit": {
+      "author": "Verne Ho",
+      "url": "https://unsplash.com/photos/tXICOsK8Duc"
+    }
+  },
+  {
+    "id": 1083,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "840",
+    "title": "skyline-noah-kuhn-840",
+    "filename": "skyline-noah-kuhn-840-scaled.jpg",
+    "alt": "Sample skyline photograph by Noah Kuhn",
+    "caption": "",
+    "description": "",
+    "width": 1714,
+    "height": 2560,
+    "originalWidth": 2424,
+    "originalHeight": 3620,
+    "filesize": 1408751,
+    "uploaded": "2026-10-26T05:24:53.111Z",
+    "modified": "2026-10-26T05:24:53.111Z",
+    "author": "Anna Berg",
+    "folder": 14,
+    "attachedTo": {
+      "id": 203,
+      "type": "page",
+      "title": "About us"
+    },
+    "usedIn": [
+      {
+        "id": 203,
+        "type": "page",
+        "title": "About us"
+      },
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      },
+      {
+        "id": 204,
+        "type": "page",
+        "title": "Home"
+      }
+    ],
+    "exif": {
+      "camera": "Fujifilm X-T5",
+      "lens": "XF 23mm F1.4 R LM WR",
+      "focalLength": 85,
+      "aperture": 5.6,
+      "shutter": "1/60",
+      "iso": 100,
+      "taken": "2026-09-26T07:46:32.218Z"
+    },
+    "credit": {
+      "author": "Noah Kuhn",
+      "url": "https://unsplash.com/photos/aB7g_LMJhRs"
+    }
+  },
+  {
+    "id": 1084,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "525",
+    "title": "detail-luca-zanon-525",
+    "filename": "detail-luca-zanon-525-scaled.jpg",
+    "alt": "Sample detail photograph by Luca Zanon",
+    "caption": "Photo: Luca Zanon / Unsplash",
+    "description": "",
+    "width": 2560,
+    "height": 1706,
+    "originalWidth": 5000,
+    "originalHeight": 3333,
+    "filesize": 1498119,
+    "uploaded": "2026-10-27T12:43:09.280Z",
+    "modified": "2026-10-27T12:43:09.280Z",
+    "author": "Site Admin",
+    "folder": 7,
+    "attachedTo": {
+      "id": 208,
+      "type": "post",
+      "title": "Product launch: Outdoor line"
+    },
+    "usedIn": [
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      },
+      {
+        "id": 203,
+        "type": "page",
+        "title": "About us"
+      },
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      }
+    ],
+    "exif": null,
+    "credit": {
+      "author": "Luca Zanon",
+      "url": "https://unsplash.com/photos/aViOQZzikVs"
+    }
+  },
+  {
+    "id": 1085,
+    "kind": "image",
+    "mime": "image/jpeg",
+    "picsumId": "202",
+    "title": "workspace-glen-carrie-202",
+    "filename": "workspace-glen-carrie-202.jpg",
+    "alt": "Sample workspace photograph by Glen Carrie",
+    "caption": "Photo: Glen Carrie / Unsplash",
+    "description": "",
+    "width": 2392,
+    "height": 1260,
+    "originalWidth": 2392,
+    "originalHeight": 1260,
+    "filesize": 1058382,
+    "uploaded": "2026-11-06T06:24:17.580Z",
+    "modified": "2026-11-06T06:24:17.580Z",
+    "author": "Anna Berg",
+    "folder": 6,
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": {
+      "camera": "iPhone 15 Pro",
+      "lens": "Main camera 6.86mm f/1.78",
+      "focalLength": 24,
+      "aperture": 2.8,
+      "shutter": "1/1000",
+      "iso": 200,
+      "taken": "2026-10-30T13:03:43.259Z"
+    },
+    "credit": {
+      "author": "Glen Carrie",
+      "url": "https://unsplash.com/photos/xlAmGyZE7Zg"
+    }
+  },
+  {
+    "id": 1086,
+    "caption": "",
+    "description": "",
+    "uploaded": "2025-06-29T04:53:40.313Z",
+    "modified": "2025-06-29T04:53:40.313Z",
+    "author": "Site Admin",
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": null,
+    "alt": "",
+    "kind": "video",
+    "mime": "video/mp4",
+    "title": "studio-tour",
+    "filename": "studio-tour.mp4",
+    "width": 1920,
+    "height": 1080,
+    "duration": 94,
+    "filesize": 48200000,
+    "posterPicsumId": "23",
+    "folder": 14,
+    "credit": {
+      "author": "Alejandro Escamilla",
+      "url": "https://unsplash.com/photos/8yqds_91OLw"
+    }
+  },
+  {
+    "id": 1087,
+    "caption": "",
+    "description": "",
+    "uploaded": "2025-02-15T09:28:41.771Z",
+    "modified": "2025-02-15T09:28:41.771Z",
+    "author": "Site Admin",
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      },
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      }
+    ],
+    "exif": null,
+    "alt": "",
+    "kind": "video",
+    "mime": "video/webm",
+    "title": "product-teaser-outdoor",
+    "filename": "product-teaser-outdoor.webm",
+    "width": 1080,
+    "height": 1920,
+    "duration": 21,
+    "filesize": 9800000,
+    "posterPicsumId": "1052",
+    "folder": 12,
+    "credit": {
+      "author": "Annie Spratt",
+      "url": "https://unsplash.com/photos/x8R2oSWZRSE"
+    }
+  },
+  {
+    "id": 1088,
+    "caption": "",
+    "description": "",
+    "uploaded": "2025-10-29T12:38:39.050Z",
+    "modified": "2025-10-29T12:38:39.050Z",
+    "author": "Anna Berg",
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 205,
+        "type": "post",
+        "title": "Conference 2025 recap"
+      }
+    ],
+    "exif": null,
+    "alt": "",
+    "kind": "document",
+    "mime": "application/pdf",
+    "title": "press-release-spring-2026",
+    "filename": "press-release-spring-2026.pdf",
+    "width": 1240,
+    "height": 1754,
+    "pages": 3,
+    "filesize": 412000,
+    "folder": 15
+  },
+  {
+    "id": 1089,
+    "caption": "",
+    "description": "",
+    "uploaded": "2026-07-28T22:15:06.735Z",
+    "modified": "2026-07-28T22:15:06.735Z",
+    "author": "Site Admin",
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 208,
+        "type": "post",
+        "title": "Product launch: Outdoor line"
+      },
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      }
+    ],
+    "exif": null,
+    "alt": "",
+    "kind": "document",
+    "mime": "application/pdf",
+    "title": "annual-report-2025",
+    "filename": "annual-report-2025.pdf",
+    "width": 1240,
+    "height": 1754,
+    "pages": 28,
+    "filesize": 6300000,
+    "folder": 16
+  },
+  {
+    "id": 1090,
+    "caption": "",
+    "description": "",
+    "uploaded": "2026-06-27T07:03:29.923Z",
+    "modified": "2026-06-27T07:03:29.923Z",
+    "author": "Jonas Holm",
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": null,
+    "alt": "",
+    "kind": "audio",
+    "mime": "audio/mpeg",
+    "title": "podcast-episode-12",
+    "filename": "podcast-episode-12.mp3",
+    "width": 1,
+    "height": 1,
+    "duration": 1843,
+    "filesize": 29400000,
+    "folder": 4
+  },
+  {
+    "id": 1091,
+    "caption": "",
+    "description": "",
+    "uploaded": "2025-12-31T20:39:59.200Z",
+    "modified": "2025-12-31T20:39:59.200Z",
+    "author": "Site Admin",
+    "attachedTo": null,
+    "usedIn": [
+      {
+        "id": 207,
+        "type": "page",
+        "title": "Press"
+      },
+      {
+        "id": 201,
+        "type": "post",
+        "title": "Spring newsletter"
+      },
+      {
+        "id": 206,
+        "type": "post",
+        "title": "Five ideas for summer"
+      }
+    ],
+    "exif": null,
+    "alt": "Company logo mark",
+    "kind": "svg",
+    "mime": "image/svg+xml",
+    "title": "logo-mark",
+    "filename": "logo-mark.svg",
+    "width": 512,
+    "height": 512,
+    "filesize": 3100,
+    "folder": 2
+  },
+  {
+    "id": 1092,
+    "caption": "",
+    "description": "",
+    "uploaded": "2026-05-25T17:21:49.087Z",
+    "modified": "2026-05-25T17:21:49.087Z",
+    "author": "Anna Berg",
+    "attachedTo": null,
+    "usedIn": [],
+    "exif": null,
+    "alt": "",
+    "kind": "archive",
+    "mime": "application/zip",
+    "title": "brand-assets",
+    "filename": "brand-assets.zip",
+    "width": 1,
+    "height": 1,
+    "filesize": 18700000,
+    "folder": 1
+  }
+]

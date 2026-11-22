@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Media manager — design prototype</title>
+    <link rel="stylesheet" href="css/tokens.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/features/folders.css" />
+    <link rel="stylesheet" href="css/features/inspector.css" />
+    <link rel="stylesheet" href="css/features/system.css" />
+    <script type="module" src="js/app.js"></script>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <header class="toolbar" id="toolbar"></header>
+      <aside class="folders" id="folders" aria-label="Folders"></aside>
+      <main class="center" id="center">
+        <div class="filterbar" id="filterbar"></div>
+        <div class="grid-scroll" id="grid-scroll">
+          <!-- biome-ignore lint/a11y/useSemanticElements: an ARIA grid of tiles, not tabular data -->
+          <div class="grid" id="grid" role="grid" aria-label="Media"></div>
+        </div>
+        <section
+          class="detail"
+          id="detail"
+          aria-label="Media detail"
+          hidden
+        ></section>
+      </main>
+      <aside class="inspector" id="inspector" aria-label="Inspector"></aside>
+    </div>
+    <div class="devbar" id="devbar"></div>
+    <div class="live-region" id="live-region" aria-live="polite"></div>
+  </body>
+</html>

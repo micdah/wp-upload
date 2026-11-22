@@ -1,0 +1,421 @@
+/*
+ * Folders & organising (Stage 4): the folder column's search, notices and
+ * row states beyond the design system (editing, flash, reorder lines, drag
+ * source), the drag preview, the Move to… dialog and the Pro colour picker.
+ * Tokens only; base components (.tree__row, .menu, .dialog …) live in
+ * components.css.
+ */
+
+/* --- Column ---------------------------------------------------------------- */
+
+/* No FileBird: no column at all, and the grid takes its space. */
+:root[data-scenario="no-filebird"] .app,
+:root[data-scenario="no-plugin"] .app {
+  --folders-current: 0px;
+}
+
+.folders[hidden] {
+  display: none;
+}
+
+/* The content fades as the column slides shut, so it never looks clipped. */
+.folders__inner {
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+.app[data-folders="closed"] .folders__inner {
+  opacity: 0;
+  transition-timing-function: var(--ease-in);
+}
+
+.folders__search {
+  flex: none;
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.folders__search .search {
+  width: 100%;
+}
+
+.folders__search .input {
+  min-height: 30px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: var(--fs-12);
+}
+
+.folders__notice {
+  flex: none;
+  margin: 0 var(--space-2) var(--space-2);
+}
+
+.folders__notice-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.folders__notice-body p {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.folders__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* --- Tree rows ------------------------------------------------------------ */
+
+.tree__row {
+  position: relative;
+  cursor: default;
+  user-select: none;
+}
+
+.tree__row .tree__twisty {
+  cursor: pointer;
+}
+
+.tree__icon--muted {
+  color: var(--text-3);
+}
+
+/* Pro colours tint the folder glyph's outline and fill it faintly. */
+.tree__color .icon {
+  fill: color-mix(in srgb, var(--folder-color) 28%, transparent);
+}
+
+.tree__match {
+  border-radius: 2px;
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+  font-weight: var(--fw-semibold);
+}
+
+.tree__count {
+  flex: none;
+  min-width: 2ch;
+  text-align: right;
+}
+
+.tree__row.is-editing {
+  background: var(--surface-hover);
+}
+
+.tree__row.is-editing .tree__count {
+  visibility: hidden;
+}
+
+.tree__row.is-menu-open {
+  background: var(--surface-active);
+  color: var(--text-1);
+}
+
+.tree__row.is-drag-source {
+  opacity: 0.45;
+}
+
+/* A row that was just created or renamed glows once, then settles. */
+.tree__row.is-flash {
+  animation: folder-flash 1.2s var(--ease-out);
+}
+
+@keyframes folder-flash {
+  0%,
+  35% {
+    background: var(--accent-subtle);
+    box-shadow: inset 0 0 0 1.5px var(--accent-line);
+  }
+}
+
+/* Reorder indicator: a ring-coloured line with a dot at its start. */
+.tree__row.is-drop-before::before,
+.tree__row.is-drop-after::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--space-2) + var(--depth, 0) * 16px + 18px);
+  right: var(--space-2);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--select-ring);
+  pointer-events: none;
+}
+
+.tree__row.is-drop-before::before {
+  top: -1px;
+}
+
+.tree__row.is-drop-after::before {
+  bottom: -1px;
+}
+
+/* Folder dropped on the empty tree area: move to the top level. */
+.tree.is-drop-root {
+  box-shadow: inset 0 0 0 1.5px var(--accent-line);
+  border-radius: var(--radius-sm);
+}
+
+/* Media being dragged stays in place, dimmed. */
+.tile.is-drag-source {
+  opacity: 0.4;
+}
+
+/* --- Drag preview ---------------------------------------------------------- */
+
+.drag-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-drop-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 280px;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-2);
+  color: var(--text-1);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.drag-preview__stack {
+  display: flex;
+  flex: none;
+}
+
+.drag-preview__thumb {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border: 2px solid var(--surface-overlay);
+  border-radius: var(--radius-xs);
+  background: var(--surface-tile);
+  color: var(--text-2);
+}
+
+.drag-preview__thumb + .drag-preview__thumb {
+  margin-left: -22px;
+}
+
+.drag-preview__thumb:nth-child(2) {
+  transform: rotate(4deg);
+}
+
+.drag-preview__thumb:nth-child(3) {
+  transform: rotate(8deg);
+}
+
+.drag-preview__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.drag-preview__thumb--doc {
+  background: var(--surface-raised);
+}
+
+.drag-preview__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.drag-preview__title {
+  overflow: hidden;
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drag-preview__target {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drag-preview.is-valid .drag-preview__target {
+  color: var(--text-accent);
+}
+
+.drag-preview.is-invalid .drag-preview__target {
+  color: var(--danger);
+}
+
+/* --- Move to… dialog -------------------------------------------------------- */
+
+.move-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(480px, calc(100vw - 32px));
+  max-height: min(600px, calc(100dvh - 64px));
+}
+
+.move-dialog .dialog__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.move-dialog__sub {
+  margin-bottom: var(--space-3);
+  font-size: var(--fs-12);
+}
+
+.move-dialog__search {
+  width: 100%;
+}
+
+.move-dialog__list {
+  flex: 1;
+  min-height: 120px;
+  max-height: 340px;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  list-style: none;
+}
+
+.move-dialog__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 4px var(--space-2) 4px calc(var(--space-2) + var(--depth, 0) * 16px);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.move-dialog__option:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.move-dialog__option[aria-selected="true"] {
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+  box-shadow: inset 2px 0 0 var(--select-ring);
+}
+
+.move-dialog__option[aria-disabled="true"] {
+  color: var(--text-3);
+  cursor: default;
+}
+
+.move-dialog__option.is-create {
+  color: var(--text-1);
+}
+
+.move-dialog__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.move-dialog__path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-11);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.move-dialog__tag {
+  margin-left: auto;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.move-dialog__group {
+  padding: var(--space-2) var(--space-2) 2px;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-11);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+}
+
+.move-dialog__empty {
+  padding: var(--space-3);
+  color: var(--text-3);
+}
+
+.move-dialog__actions {
+  align-items: center;
+  margin-top: var(--space-4);
+}
+
+.move-dialog__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-right: auto;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* --- Pro colour picker ---------------------------------------------------- */
+
+.colour-menu__swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 28px);
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.colour-menu__swatch {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-pill);
+  background: var(--folder-color);
+  color: var(--gray-1000);
+  transition: transform var(--dur-1) var(--ease-out);
+}
+
+.colour-menu__swatch:hover {
+  transform: scale(1.1);
+}
+
+.colour-menu__swatch[aria-checked="true"] {
+  box-shadow:
+    0 0 0 2px var(--surface-overlay),
+    0 0 0 4px var(--text-1);
+}
+
+.colour-menu__swatch .icon {
+  stroke-width: 2.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree__row.is-flash {
+    animation: none;
+  }
+
+  .colour-menu__swatch:hover {
+    transform: none;
+  }
+}

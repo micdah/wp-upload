@@ -1,0 +1,134 @@
+/*
+ * Base styles: reset, typography defaults, focus, kbd, scrollbars.
+ * All colours, fonts, shapes and timings come from css/tokens.css (the design
+ * system); see design-system.md for the full token reference.
+ */
+
+/* Layout dimensions are fixed by the brief, not by skins. */
+:root {
+  --toolbar-h: 48px;
+  --filterbar-h: 40px;
+  --folders-w: 280px;
+  --rail-w: 48px;
+  --inspector-panel-w: 312px;
+  --filmstrip-h: 96px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--surface-app);
+  color: var(--text-1);
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  font-weight: var(--fw-regular);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img {
+  display: block;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon--sm {
+  width: 14px;
+  height: 14px;
+}
+
+.icon--lg {
+  width: 24px;
+  height: 24px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.visually-hidden,
+.live-region {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+kbd,
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--line-2);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  color: var(--text-2);
+  background: var(--surface-raised);
+}
+
+/* Scrollbars stay quiet so the media is the focus. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
+}

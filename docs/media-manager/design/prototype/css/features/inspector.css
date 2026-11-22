@@ -1,0 +1,1460 @@
+/*
+ * Inspector & editing (Stage 4, Agent B): the rail signals, Info / Usage /
+ * Edit panel parts beyond the design system, autosave states, the alt-text
+ * pass, the post picker and the in-place image editor canvas.
+ * Tokens only; base components (.field, .meta, .notice, .stat, .btn …) live
+ * in components.css.
+ */
+
+/* === Rail ================================================================= */
+
+.rail__tab {
+  position: relative;
+}
+
+/* A dot or count in the tab's corner: missing alt, usage, unsaved edits. */
+.rail__dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface-panel);
+}
+
+.rail__dot--warn {
+  background: var(--warn-fill);
+}
+
+.rail__dot--accent {
+  background: var(--accent);
+}
+
+.rail__count {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-overlay);
+  box-shadow: 0 0 0 1px var(--line-2);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 15px;
+  text-align: center;
+}
+
+.panel-header__note {
+  margin-right: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.panel-header__note.is-dirty {
+  color: var(--text-accent);
+}
+
+/* === Fields: autosave and states ============================================== */
+
+.field__label label {
+  cursor: default;
+}
+
+/* "Missing" flag next to the alt-text label (icon + word, not colour alone). */
+.field__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--warn);
+  font-weight: var(--fw-medium);
+}
+
+.field__label-note {
+  margin-left: 4px;
+  color: var(--text-3);
+  font-weight: var(--fw-regular);
+}
+
+.field__retry {
+  margin-left: var(--space-1);
+  padding: 0 6px;
+  height: 20px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: inherit;
+  font-size: var(--fs-11);
+  font-weight: var(--fw-semibold);
+}
+
+.field__retry:hover {
+  background: var(--danger-subtle);
+}
+
+.field__hint[hidden] {
+  display: none;
+}
+
+/* Read-only (Author role): quiet, no input chrome that invites typing. */
+.field--readonly .input {
+  border-style: dashed;
+  border-color: var(--line-2);
+  background: transparent;
+  color: var(--text-2);
+  cursor: default;
+}
+
+.field--readonly .input:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+/* Save & next at the end of the list: a short nudge instead of moving. */
+.field--bump .input {
+  animation: field-bump 260ms var(--ease-standard);
+}
+
+@keyframes field-bump {
+  30% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field--bump .input {
+    animation: none;
+  }
+}
+
+/* Read-only notice: neutral, with a lock. */
+.insp-lock > .icon {
+  color: var(--text-2);
+}
+
+/* === Meters ================================================================== */
+
+.meter {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--line-2);
+  overflow: hidden;
+}
+
+.meter__fill {
+  display: block;
+  width: calc(var(--value, 0) * 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ok);
+  transition: width var(--dur-2) var(--ease-out);
+}
+
+/* Progress of a running job: accent, because it's the active action. */
+.meter--progress .meter__fill,
+.meter--progress-static .meter__fill {
+  background: var(--accent);
+}
+
+.meter--progress .meter__fill {
+  width: 100%;
+  transform-origin: left;
+  animation: meter-fill 1.4s var(--ease-standard) forwards;
+}
+
+@keyframes meter-fill {
+  from {
+    transform: scaleX(0.04);
+  }
+  to {
+    transform: scaleX(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meter--progress .meter__fill {
+    animation: none;
+    transform: scaleX(0.6);
+  }
+}
+
+/* === Info: one item ============================================================ */
+
+.insp-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.insp-preview--svg {
+  background-image:
+    linear-gradient(45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-hover) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--surface-hover) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+.insp-preview--svg img {
+  width: 50%;
+  height: 50%;
+}
+
+.insp-preview--doc {
+  align-content: center;
+  gap: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.insp-preview--doc > .icon {
+  width: 40px;
+  height: 40px;
+  stroke-width: 1.25;
+  justify-self: center;
+}
+
+.insp-preview__badge {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+}
+
+.insp-preview__play {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
+  pointer-events: none;
+}
+
+/* "Open" sits on the image, revealed on hover or keyboard focus. */
+.insp-preview__open {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
+  opacity: 0;
+  backdrop-filter: blur(6px);
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.insp-preview:hover .insp-preview__open,
+.insp-preview__open:focus-visible {
+  opacity: 1;
+}
+
+.insp-preview__open:hover {
+  background: rgb(0 0 0 / 0.7);
+  color: #fff;
+}
+
+/* Collapsible sections (<details>). */
+.insp-section {
+  gap: 0;
+  border-top: 1px solid var(--line-1);
+  padding-top: var(--space-3);
+}
+
+.insp-section__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: -4px -6px 0;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  list-style: none;
+  cursor: pointer;
+}
+
+.insp-section__summary::-webkit-details-marker {
+  display: none;
+}
+
+.insp-section__summary:hover {
+  background: var(--surface-hover);
+}
+
+.insp-section__summary .section__title {
+  flex: 1;
+}
+
+.insp-section__summary:hover .section__title {
+  color: var(--text-2);
+}
+
+.insp-section__count {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.insp-section__chevron {
+  color: var(--text-3);
+  transition: transform var(--dur-2) var(--ease-standard);
+}
+
+.insp-section:not([open]) .insp-section__chevron {
+  transform: rotate(-90deg);
+}
+
+.insp-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+}
+
+.meta dd.meta__with-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: -4px 0;
+}
+
+.meta__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta__value--muted {
+  color: var(--text-3);
+}
+
+.meta__with-action .btn--sm {
+  height: 24px;
+  color: var(--text-accent);
+}
+
+/* URL with a copy button, joined into one control. */
+.copy-field {
+  display: flex;
+}
+
+.copy-field .input {
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  text-overflow: ellipsis;
+}
+
+.copy-field .btn {
+  height: auto;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-color: var(--line-input);
+}
+
+.size-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-12);
+}
+
+.size-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.size-list li:last-child {
+  border-bottom: 0;
+}
+
+.size-list__name {
+  flex: 1;
+  color: var(--text-2);
+}
+
+.size-list__dims {
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.size-list__copy {
+  width: 26px;
+  height: 26px;
+}
+
+.actions kbd {
+  margin-left: var(--space-1);
+}
+
+/* === Alt text: coverage and the "Save & next" pass ============================== */
+
+.alt-pass {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  font-size: var(--fs-12);
+}
+
+.alt-pass__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-2);
+}
+
+.alt-pass__row > .num:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-1);
+  font-weight: var(--fw-semibold);
+}
+
+.alt-pass__scope {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alt-pass__pos {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.alt-pass__keys {
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px var(--space-3);
+  color: var(--text-3);
+  font-size: var(--fs-11);
+}
+
+.alt-pass__keys kbd {
+  height: 16px;
+  min-width: 16px;
+  margin-right: 3px;
+  font-size: 10px;
+}
+
+/* Quiet at rest: the pass shows during a pass (the Missing alt filter),
+   when the item lacks alt text, or while the alt field is focused. The key
+   hints only speak up while it is focused. */
+.alt-pass--active {
+  display: flex;
+}
+
+.field--warn .alt-pass {
+  display: flex;
+}
+
+.field:focus-within :is(.alt-pass, .alt-pass__keys) {
+  display: flex;
+}
+
+.alt-coverage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.alt-coverage__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.alt-coverage__row strong {
+  color: var(--text-1);
+}
+
+.alt-coverage__pct {
+  margin-left: auto;
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+}
+
+.alt-coverage .btn {
+  align-self: flex-start;
+}
+
+.alt-coverage__done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ok);
+  font-size: var(--fs-12);
+}
+
+/* === Info: nothing selected ===================================================== */
+
+.stat--action {
+  display: block;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+
+.stat--action:not(:disabled):hover {
+  background: var(--surface-hover);
+  border-color: var(--line-2);
+}
+
+.stat--action:disabled {
+  cursor: default;
+}
+
+.stat--warn .stat__value {
+  color: var(--warn);
+}
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-12);
+}
+
+.breakdown li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 24px;
+  color: var(--text-2);
+}
+
+.breakdown li > span:first-of-type {
+  flex: 1;
+}
+
+.breakdown .num {
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+/* === Info: several items ======================================================== */
+
+.batch-thumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.batch-thumbs__item {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: var(--surface-tile);
+  color: var(--text-2);
+  overflow: hidden;
+  transition: transform var(--dur-1) var(--ease-out);
+}
+
+.batch-thumbs__item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.batch-thumbs__item:hover {
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .batch-thumbs__item:hover {
+    transform: none;
+  }
+}
+
+.batch-thumbs__more {
+  display: grid;
+  place-items: center;
+  height: 40px;
+  min-width: 40px;
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-hover);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.insp-batch-rule {
+  display: flex;
+  gap: 6px;
+  margin: -8px 0 0;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.insp-batch-rule .icon {
+  margin-top: 2px;
+}
+
+.insp-alt-note p {
+  margin: 0 0 var(--space-2);
+}
+
+.insp-desc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Text segmented control (Replace | Append). */
+.segmented--text {
+  align-self: flex-start;
+}
+
+.segmented__option {
+  height: 24px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+}
+
+.segmented__option:hover {
+  color: var(--text-1);
+}
+
+.segmented__option[aria-pressed="true"] {
+  background: var(--surface-raised);
+  color: var(--text-1);
+  box-shadow: var(--shadow-1);
+}
+
+.insp-desc .segmented--text {
+  order: 1;
+  margin-top: -2px;
+}
+
+/* === Usage ======================================================================= */
+
+.usage-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.usage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.usage-row:last-child {
+  border-bottom: 0;
+}
+
+.usage-row__icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  color: var(--text-2);
+}
+
+.usage-row__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.usage-row__title {
+  overflow: hidden;
+  color: var(--text-1);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-row__title:hover {
+  text-decoration: underline;
+}
+
+.usage-row__meta {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.usage-row__featured {
+  color: var(--warn);
+  font-weight: var(--fw-medium);
+}
+
+.usage-row__action {
+  flex: none;
+}
+
+.usage-empty {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.usage-empty--card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius-md);
+}
+
+.usage-footnote {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-1);
+}
+
+/* Post picker: the menu component with a search field. */
+.post-picker {
+  position: fixed;
+  width: 300px;
+}
+
+.post-picker__search {
+  position: relative;
+  margin: var(--space-1) var(--space-1) var(--space-2);
+}
+
+.post-picker__search > .icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+}
+
+.post-picker__search .input {
+  padding-left: 30px;
+  min-height: 30px;
+}
+
+.post-picker__list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.post-picker__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-picker__type {
+  color: var(--text-3);
+  font-size: var(--fs-11);
+}
+
+.post-picker__empty {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* === Edit panel ================================================================== */
+
+.ratio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.ratio-chip {
+  justify-content: center;
+  height: 28px;
+  background: var(--surface-hover);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.ed-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ed-row__times {
+  color: var(--text-3);
+}
+
+.ed-num {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.ed-num__label {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  pointer-events: none;
+}
+
+.ed-num .input {
+  padding-left: 26px;
+  padding-right: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.ed-lock {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  color: var(--text-3);
+}
+
+/* Rotate / flip: icon over a short label, four across. */
+.tool-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) 0 6px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-2);
+  font-size: var(--fs-11);
+  transition:
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+
+.tool:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.tool:focus-visible {
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px var(--accent-subtle);
+}
+
+/* A flip that is on is a state, so it's neutral (like pressed toggles). */
+.tool[aria-pressed="true"] {
+  background: var(--surface-active);
+  color: var(--text-1);
+  border-color: var(--line-input);
+}
+
+.radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.radio {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 6px var(--space-2);
+  margin: 0 calc(var(--space-2) * -1);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.radio:hover {
+  background: var(--surface-hover);
+}
+
+.radio input {
+  margin: 3px 0 0;
+  accent-color: var(--select-ring);
+}
+
+.radio__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.radio__hint {
+  color: var(--text-3);
+  font-size: var(--fs-11);
+}
+
+/* Hints for the options not chosen stay out of the way. */
+.radio:not(:has(input:checked)) .radio__hint {
+  display: none;
+}
+
+.ed-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ed-footer .btn {
+  margin-left: calc(var(--space-2) * -1);
+}
+
+.ed-maintenance {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line-1);
+}
+
+.ed-maint {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ed-maint .btn {
+  align-self: flex-start;
+}
+
+.ed-maint__blocked {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dropzone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px dashed var(--line-input);
+  border-radius: var(--radius-md);
+  color: var(--text-2);
+  transition:
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out);
+}
+
+.dropzone > .icon {
+  flex: none;
+  color: var(--text-3);
+}
+
+.dropzone__text {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--fs-12);
+}
+
+.dropzone__text strong {
+  color: var(--text-1);
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+}
+
+.dropzone.is-over {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.dropzone.is-disabled {
+  opacity: 0.5;
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-accent);
+  font-weight: var(--fw-medium);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-btn:disabled {
+  color: inherit;
+  cursor: not-allowed;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.ed-task {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-hover);
+  font-size: var(--fs-12);
+}
+
+.ed-task__row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.ed-task__row .num {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+}
+
+.ed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-2);
+  text-align: center;
+}
+
+.ed-empty p {
+  margin: 0;
+}
+
+.ed-disabled-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.ed-disabled-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-2);
+}
+
+/* === Image editor canvas ========================================================= */
+
+/* The editor is a mode: chrome it covers or locks fades back a little. */
+.app.is-editing :is(#toolbar, #folders) {
+  opacity: 0.45;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+.editor {
+  --editor-line: rgb(255 255 255 / 0.92); /* crop lines sit on photos */
+  --editor-shade: rgb(0 0 0 / 0.62);
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-stage-overlay);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-stage);
+  animation: editor-in var(--dur-3) var(--ease-out);
+}
+
+@keyframes editor-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.editor__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--filterbar-h);
+  padding: 0 var(--space-3);
+  flex: none;
+  border-bottom: 1px solid var(--line-1);
+  background: var(--surface-panel);
+}
+
+.editor__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+  margin-left: var(--space-2);
+}
+
+.editor__name {
+  overflow: hidden;
+  color: var(--text-1);
+  font-weight: var(--fw-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor__dims {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  white-space: nowrap;
+}
+
+/* Redo is undo, mirrored (the icon set has no redo glyph). */
+.editor__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.editor__frame {
+  position: relative;
+  transition:
+    width var(--dur-2) var(--ease-standard),
+    height var(--dur-2) var(--ease-standard);
+}
+
+.editor__image {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  background: var(--surface-tile);
+  user-select: none;
+  transition:
+    transform var(--dur-3) var(--ease-standard),
+    width var(--dur-2) var(--ease-standard),
+    height var(--dur-2) var(--ease-standard);
+}
+
+/* Dim outside the crop: a hole whose huge shadow covers the rest. */
+.editor__shade {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.editor__hole {
+  position: absolute;
+  box-shadow: 0 0 0 100vmax var(--editor-shade);
+}
+
+.crop {
+  position: absolute;
+  box-shadow:
+    inset 0 0 0 1px var(--editor-line),
+    0 0 0 1px rgb(0 0 0 / 0.35);
+  cursor: move;
+  touch-action: none;
+}
+
+.editor.is-ready :is(.crop, .editor__hole) {
+  transition:
+    left var(--dur-2) var(--ease-standard),
+    top var(--dur-2) var(--ease-standard),
+    width var(--dur-2) var(--ease-standard),
+    height var(--dur-2) var(--ease-standard);
+}
+
+/* Dragging follows the pointer exactly. */
+.editor.is-dragging :is(.crop, .editor__hole, .editor__frame, .editor__image) {
+  transition: none;
+}
+
+.crop:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* Rule of thirds: faint at rest, clear while dragging. */
+.crop__grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to right,
+      transparent calc(100% / 3 - 0.5px),
+      var(--editor-line) calc(100% / 3 - 0.5px),
+      var(--editor-line) calc(100% / 3 + 0.5px),
+      transparent calc(100% / 3 + 0.5px),
+      transparent calc(200% / 3 - 0.5px),
+      var(--editor-line) calc(200% / 3 - 0.5px),
+      var(--editor-line) calc(200% / 3 + 0.5px),
+      transparent calc(200% / 3 + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(100% / 3 - 0.5px),
+      var(--editor-line) calc(100% / 3 - 0.5px),
+      var(--editor-line) calc(100% / 3 + 0.5px),
+      transparent calc(100% / 3 + 0.5px),
+      transparent calc(200% / 3 - 0.5px),
+      var(--editor-line) calc(200% / 3 - 0.5px),
+      var(--editor-line) calc(200% / 3 + 0.5px),
+      transparent calc(200% / 3 + 0.5px)
+    );
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.editor.is-dragging .crop__grid,
+.crop:focus-visible .crop__grid {
+  opacity: 0.8;
+}
+
+/* Handles: L-shaped corner brackets and short edge bars, with a generous
+   invisible hit area. */
+.crop__handle {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+}
+
+.crop__handle::before {
+  content: "";
+  position: absolute;
+  inset: 11px;
+  filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.6));
+}
+
+.crop__handle--nw {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+
+.crop__handle--ne {
+  left: 100%;
+  top: 0;
+  cursor: nesw-resize;
+}
+
+.crop__handle--se {
+  left: 100%;
+  top: 100%;
+  cursor: nwse-resize;
+}
+
+.crop__handle--sw {
+  left: 0;
+  top: 100%;
+  cursor: nesw-resize;
+}
+
+.crop__handle--n {
+  left: 50%;
+  top: 0;
+  cursor: ns-resize;
+}
+
+.crop__handle--s {
+  left: 50%;
+  top: 100%;
+  cursor: ns-resize;
+}
+
+.crop__handle--e {
+  left: 100%;
+  top: 50%;
+  cursor: ew-resize;
+}
+
+.crop__handle--w {
+  left: 0;
+  top: 50%;
+  cursor: ew-resize;
+}
+
+/* Corner brackets: two 3 px bars meeting at the crop corner. */
+:is(
+  .crop__handle--nw,
+  .crop__handle--ne,
+  .crop__handle--se,
+  .crop__handle--sw
+)::before {
+  inset: auto;
+  width: 18px;
+  height: 18px;
+  border: 0 solid var(--editor-line);
+}
+
+.crop__handle--nw::before {
+  left: 12px;
+  top: 12px;
+  border-width: 3px 0 0 3px;
+}
+
+.crop__handle--ne::before {
+  right: 12px;
+  top: 12px;
+  border-width: 3px 3px 0 0;
+}
+
+.crop__handle--se::before {
+  right: 12px;
+  bottom: 12px;
+  border-width: 0 3px 3px 0;
+}
+
+.crop__handle--sw::before {
+  left: 12px;
+  bottom: 12px;
+  border-width: 0 0 3px 3px;
+}
+
+:is(.crop__handle--n, .crop__handle--s)::before {
+  inset: 12px 4px;
+  border-radius: 2px;
+  background: var(--editor-line);
+}
+
+:is(.crop__handle--e, .crop__handle--w)::before {
+  inset: 4px 12px;
+  border-radius: 2px;
+  background: var(--editor-line);
+}
+
+/* Live size while dragging. */
+.crop__size {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 10px);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.7);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.editor.is-dragging .crop__size,
+.crop:focus-visible .crop__size {
+  opacity: 1;
+}
+
+.editor__help {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  flex: none;
+  color: var(--text-3);
+  font-size: var(--fs-11);
+  text-align: center;
+}
+
+.editor__help kbd {
+  height: 16px;
+  min-width: 16px;
+  font-size: 10px;
+}
+
+/* Saving / error card over the stage. */
+.editor.is-saving .editor__frame {
+  opacity: 0.5;
+  transition: opacity var(--dur-2) var(--ease-out);
+}
+
+.editor.is-saving .crop {
+  pointer-events: none;
+}
+
+.editor__status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+}
+
+.editor__status[hidden] {
+  display: none;
+}
+
+.editor__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(360px, 100%);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-lg);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-3);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.editor__card strong {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-1);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+}
+
+.editor__card--error strong .icon {
+  color: var(--danger);
+}

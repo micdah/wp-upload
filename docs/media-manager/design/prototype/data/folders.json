@@ -1,0 +1,119 @@
+[
+  {
+    "id": 1,
+    "name": "Brand",
+    "parent": 0,
+    "color": "#7c5cff",
+    "order": 0,
+    "count": 1
+  },
+  {
+    "id": 2,
+    "name": "Logos",
+    "parent": 1,
+    "order": 1,
+    "count": 1
+  },
+  {
+    "id": 3,
+    "name": "Icons",
+    "parent": 1,
+    "order": 2,
+    "count": 0
+  },
+  {
+    "id": 4,
+    "name": "Blog",
+    "parent": 0,
+    "color": "#1fb6ff",
+    "order": 3,
+    "count": 1
+  },
+  {
+    "id": 5,
+    "name": "2025",
+    "parent": 4,
+    "order": 4,
+    "count": 6
+  },
+  {
+    "id": 6,
+    "name": "2026",
+    "parent": 4,
+    "order": 5,
+    "count": 8
+  },
+  {
+    "id": 7,
+    "name": "Spring campaign",
+    "parent": 6,
+    "order": 6,
+    "count": 10
+  },
+  {
+    "id": 8,
+    "name": "Events",
+    "parent": 0,
+    "color": "#ff7a59",
+    "order": 7,
+    "count": 0
+  },
+  {
+    "id": 9,
+    "name": "Conference 2025",
+    "parent": 8,
+    "order": 8,
+    "count": 5
+  },
+  {
+    "id": 10,
+    "name": "Summer party",
+    "parent": 8,
+    "order": 9,
+    "count": 6
+  },
+  {
+    "id": 11,
+    "name": "Products",
+    "parent": 0,
+    "color": "#13ce66",
+    "order": 10,
+    "count": 0
+  },
+  {
+    "id": 12,
+    "name": "Outdoor",
+    "parent": 11,
+    "order": 11,
+    "count": 13
+  },
+  {
+    "id": 13,
+    "name": "Interior",
+    "parent": 11,
+    "order": 12,
+    "count": 7
+  },
+  {
+    "id": 14,
+    "name": "Team",
+    "parent": 0,
+    "order": 13,
+    "count": 6
+  },
+  {
+    "id": 15,
+    "name": "Press kit",
+    "parent": 0,
+    "color": "#ffc82c",
+    "order": 14,
+    "count": 6
+  },
+  {
+    "id": 16,
+    "name": "Archive",
+    "parent": 0,
+    "order": 15,
+    "count": 10
+  }
+]

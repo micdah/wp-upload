@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Sample logo mark</title>
+  <circle cx="256" cy="256" r="200" fill="#ff7a59" />
+  <path d="M156 316 L256 156 L356 316 Z" fill="#ffffff" />
+  <circle cx="256" cy="276" r="36" fill="#7c5cff" />
+</svg>

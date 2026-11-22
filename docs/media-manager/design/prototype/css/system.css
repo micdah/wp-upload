@@ -1,0 +1,287 @@
+/* Layout of the design-system reference page (system.html) only. */
+
+.system-page {
+  overflow: auto;
+}
+
+.system-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-toolbar);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--toolbar-h);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--line-1);
+  background: var(--surface-panel);
+}
+
+.system-header nav {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+}
+
+.system-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) 96px;
+}
+
+.system-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  scroll-margin-top: calc(var(--toolbar-h) + var(--space-4));
+}
+
+.system-section > h2 {
+  margin: 0;
+  font-size: var(--fs-20);
+  font-weight: var(--fw-semibold);
+}
+
+.system-section > p {
+  margin: 0;
+  max-width: 72ch;
+  color: var(--text-2);
+}
+
+.specimen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg);
+  background: var(--surface-panel);
+}
+
+.specimen--app {
+  background: var(--surface-app);
+}
+
+.specimen--stage {
+  background: var(--surface-stage);
+}
+
+.specimen--column {
+  flex-direction: column;
+}
+
+.specimen__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.specimen__label {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+/* Swatches */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+}
+
+.swatch__chip {
+  height: 48px;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.swatch__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.swatch__value {
+  color: var(--text-3);
+}
+
+.scale {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+}
+
+.scale > div {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-6) var(--space-1) var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-align: center;
+}
+
+/* Type scale */
+.type-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: baseline;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* Spacing, radius, elevation, motion */
+.space-bar {
+  height: 12px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.radius-box,
+.shadow-box {
+  width: 88px;
+  height: 64px;
+  border: 1px solid var(--line-2);
+  background: var(--surface-raised);
+}
+
+.motion-box {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  border: 1px solid var(--line-2);
+}
+
+.specimen:hover .motion-box {
+  transform: translateX(120px);
+}
+
+/* Icons */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.icon-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-1);
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-align: center;
+  word-break: break-all;
+}
+
+.icon-cell span {
+  color: var(--text-3);
+}
+
+/* Forced states for specimens (hover can't be shown statically). */
+.btn.state-hover,
+.icon-btn.state-hover,
+.chip.state-hover,
+.tree__row.state-hover,
+.menu__item.state-hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.btn--primary.state-hover {
+  background: var(--accent-hover);
+  color: var(--text-on-accent);
+}
+
+.btn--danger-solid.state-hover {
+  background: var(--danger-fill-hover);
+  color: var(--text-on-danger);
+}
+
+.state-focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px var(--accent-subtle);
+}
+
+.input.state-focus {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+/* Tiles in specimens get a fixed size. */
+.tile-specimen {
+  width: 180px;
+  height: 130px;
+}
+
+.filmstrip--specimen {
+  width: 100%;
+  border-radius: var(--radius-md);
+}
+
+/* Overlays rendered in place (not fixed) for the reference page. */
+.specimen .scrim,
+.specimen .drop-overlay,
+.specimen .toast-region {
+  position: relative;
+  inset: auto;
+  transform: none;
+}
+
+.specimen .scrim {
+  width: 100%;
+  min-height: 320px;
+  border-radius: var(--radius-md);
+}
+
+.specimen .drop-overlay {
+  width: 100%;
+  height: 220px;
+  border-radius: var(--radius-md);
+}
+
+.panel-specimen {
+  display: flex;
+  width: 360px;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  overflow: hidden;
+}
+
+.tree-specimen {
+  width: 280px;
+  padding: var(--space-2) 0;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+}
+
+.skeleton-row {
+  display: flex;
+  gap: var(--grid-gap);
+  width: 100%;
+  height: 120px;
+}

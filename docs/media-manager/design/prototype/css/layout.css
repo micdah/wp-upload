@@ -1,0 +1,171 @@
+/* App shell: toolbar on top; folders | centre | inspector below. */
+
+.app {
+  --folders-current: var(--folders-w);
+  --inspector-current: calc(var(--rail-w) + var(--inspector-panel-w));
+  display: grid;
+  grid-template-columns: var(--folders-current) minmax(0, 1fr) var(
+      --inspector-current
+    );
+  grid-template-rows: var(--toolbar-h) minmax(0, 1fr);
+  grid-template-areas:
+    "toolbar toolbar toolbar"
+    "folders center inspector";
+  height: 100dvh;
+  transition: grid-template-columns var(--dur-2) var(--ease-standard);
+}
+
+.app[data-folders="closed"] {
+  --folders-current: 0px;
+}
+
+.app[data-inspector="closed"] {
+  --inspector-current: var(--rail-w);
+}
+
+.app.is-resizing {
+  transition: none;
+  user-select: none;
+  cursor: col-resize;
+}
+
+.toolbar {
+  grid-area: toolbar;
+  position: relative;
+  z-index: 3;
+}
+
+.folders {
+  grid-area: folders;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.center {
+  grid-area: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.inspector {
+  grid-area: inspector;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.grid-scroll {
+  /* Own stacking context, so tile rings (z-index inside tiles) never show
+     through the detail overlay. */
+  isolation: isolate;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-padding: var(--space-6);
+}
+
+.detail {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.detail[hidden] {
+  display: none;
+}
+
+/* Column resizer on the folder column's right edge. */
+.resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -3px;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 2;
+}
+
+.resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  background: transparent;
+  transition: background var(--dur-1) var(--ease-out);
+}
+
+.resizer:hover::after,
+.resizer:focus-visible::after,
+.app.is-resizing .resizer::after {
+  background: var(--accent);
+}
+
+/* Dev switcher (direction/theme); hidden for screenshots with ?chrome=0. */
+.devbar {
+  position: fixed;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 50;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+  color: var(--text-2);
+  font-size: var(--fs-11);
+  box-shadow: var(--shadow-2);
+}
+
+:root[data-chrome="0"] .devbar {
+  display: none;
+}
+
+/* ≤ 1199 px: inspector starts collapsed to its rail (set in JS). */
+
+/* Tablet: folders become an overlay drawer, the inspector an overlay sheet. */
+@media (max-width: 899px) {
+  .app,
+  .app[data-folders="closed"],
+  .app[data-inspector="closed"] {
+    grid-template-columns: 0 minmax(0, 1fr) var(--rail-w);
+  }
+
+  .folders {
+    position: fixed;
+    top: var(--toolbar-h);
+    bottom: 0;
+    left: 0;
+    width: min(320px, 85vw);
+    z-index: 10;
+    box-shadow: var(--shadow-3);
+    transform: translateX(-100%);
+    transition: transform var(--dur-2) var(--ease-out);
+  }
+
+  .app[data-folders="open"] .folders {
+    transform: none;
+  }
+
+  .app[data-inspector="open"] .inspector {
+    position: fixed;
+    top: var(--toolbar-h);
+    bottom: 0;
+    right: 0;
+    width: min(360px, 92vw);
+    z-index: 10;
+    box-shadow: var(--shadow-3);
+  }
+}
