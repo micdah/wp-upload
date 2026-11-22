@@ -29,12 +29,31 @@ build_runner_image() {
   compose build runner
 }
 
+# Why: the browsers in the runner image must match @playwright/test exactly (plan §5.3).
+# Checked on every run once the e2e workspace exists.
+check_playwright_pin() {
+  local e2e_manifest="$REPO_ROOT/e2e/package.json"
+  if [ ! -f "$e2e_manifest" ]; then
+    return 0
+  fi
+  local pinned_version
+  pinned_version="$(sed -n 's/.*"@playwright\/test": *"\([^"]*\)".*/\1/p' "$e2e_manifest" | head -n 1)"
+  if [ -z "$pinned_version" ]; then
+    log_warn "e2e/package.json has no @playwright/test dependency; can't check the runner's pin."
+    return 0
+  fi
+  if [ "$pinned_version" != "$PLAYWRIGHT_VERSION" ]; then
+    die "e2e/package.json pins @playwright/test '$pinned_version', but the runner image is Playwright $PLAYWRIGHT_VERSION. Pin it exactly, or update PLAYWRIGHT_VERSION and PLAYWRIGHT_IMAGE (tag and digest) in dev/lib/common.sh."
+  fi
+}
+
 RUNNER_READY=false
 
 ensure_runner_ready() {
   if [ "$RUNNER_READY" = "true" ]; then
     return 0
   fi
+  check_playwright_pin
   build_runner_image
   prepare_runner_volumes
   RUNNER_READY=true
