@@ -147,6 +147,9 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
       const { id } = await createFolder(name, creatingUnder)
       const result = await load()
       const parentPath = paths.get(creatingUnder)
+      // FileBird may rename the folder (a duplicate becomes "Name (1)") or
+      // sanitise its name, so the reloaded tree, looked up by id, is the
+      // source of truth. The typed name is only a fallback if reloading fails.
       onChange({
         id,
         name:
