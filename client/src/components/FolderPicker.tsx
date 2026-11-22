@@ -15,7 +15,13 @@ import {
   UnstyledButton,
   useTree,
 } from '@mantine/core'
-import { type KeyboardEvent, useCallback, useEffect, useState } from 'react'
+import {
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import {
   createFolder,
   type FolderNode,
@@ -98,6 +104,13 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
   const [createError, setCreateError] = useState<string | null>(null)
 
   const paths = buildPaths(folders)
+  // Must keep its identity between renders: Tree re-initialises the expanded
+  // state from its last render whenever `data` changes. A new array on every
+  // render loops forever and drops expand/collapse clicks.
+  const treeData = useMemo(
+    () => toTreeData(folders, creatingUnder),
+    [folders, creatingUnder],
+  )
 
   const load = useCallback(async (): Promise<FolderNode[] | null> => {
     setLoading(true)
@@ -147,6 +160,9 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
       const { id } = await createFolder(name, creatingUnder)
       const result = await load()
       const parentPath = paths.get(creatingUnder)
+      // FileBird may rename the folder (a duplicate becomes "Name (1)") or
+      // sanitise its name, so the reloaded tree, looked up by id, is the
+      // source of truth. The typed name is only a fallback if reloading fails.
       onChange({
         id,
         name:
@@ -296,7 +312,7 @@ export function FolderPicker({ value, onChange }: FolderPickerProps) {
             )}
 
             <Tree
-              data={toTreeData(folders, creatingUnder)}
+              data={treeData}
               tree={tree}
               levelOffset='md'
               expandOnClick={false}
