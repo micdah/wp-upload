@@ -1,12 +1,15 @@
-import type { ReadStream } from 'node:fs'
 import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { Readable } from 'node:stream'
 import type { AxiosResponse } from 'axios'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { connectionState, wpAxios } from '../config/wpClient.ts'
 import {
   filenameToSlug,
   findExistingMediaBySlug,
   isWpError,
+  multipartFilename,
   normaliseWpError,
   uploadToWordPress,
 } from './wpUpload.ts'
@@ -62,6 +65,26 @@ describe.concurrent('normaliseWpError', () => {
 
     expect(result.status).toBe(503)
     expect(result.code).toBe('wp_unexpected_response')
+  })
+
+  it('maps a redirect to a 502 that names the redirect target', () => {
+    const result = normaliseWpError({
+      isAxiosError: true,
+      response: {
+        status: 301,
+        data: '',
+        headers: { location: 'https://example.com/wp-json/wp/v2/media' },
+      },
+    })
+
+    expect(result).toEqual({
+      status: 502,
+      code: 'wp_redirect',
+      message: expect.stringContaining(
+        'https://example.com/wp-json/wp/v2/media',
+      ),
+    })
+    expect(result.message).toContain('WP_URL')
   })
 
   it('classifies a response-less axios error as unreachable', () => {
@@ -123,12 +146,6 @@ describe('uploadToWordPress', () => {
     originalname: 'photo.png',
     size: 42,
   } as Express.Multer.File
-
-  beforeEach(() => {
-    vi.spyOn(fs, 'createReadStream').mockReturnValue(
-      {} as unknown as ReadStream,
-    )
-  })
 
   it('returns a mapped UploadResult on success', async () => {
     vi.spyOn(wpAxios, 'post').mockResolvedValue({
@@ -235,6 +252,182 @@ describe('uploadToWordPress', () => {
       code: 'wp_unreachable',
       message: expect.stringContaining('ERR_CANCELED'),
     })
+  })
+})
+
+// Plain describe: spies on the shared wpAxios.post instance. Uses a real
+// temp file, so the request body can be read back and checked byte for byte.
+describe('uploadToWordPress multipart body', () => {
+  const FILE_BYTES = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x00, 0xff,
+  ])
+  let tempDir: string
+  let tempPath: string
+
+  beforeAll(() => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wp-upload-spec-'))
+    tempPath = path.join(tempDir, 'upload')
+    fs.writeFileSync(tempPath, FILE_BYTES)
+  })
+
+  afterAll(() => {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  })
+
+  function multerFile(originalname: string, mimetype = 'image/png') {
+    return {
+      path: tempPath,
+      mimetype,
+      originalname,
+      size: FILE_BYTES.length,
+    } as Express.Multer.File
+  }
+
+  // Runs an upload against a mocked wpAxios.post and reads back what would
+  // have been sent to WordPress.
+  async function captureRequest(file: Express.Multer.File) {
+    let sent: { body: unknown; headers: Record<string, unknown> } | null = null
+    vi.spyOn(wpAxios, 'post').mockImplementation(async (_url, body, config) => {
+      const chunks: Buffer[] = []
+      for await (const chunk of body as Readable) chunks.push(chunk)
+      sent = {
+        body: Buffer.concat(chunks),
+        headers: (config?.headers ?? {}) as Record<string, unknown>,
+      }
+      expect(body).toBeInstanceOf(Readable)
+      return {
+        data: {
+          id: 7,
+          source_url: 'https://example.invalid/x',
+          mime_type: 'image/png',
+        },
+      } as AxiosResponse
+    })
+
+    await uploadToWordPress(file)
+
+    if (!sent) throw new Error('wpAxios.post was not called')
+    const { body, headers } = sent as {
+      body: Buffer
+      headers: Record<string, unknown>
+    }
+    const boundary = /^multipart\/form-data; boundary=(\S+)$/.exec(
+      String(headers['Content-Type']),
+    )?.[1]
+    return { body, headers, boundary }
+  }
+
+  it('sends the file as a single "file" part with an exact Content-Length', async () => {
+    const { body, headers, boundary } = await captureRequest(
+      multerFile('photo.png'),
+    )
+
+    expect(boundary).toBeTruthy()
+    expect(headers['Content-Length']).toBe(body.length)
+    const expected = Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\n` +
+          'Content-Disposition: form-data; name="file"; filename="photo.png"\r\n' +
+          'Content-Type: image/png\r\n' +
+          '\r\n',
+      ),
+      FILE_BYTES,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ])
+    expect(body.equals(expected)).toBe(true)
+  })
+
+  // follow-redirects (axios's default transport) would otherwise keep a copy
+  // of the whole request body in memory.
+  it('disables redirects so the body is never buffered for replay', async () => {
+    const postSpy = vi.spyOn(wpAxios, 'post').mockResolvedValue({
+      data: { id: 7 },
+    } as AxiosResponse)
+
+    await uploadToWordPress(multerFile('photo.png'))
+
+    expect(postSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.anything(),
+      expect.objectContaining({ maxRedirects: 0 }),
+    )
+  })
+
+  // axios pipes the body without destroying it when the request fails, so
+  // uploadToWordPress must, or the temp file's descriptor would stay open.
+  it('closes the file when the request fails part-way through the body', async () => {
+    const realCreateReadStream = fs.createReadStream
+    const fileStreams: fs.ReadStream[] = []
+    vi.spyOn(fs, 'createReadStream').mockImplementation((...args) => {
+      const stream = realCreateReadStream(...(args as [string]))
+      fileStreams.push(stream)
+      return stream
+    })
+    let sentBody: Readable | null = null
+    vi.spyOn(wpAxios, 'post').mockImplementation(async (_url, body) => {
+      sentBody = body as Readable
+      // Read the part header and the first file chunk, then fail. A manual
+      // iterator rather than `for await` + break, since breaking would
+      // destroy the body itself.
+      const chunks = sentBody[Symbol.asyncIterator]()
+      await chunks.next()
+      await chunks.next()
+      throw { isAxiosError: true, response: { status: 500, data: {} } }
+    })
+
+    await expect(
+      uploadToWordPress(multerFile('photo.png')),
+    ).rejects.toMatchObject({ status: 500 })
+
+    expect(sentBody).not.toBeNull()
+    expect((sentBody as unknown as Readable).destroyed).toBe(true)
+    expect(fileStreams).toHaveLength(1)
+    await vi.waitFor(() => expect(fileStreams[0]?.closed).toBe(true))
+  })
+
+  it('uses a different boundary for each upload', async () => {
+    const first = await captureRequest(multerFile('photo.png'))
+    const second = await captureRequest(multerFile('photo.png'))
+
+    expect(first.boundary).not.toBe(second.boundary)
+  })
+
+  it.each([
+    ['a name with spaces', 'my photo.jpg', 'my photo.jpg'],
+    ['a non-ASCII name', 'café 写真.jpg', 'café 写真.jpg'],
+    ['a name with quotes', 'say "hi".jpg', 'say hi.jpg'],
+  ])('sends %s unencoded, as UTF-8', async (_label, originalname, sentName) => {
+    const { body, headers } = await captureRequest(multerFile(originalname))
+
+    expect(
+      body.includes(Buffer.from(`filename="${sentName}"\r\n`, 'utf8')),
+    ).toBe(true)
+    expect(headers['Content-Length']).toBe(body.length)
+  })
+
+  it('falls back to application/octet-stream without a MIME type', async () => {
+    const { body } = await captureRequest(multerFile('photo.png', ''))
+
+    expect(
+      body.includes(Buffer.from('Content-Type: application/octet-stream\r\n')),
+    ).toBe(true)
+  })
+})
+
+describe.concurrent('multipartFilename', () => {
+  it.each([
+    ['my photo.jpg', 'my photo.jpg'],
+    ['café.jpg', 'café.jpg'],
+    ['写真.jpg', '写真.jpg'],
+    ['say "hi".jpg', 'say hi.jpg'],
+    ['back\\slash.jpg', 'backslash.jpg'],
+    ['a/b.jpg', 'ab.jpg'],
+    ['line\r\nbreak.jpg', 'linebreak.jpg'],
+    ['tab\there.jpg', 'tabhere.jpg'],
+    ['"".jpg', 'upload.jpg'],
+    ['"/\\', 'upload'],
+  ])('%j -> %j', (name, expected) => {
+    expect(multipartFilename(name)).toBe(expected)
   })
 })
 
