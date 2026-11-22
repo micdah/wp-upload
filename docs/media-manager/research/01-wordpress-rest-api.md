@@ -41,7 +41,7 @@ Two abbreviations are used for the main files:
   "Mine" can only mean "uploaded by the app's WP user", and there is no per-app-user attribution without custom meta. **[source]**
 - **There is no HTTP caching.** Authenticated responses carry `no-cache` headers and no ETag. Edits made through REST bump `modified`, which allows incremental sync with `modified_after`. **Deletions, sub-size regeneration and FileBird folder moves do not bump it.** **[source]**
 - **One upload-related finding:**
-  - **Raw-body uploads** (what wp-upload sends today): WordPress reads the whole request body into PHP memory, so very large files can exceed `memory_limit`. Multipart does not have this problem.
+  - **Raw-body uploads** (what wp-upload sent at research time; *since #46 it uploads streamed multipart*): WordPress reads the whole request body into PHP memory, so very large files can exceed `memory_limit`. Multipart does not have this problem.
   - **Metadata in the upload request:** title, alt text and the other metadata can go in the same upload request as query-string parameters. **[source]**
 - **Possible bug in today's upload (side note, outside this track).** WordPress does not decode a percent-encoded `filename=` in `Content-Disposition`. **[source]** wp-upload sends `encodeURIComponent(name)`. If that reaches WordPress unchanged, `my photo.jpg` would probably be saved as `my20photo.jpg`. This is not tested.
 
@@ -407,7 +407,7 @@ All of these are small: one PHP file, a few hundred lines, with `permission_call
 - **Media kind:** derive "video/audio/document" from `mime_type`.
 - **Edit-as-new:** after `/edit`, re-apply the FileBird folder and `post` parent to the new item, and optionally delete or hide the original to make it feel like an in-place edit.
 - **Delete safety:** confirmation UI, because delete is permanent unless `MEDIA_TRASH` is set. Warn that featured images using the item are silently cleared.
-- **Upload path:** consider multipart instead of a raw body for very large files (PHP memory), and fix the `Content-Disposition` filename encoding (send the raw UTF-8 name quoted, or ASCII-fold it).
+- **Upload path:** ~~consider multipart instead of a raw body for very large files (PHP memory), and fix the `Content-Disposition` filename encoding~~ — **done in #46** (streamed multipart; fixes both).
 
 **Needs a companion plugin** (or the fragile 7.1 sideload trick):
 

@@ -6,6 +6,9 @@ mode (filmstrip and toggleable side panels). This doc condenses tracks A–G int
 architectural forks, UX principles for the design phase and the decisions that are needed.
 
 Baseline versions: WordPress 7.1.5, FileBird Lite 6.5.9, wp-upload `origin/master` @ `cfd647b`.
+Status update (2026-11-22): the three issues found in the app and the stack upgrade (D5) are fixed on
+`master` (#46, #47, #48), and this branch includes them (`master` @ `75e3b24`). See
+[Issues spotted](#issues-spotted-in-the-current-app-resolved) and the D5 row.
 All API claims are from reading source code, not from a live site. See [Verification](#verification-done-during-synthesis).
 
 ---
@@ -29,9 +32,10 @@ All API claims are from reading source code, not from a live site. See [Verifica
    - no sorting or filtering by size or dimensions.
 
    Each gap is closed by either a **server-side index in our proxy** or the **companion plugin**.
-4. **The stack needs a step 0.** Most of the libraries the UX needs (React `<ViewTransition>`, Mantine 9
+4. **The stack needed a step 0 — now done (#48).** Most of the libraries the UX needs (React `<ViewTransition>`, Mantine 9
    Tree with drag-and-drop and lazy loading, several drag-and-drop and selection libraries) need
-   **React 19**. wp-upload is on React 18 + Mantine 8, and Mantine 8 is no longer updated.
+   **React 19**. wp-upload was on React 18 + Mantine 8 at research time; since #48 it is on React 19.3.1 +
+   Mantine 9.8.2 + Vite 8.3.8.
 5. **The visual direction changes.** Every reference app keeps its chrome neutral grey so that the images
    are the only colour on screen. The current cyberpunk theme (blue-tinted darks, neon glow) would tint how
    photos look. Neon can survive as the *accent* for focus and selection only.
@@ -163,6 +167,7 @@ side and the index can stay small or become a cache.
 ### Fork 3 — Frontend platform
 
 - Upgrade to **React 19.3 + Mantine 9** first (doc 07 §Summary). Mantine 8 is no longer updated.
+  **Done in #48** (React 19.3.1, Mantine 9.8.2, Vite 8.3.8, React Compiler not enabled).
 - Libraries that come up repeatedly: TanStack Virtual for the grid, filmstrip and tree; TanStack Query for
   paged lists, item cache and mutations; Pragmatic drag-and-drop or Headless Tree for drag-and-drop; Mantine
   Spotlight for a command palette.
@@ -258,7 +263,7 @@ Distilled from docs 05, 06 and 07. Ranked by how much they contribute to "seamle
 | D2 | Use FileBird's internal `filebird/v1` routes? | **No** | The plugin calls FileBird's PHP functions or tables directly. The existing public-API calls (upload + assign) can move into the plugin over time. |
 | D3 | Expose FileBird Pro-gated features (colours, folder sort)? | **Only when FileBird Pro is detected** | The plugin reports whether Pro is active. Colours and folder sorting are offered only then, implemented through the plugin, since D2 rules out `filebird/v1`. On Lite they are hidden; existing colours can be shown read-only. How to detect Pro is an implementation detail to settle. |
 | D4 | Server-side index vs thin proxy | **Thin proxy; plugin-side SQL** | The Node server stays stateless with short-TTL caching only. The plugin exposes dimensions in list responses so the justified grid can be laid out up front. |
-| D5 | React 19.3 + Mantine 9 upgrade | **Upgrade on `master` first** as a separate change, then rebase the feature branch | A standalone upgrade task on `master`, done before media-manager implementation starts. |
+| D5 | React 19.3 + Mantine 9 upgrade | **Upgrade on `master` first** as a separate change, then update the feature branch | **Done:** [#48](https://github.com/micdah/wp-upload/pull/48) merged to `master` and merged into this branch. See "Notes from the upgrade" below. |
 | D6 | Visual direction | **Explore in the design phase** | Phase 2 produces 2–3 visual directions (e.g. neutral + neon accent, fully neutral, adapted cyberpunk) and picks one there. The research favours neutral chrome for image fidelity. |
 | D7 | Image edit semantics | **In place, through the plugin** (wp-admin parity) | Same ID and URLs. Restore original, scale and "apply to all / thumbnail / all except thumbnail" are provided by the plugin. Core `/edit` (save as copy) is not used. |
 | D8 | Delete semantics | **Detect and adapt** | `MEDIA_TRASH` on: trash with an undo toast, a Trash view, and restore through the plugin. Off: permanent delete behind a confirm dialog that warns about usage, e.g. featured images, using the plugin's used-in data. |
@@ -268,9 +273,9 @@ Distilled from docs 05, 06 and 07. Ranked by how much they contribute to "seamle
 
 ### Follow-up work implied by the decisions
 
-- **On `master`, separate from this branch:**
-  - the React 19.3 + Mantine 9 upgrade (D5);
-  - the three issues listed under "Issues spotted in the current app".
+- **On `master`, separate from this branch — done:**
+  - ~~the React 19.3 + Mantine 9 upgrade (D5)~~ → #48;
+  - ~~the three issues listed under "Issues spotted in the current app"~~ → #46, #47.
 - **On `feature/media-manager`, before or alongside design:** the Docker Compose WordPress dev stack
   (D11), then the live checks below. Checks that only concerned FileBird's internal routes are moot after
   D2.
@@ -298,9 +303,28 @@ Distilled from docs 05, 06 and 07. Ranked by how much they contribute to "seamle
   TLS-terminating proxy (`is_ssl()`).
 - Performance of FileBird's Uncategorized and count queries, and of REST search, at 50k+ attachments.
 
-## Issues spotted in the current app (outside this branch's scope)
+## Issues spotted in the current app (resolved)
 
-These concern `master`. They are not changed here, only flagged.
+These concerned `master` and were fixed there in separate sessions (2026-11-22). The original findings are
+kept below for the record.
+
+| Issue | Fixed in | Outcome |
+|---|---|---|
+| 1 + 3 | [#46](https://github.com/micdah/wp-upload/pull/46) | Uploads are now **streamed multipart** (filename in the form-data part, no PHP memory issue). multer reads UTF-8 filenames (`defParamCharset: 'utf8'`). Uploads use `maxRedirects: 0`, and 3xx responses map to a new `wp_redirect` error code. |
+| 2 | [#47](https://github.com/micdah/wp-upload/pull/47) | `unwrap()` reads `data.mess`. Folder names are HTML-entity-decoded. The server rejects names FileBird would store as empty (400), exhausted duplicate names (409) and missing parent folders (404). `assignToFolder()` checks the folder exists first. **Verified live** on a WordPress Playground site with FileBird 6.5.9. |
+
+### Notes from the upgrade (#48) for media-manager implementation
+
+- Mantine 9's `Tree` re-initialises its expanded state whenever `data` changes identity, so the tree data
+  must be memoised (see `FolderPicker`).
+- Vite 8's default build targets are Safari/iOS 16.4+, Chrome 111+ and Firefox 114+ (`build.target` not
+  pinned). These are compatible with the View Transitions plan.
+- The JS bundle is now about 522 kB, above Vite's 500 kB warning. The media manager should be
+  code-split.
+- WordPress Playground (`@wp-playground/cli`) worked for live verification without Docker (#47). It
+  is a lightweight complement to the Docker Compose stack (D11).
+
+### Original findings
 
 1. **Upload filenames are probably mangled.** `server/src/lib/wpUpload.ts:94` sends
    `filename="${encodeURIComponent(name)}"`. WordPress does not decode this

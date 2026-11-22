@@ -13,7 +13,7 @@ Confidence markers:
 ## Summary
 
 1. **Everything on the wish list is feasible on the web in late 2026.** Most items are well-trodden. The two things that need real engineering are the shared-element grid↔detail transition combined with virtualization, and a justified (aspect-preserving) layout over 10k+ paged items. Both have proven approaches: Google Photos, Immich, and React 19.3 `<ViewTransition>`.
-2. **The current React 18 + Mantine 8 base is the main constraint, not the browser.**
+2. **The current React 18 + Mantine 8 base is the main constraint, not the browser.** *(Status: resolved — #48 upgraded `master` to React 19.3.1 + Mantine 9.8.2 + Vite 8.3.8.)*
    - Mantine 8's last release was 8.3.18 on 2026-03-17. Mantine 9 (from 2026-03-31) requires React ≥ 19.2 [source].
    - The Mantine `Tree` features that matter here are 9.x only: drag-and-drop, async children, and virtualization helpers [docs].
    - React's stable `<ViewTransition>` arrived in React 19.3 (2026-09-09), and `<Activity>` in 19.2 [docs].
@@ -525,7 +525,7 @@ TanStack Query 5.108.x (2026-11, React 18/19, ~13 kB gz) [source].
 | Deep links + Back behaviour under sub-path | Yes | S–M | Med if path-based (relative `base`) | Query-param state (TanStack Router search params, nuqs, or a small hook). Push on enter detail, replace on next/prev |
 | Data caching | Yes | M | Low–Med | TanStack Query page-keyed lists + item cache. Short-TTL proxy cache with mutation invalidation + singleflight |
 | Neutral dark theme, a11y, live regions | Yes | S–M | Low | Neutral `dark` tuple, accent for focus/selection only, `:focus-visible` double rings, one global `aria-live` region |
-| Staying on React 18 + Mantine 8 | Possible | — | **High** (frozen UI lib, missing Tree features, several libs now React-19-only) | Plan a React 19.3 + Mantine 9 upgrade as step 0 |
+| Staying on React 18 + Mantine 8 | Possible | — | **High** (frozen UI lib, missing Tree features, several libs now React-19-only) | Plan a React 19.3 + Mantine 9 upgrade as step 0 — **done in #48** |
 
 Effort: S ≈ ≤1 day, M ≈ 2–5 days, L ≈ 1–2+ weeks [assumption].
 
