@@ -10,10 +10,16 @@ import {
   upstreamErrorStatus,
 } from '../lib/wpUpload.ts'
 
-const upload = multer({
+// multer 2 supports defParamCharset, but @types/multer doesn't declare it yet.
+const multerOptions: multer.Options & { defParamCharset: string } = {
   dest: os.tmpdir(),
   limits: { fileSize: env.maxFileSizeMb * 1024 * 1024 },
-})
+  // Browsers send filenames as raw UTF-8; multer would decode them as latin1
+  // by default, mangling any non-ASCII name before it reaches WordPress.
+  defParamCharset: 'utf8',
+}
+
+const upload = multer(multerOptions)
 
 // The optional multipart `folderId` field (#38). Anything that isn't a
 // positive integer - including 0, FileBird's "Uncategorized" - means "don't
