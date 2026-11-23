@@ -4,9 +4,9 @@ This is the implementation plan for v1 of the media manager on `feature/media-ma
 [handoff](HANDOFF.md), the [research synthesis](research/00-synthesis.md) and the [design](design/README.md).
 Its focus is contracts-first sequencing, and parallel sub-agent tracks with exclusive file ownership.
 
-## 0. Decisions taken during planning (2026-11-22)
+## 0. Decisions taken during planning and at Checkpoint 4 (2026-11-22)
 
-These add to D1–D11 in the [synthesis](research/00-synthesis.md#decisions-recorded-2026-11-22):
+D19–D30 were recorded at Checkpoint 4 (M0). These add to D1–D11 in the [synthesis](research/00-synthesis.md#decisions-recorded-2026-11-22):
 
 | # | Decision |
 |---|---|
@@ -18,6 +18,18 @@ These add to D1–D11 in the [synthesis](research/00-synthesis.md#decisions-reco
 | D16 | **Changing folder replaces the history entry**; it never pushes. Only entering detail mode pushes (interaction-spec §1) |
 | D17 | **Never modify FileBird.** No schema changes (not even an extra index), no direct writes to its tables, no changes to its options. Folder mutations go only through FileBird's own PHP functions, so its hooks fire. Reads may query its tables read-only. Anything faster lives in the plugin's own tables |
 | D18 | **No hosted environments; local Docker equals CI.** Two modes of one local Docker Compose project, driven by one script (`dev/run`): `dev` for hot reload, and `test`, where **all** automated tests run, including the production image under a sub-path. No test relies on a real WordPress site. CI calls the same commands, so local runs and CI are interchangeable (§5) |
+| D19 | **In-place image edits overwrite the file and keep the same URL** (D7). The plugin keeps a backup for Undo and Restore original; posts show the edit at once, and the app cache-busts its own renditions with `?v=<modifiedAt>`. `urlChanged` stays in the contract only as an escape hatch (spike X2) |
+| D20 | **Replacing a `-scaled` image that can't keep its URL: warn, then proceed.** The confirm shows that the URL changes and where the item is used; `urlChanged` reports it afterwards (spike X3) |
+| D21 | **The Attach picker finds published posts only in v1** (core `/wp/v2/search`). A plugin `/posts` route that includes drafts can come later as an optional feature |
+| D22 | **Usage index scope: core plus Visual Portfolio.** Core: featured image, image/gallery/file/cover/media-text/video/audio blocks, classic `wp-image-N`, `[gallery]`, site logo and icon. Visual Portfolio (pinned 3.11.0 in the dev stack): the `visual-portfolio/block` `images` attribute, the loop-gallery blocks' `imagesQuery.images`, and saved layouts (`vp_lists` posts, `vp_images` meta) reached through the `visual-portfolio/saved` block or the `[visual_portfolio id=N]` shortcode. It is an optional plugin feature, active only when Visual Portfolio is installed; spike X10 (P2) confirms the storage live. Page builders, ACF and WooCommerce are not detected, and the UI says the index may be incomplete |
+| D23 | **Folder colours are Pro-only in both directions:** hidden on FileBird Lite even when colours are stored; written only through FileBird's own colour function when Pro is detected |
+| D24 | **Bulk operations are client-chunked** (100 ids per request for batch, delete and restore; 5000 for folder assign; 1000 for regenerate) with progress in the UI. No server-side jobs for them; a reload stops the rest, and Undo covers what was done |
+| D25 | **FileBird per-user mode:** the folder column shows the current user's own folders, read-only, with a notice; every folder mutation is refused (D10) |
+| D26 | **Dev/test users:** the stack creates both an Editor and an Author app user (each with an app password) so tests can check per-item permissions on another user's media in one run. The `role=` variant remains for the `app` container's user |
+| D27 | **Plugin minimums:** WordPress 7.0 and PHP 8.1. Below them the plugin registers no routes and the app shows the setup screen with an explanation |
+| D28 | **Biome excludes `docs/media-manager/design/**`**: the prototype is reference material, not shipped code |
+| D29 | **The contracts agent's 45 detailed decisions** (`tracks/contracts-handoff.md`, "Decisions taken") **are accepted as written.** Changes later go through the normal contract change-request process |
+| D30 | **Dev stack defaults accepted:** bind to 127.0.0.1 with `admin`/`admin` (`WPU_BIND_ADDRESS` can open it up), WordPress pinned to the exact 7.1.5 image, ports from 20000–27999 in 20-port blocks per worktree, PHPStan's composer from a digest-pinned `composer:2` image, and the built plugin at `plugin/dist/wp-upload-companion/wp-upload-companion.php` plus its zip |
 
 The plan ends with a `final-reviewer` step that addresses the findings worth acting on (M5).
 
@@ -51,7 +63,7 @@ documents:
 - the prototype as the behavioural reference. It is **not** code to port, except a few pure algorithms
   listed below.
 
-The binding decisions are D1–D11 plus D1c and D12–D18 (§0). The app becomes **one UI**: the
+The binding decisions are D1–D11 plus D1c and D12–D30 (§0). The app becomes **one UI**: the
 media manager. It needs the companion plugin, and without it the user sees the onboarding screen.
 
 **Architecture in one paragraph:**
@@ -691,6 +703,7 @@ mode only (D15).
 | X6 | `POST /wp/v2/media?fbv=` with an app password | S2 | If it works, the folder is assigned in the upload call itself |
 | X7 | Usage-parsing accuracy and backfill throughput | P2 | Tunes the maintenance step budget and the "index incomplete" wording |
 | X9 | FileBird Pro detection and colour storage, from Lite's source and public signals (no licence, D15) | P1 | If detection can't be made reliable without Pro, Pro features stay hidden in v1 rather than risk wrong behaviour |
+| X10 | Visual Portfolio usage detection (D22): install 3.11.0 in the dev stack, confirm where the block, loop-gallery and saved-layout galleries store attachment ids, and seed one of each | P2 (+ D for the seed) | If the storage differs from the source reading, adjust the parser; if it isn't reliably parseable, ship it marked as best effort |
 | C1–C5 | Virtual justified grid at 50k; morph with the virtual grid; virtual tree + DnD; Esc layering vs Mantine; 50k payload parse | F3/F1/F2 | Library swaps, or a chunked collection |
 
 ## 11. Risks
