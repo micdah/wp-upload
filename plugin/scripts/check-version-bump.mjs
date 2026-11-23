@@ -24,7 +24,12 @@ function readBaseCommit(argv) {
 }
 
 function git(...args) {
-  return execFileSync('git', args, { encoding: 'utf8' })
+  // stderr is dropped: a missing file at the base commit is an expected case,
+  // handled by the caller, not an error to print.
+  return execFileSync('git', args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  })
 }
 
 // The entry file's WPU_VERSION at a commit, or null when the file doesn't
