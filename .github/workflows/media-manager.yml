@@ -1,0 +1,206 @@
+# Feature-branch CI for the media manager (implementation plan §6, D13).
+#
+# Every job only calls dev/run, exactly as a developer would locally (D18): checkout -> restore
+# caches -> `dev/run up <mode>` (not for `static`) -> `dev/run test <suite>` -> upload
+# test-results/. If CI ever needs a step that local runs don't have, it goes into dev/run.
+# The one CI-only difference: with CI=true, dev/run adds the buildx GitHub Actions cache to
+# image builds, which only affects speed.
+#
+# Suites whose files don't exist yet fail with "not available yet: ..." until their tracks land.
+
+name: Media manager
+
+on:
+  push:
+    branches: [feature/media-manager]
+  pull_request:
+    branches: [feature/media-manager]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: media-manager-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+
+jobs:
+  static:
+    name: Static (lint, typecheck, unit, plugin-static, version-bump)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # version-bump diffs against the push's "before" commit or the merge base with master.
+          fetch-depth: 0
+
+      - name: Restore the npm cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: dev/.cache/npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Exposes the Actions cache token to `docker compose build` (type=gha cache).
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
+      - name: lint
+        run: dev/run test lint
+
+      - name: typecheck
+        if: ${{ !cancelled() }}
+        run: dev/run test typecheck
+
+      - name: unit
+        if: ${{ !cancelled() }}
+        run: dev/run test unit
+
+      - name: plugin-static
+        if: ${{ !cancelled() }}
+        run: dev/run test plugin-static
+
+      - name: version-bump
+        if: ${{ !cancelled() }}
+        env:
+          # A branch's first push has an all-zero "before"; dev/run then uses the merge base
+          # with origin/master.
+          VERSION_BUMP_BASE: ${{ github.event_name == 'push' && github.event.before || github.event.pull_request.base.sha }}
+        run: dev/run test version-bump --base "$VERSION_BUMP_BASE"
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-static
+          path: test-results/
+          if-no-files-found: ignore
+
+      - name: Upload the plugin zip
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: wp-upload-companion
+          path: plugin/dist/*.zip
+          if-no-files-found: warn
+
+  integration:
+    name: Integration (test mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # seed, logs and the suites act on the test stack, even when `up` failed half-way.
+      WPU_MODE: test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Restore the npm cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: dev/.cache/npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
+      - name: Start the test stack
+        id: up
+        run: dev/run up test
+
+      - name: Seed the small profile
+        id: seed
+        if: ${{ !cancelled() && steps.up.outcome == 'success' }}
+        run: dev/run seed small
+
+      - name: plugin-contract
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: dev/run test plugin-contract
+
+      - name: server-live
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: dev/run test server-live
+
+      - name: e2e-mock
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: dev/run test e2e-mock
+
+      - name: e2e-live
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: dev/run test e2e-live
+
+      - name: Collect logs
+        if: ${{ always() }}
+        run: dev/run logs
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-integration
+          path: test-results/
+          if-no-files-found: ignore
+
+      - name: Stop the stack
+        if: ${{ always() }}
+        run: dev/run down --volumes
+
+  perf:
+    name: Performance (opt-in with [perf])
+    # pull_request events have no head commit, so this only runs on push.
+    if: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[perf]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      WPU_MODE: test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Restore the npm cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: dev/.cache/npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
+
+      - name: Start the test stack
+        id: up
+        run: dev/run up test
+
+      - name: Seed the large profile
+        id: seed
+        if: ${{ !cancelled() && steps.up.outcome == 'success' }}
+        run: dev/run seed large
+
+      - name: perf
+        if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        run: dev/run test perf
+
+      - name: Collect logs
+        if: ${{ always() }}
+        run: dev/run logs
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-perf
+          path: test-results/
+          if-no-files-found: ignore
+
+      - name: Stop the stack
+        if: ${{ always() }}
+        run: dev/run down --volumes

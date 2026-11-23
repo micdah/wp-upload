@@ -1,0 +1,6 @@
+# `dev` mode: WordPress over plain HTTP on a per-worktree host port. The server and Vite run
+# on the host (`npm run dev`) and read dev/.env.wp.
+services:
+  wordpress:
+    ports:
+      - "${WPU_BIND_ADDRESS:-127.0.0.1}:${WPU_PORT_WORDPRESS:?run this stack through dev/run}:80"

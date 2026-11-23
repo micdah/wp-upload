@@ -1,0 +1,305 @@
+#!/usr/bin/env bash
+# dev/run: the one entry point to the media manager's dev and test stack (implementation plan
+# §5.2). People, track agents and CI all use it, so local runs and CI are interchangeable.
+#
+#   dev/run up [dev|test]          start the stack, install WordPress + FileBird, write dev/.env.wp
+#   dev/run seed small|large       seed deterministically, then snapshot DB + uploads
+#   dev/run reset [small|large]    restore DB + uploads from that snapshot (default: small)
+#   dev/run variant k=v ...        trash=on|off filebird=on|off peruser=on|off role=editor|author
+#   dev/run test <suite>           run a suite in the runner (see `dev/run help`)
+#   dev/run logs [compose args]    show logs; without arguments, save them to test-results/logs/
+#   dev/run down [--volumes]       stop both modes' stacks (and delete their data)
+#   dev/run info                   print this worktree's project names, ports and URLs
+#   dev/run wp <args>              run any wp-cli command against the stack
+#
+# seed, reset, variant and logs act on the mode of the last `up` (override with WPU_MODE=...).
+set -euo pipefail
+
+DEV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+REPO_ROOT="$(cd "$DEV_DIR/.." && pwd -P)"
+
+# shellcheck source=dev/lib/common.sh
+source "$DEV_DIR/lib/common.sh"
+# shellcheck source=dev/lib/identity.sh
+source "$DEV_DIR/lib/identity.sh"
+# shellcheck source=dev/lib/stack.sh
+source "$DEV_DIR/lib/stack.sh"
+# shellcheck source=dev/lib/wordpress.sh
+source "$DEV_DIR/lib/wordpress.sh"
+# shellcheck source=dev/lib/suites.sh
+source "$DEV_DIR/lib/suites.sh"
+
+# ---- up ------------------------------------------------------------------------------------
+# Idempotent: safe to run again on a running stack. It keeps the ports, the install and a
+# still-valid app password, so dev/.env.wp and snapshots stay valid.
+cmd_up() {
+  local mode="${1:-dev}"
+  prepare_stack "$mode" true
+  # Record the port block at once, so a failed `up` doesn't make the next one see its own
+  # containers as "port taken" and move to another block.
+  save_mode_state "$mode"
+
+  log_step "Starting the $mode stack ($COMPOSE_PROJECT_NAME)"
+  if [ "$mode" = "test" ]; then
+    ensure_dev_ca
+    compose up --detach --wait db wordpress proxy
+  else
+    compose up --detach --wait db wordpress
+  fi
+  give_snapshot_volume_to_www_data
+
+  if ! wordpress_is_installed; then
+    install_wordpress
+  fi
+  warn_on_wordpress_version_drift
+  install_filebird
+
+  log_step "Ensuring the app user ($APP_USER_LOGIN) and its Application Password"
+  ensure_app_user
+  save_mode_state "$mode"
+  if [ "$mode" = "dev" ]; then
+    write_env_wp_file
+  fi
+
+  activate_companion_plugin_if_present
+
+  if ! snapshot_exists base; then
+    log_step "Taking the 'base' snapshot (the starting point of every seed)"
+    take_snapshot base
+  fi
+
+  if [ "$mode" = "test" ]; then
+    start_test_app
+  fi
+  remember_active_mode "$mode"
+  print_stack_summary "$mode"
+}
+
+# The production image from the repo's Dockerfile, rebuilt on every `up test` (layers are
+# cached), so it always runs this worktree's code.
+start_test_app() {
+  log_step "Building and starting the production image (app) under /wp-upload/"
+  compose --profile app up --detach --wait --build app
+}
+
+print_stack_summary() {
+  local mode="$1"
+  log_step "The $mode stack is up"
+  log_info "Compose project:  $COMPOSE_PROJECT_NAME"
+  log_info "Port block:       $WPU_PORT_BLOCK (block $(port_block_index_of "$WPU_PORT_BLOCK"))"
+  log_info "App user:         $WPU_APP_USER (app password in dev/.state/$mode/stack.env)"
+  log_info "wp-admin login:   $ADMIN_USER / $ADMIN_PASSWORD"
+  if [ "$mode" = "dev" ]; then
+    log_info "WordPress:        $WPU_SITE_URL/wp-admin/"
+    log_info "Host server port: $WPU_PORT_SERVER, Vite port: $WPU_PORT_VITE (in dev/.env.wp)"
+    log_info "Env file:         dev/.env.wp (app login: $LOGIN_USER / $LOGIN_PASSWORD)"
+  else
+    log_info "Inside the stack: https://wpu.test/wp-upload/, https://wpu.test/wp-upload-mock/, https://wp.wpu.test/"
+    log_info "From the host:    curl --cacert dev/.state/test/ca/public/ca.crt \\"
+    log_info "                    --resolve wpu.test:$WPU_PORT_PROXY:127.0.0.1 https://wpu.test:$WPU_PORT_PROXY/wp-upload/healthz"
+  fi
+  if ! snapshot_exists small; then
+    log_info "Next:             dev/run seed small"
+  fi
+}
+
+# ---- seed / reset / variant ----------------------------------------------------------------
+
+cmd_seed() {
+  local profile="${1:-}"
+  prepare_stack "$(active_mode)"
+  require_running_stack
+  case "$profile" in
+    small)
+      seed_small_profile
+      ;;
+    large)
+      not_available "the 'large' seed (50k attachments, plan §5.4) is scheduled for track D in M1 (spike X4)."
+      ;;
+    *)
+      die "Usage: dev/run seed small|large"
+      ;;
+  esac
+}
+
+cmd_reset() {
+  local profile="${1:-small}"
+  prepare_stack "$(active_mode)"
+  require_running_stack
+  case "$profile" in
+    small | large | base)
+      ;;
+    *)
+      die "Usage: dev/run reset [small|large]"
+      ;;
+  esac
+  if ! snapshot_exists "$profile"; then
+    die "There is no '$profile' snapshot in the $WPU_MODE stack yet. Run 'dev/run seed $profile' first."
+  fi
+  log_step "Restoring the '$profile' snapshot (database and uploads)"
+  restore_snapshot "$profile"
+  after_restore
+  apply_variant
+}
+
+cmd_variant() {
+  prepare_stack "$(active_mode)"
+  require_running_stack
+  apply_variant "$@"
+}
+
+# A convenience for people and tracks: any wp-cli command against the active stack.
+cmd_wp() {
+  prepare_stack "$(active_mode)"
+  require_running_stack
+  wpcli "$@"
+}
+
+# ---- test ----------------------------------------------------------------------------------
+# Suites always run in a `test` mode project: the runner, and for live suites the full stack.
+cmd_test() {
+  local suite="${1:-}"
+  if [ -z "$suite" ]; then
+    die "Usage: dev/run test <suite>. Suites: $ALL_SUITE_NAMES"
+  fi
+  shift
+  local version_bump_base=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --base)
+        version_bump_base="${2:-}"
+        shift 2
+        ;;
+      *)
+        die "Unknown option '$1' for 'dev/run test'."
+        ;;
+    esac
+  done
+
+  prepare_stack test
+  ensure_dev_ca
+  if [ "$suite" = "version-bump" ]; then
+    run_suite "$suite" "$version_bump_base"
+  else
+    run_suite "$suite"
+  fi
+}
+
+# ---- logs / down / info --------------------------------------------------------------------
+
+cmd_logs() {
+  prepare_stack "$(active_mode)"
+  if [ "$#" -gt 0 ]; then
+    compose logs "$@"
+    return
+  fi
+  collect_stack_logs
+  tail -n 60 "$RESULTS_DIR/logs/$WPU_MODE-compose.log"
+}
+
+# Stops both modes' stacks. With --volumes it also deletes their databases, uploads and
+# snapshots, plus the credentials and CA that belong to them.
+cmd_down() {
+  local delete_volumes=false
+  case "${1:-}" in
+    --volumes | -v)
+      delete_volumes=true
+      ;;
+    "")
+      ;;
+    *)
+      die "Usage: dev/run down [--volumes]"
+      ;;
+  esac
+
+  local mode
+  for mode in $KNOWN_MODES; do
+    prepare_stack "$mode"
+    log_step "Stopping the $mode stack ($COMPOSE_PROJECT_NAME)"
+    if [ "$delete_volumes" = "true" ]; then
+      compose --profile '*' down --volumes --remove-orphans
+      rm -rf "$(mode_state_dir "$mode")"
+      if [ "$mode" = "dev" ]; then
+        rm -f "$ENV_WP_FILE"
+      fi
+    else
+      compose --profile '*' down --remove-orphans
+    fi
+  done
+}
+
+cmd_info() {
+  local mode
+  log_step "Stack identity for $(identity_path)"
+  for mode in $KNOWN_MODES; do
+    prepare_stack "$mode"
+    local running="stopped"
+    if stack_is_running; then
+      running="running"
+    fi
+    log_info "$mode: project $COMPOSE_PROJECT_NAME ($running), port block $WPU_PORT_BLOCK"
+    if [ "$mode" = "dev" ]; then
+      log_info "     WordPress $WPU_SITE_URL, host server :$WPU_PORT_SERVER, Vite :$WPU_PORT_VITE"
+    else
+      log_info "     proxy https://127.0.0.1:$WPU_PORT_PROXY (wpu.test, wp.wpu.test)"
+    fi
+  done
+}
+
+cmd_help() {
+  # The header comment of this file is the help text.
+  awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "${BASH_SOURCE[0]}"
+  echo
+  echo "Suites: $ALL_SUITE_NAMES"
+  echo "  all = $GATE_SUITES"
+  echo "  version-bump takes --base <commit> (CI passes the push's 'before' commit)."
+}
+
+main() {
+  local command="${1:-help}"
+  if [ "$#" -gt 0 ]; then
+    shift
+  fi
+  case "$command" in
+    help | -h | --help)
+      cmd_help
+      return 0
+      ;;
+  esac
+
+  require_docker
+  case "$command" in
+    up)
+      cmd_up "$@"
+      ;;
+    seed)
+      cmd_seed "$@"
+      ;;
+    reset)
+      cmd_reset "$@"
+      ;;
+    variant)
+      cmd_variant "$@"
+      ;;
+    wp)
+      cmd_wp "$@"
+      ;;
+    test)
+      cmd_test "$@"
+      ;;
+    logs)
+      cmd_logs "$@"
+      ;;
+    down)
+      cmd_down "$@"
+      ;;
+    info)
+      cmd_info "$@"
+      ;;
+    *)
+      die "Unknown command '$command'. Run 'dev/run help'."
+      ;;
+  esac
+}
+
+main "$@"
