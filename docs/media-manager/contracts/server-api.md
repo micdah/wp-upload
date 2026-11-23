@@ -380,7 +380,7 @@ frozen identity, plugin-api.md §3.1) and validates the rest only when the plugi
   "wp": { "state": "ok", "message": null },
   "plugin": {
     "state": "ok", "version": "1.0.0", "api": "1.0",
-    "features": ["collection", "facets", "media-batch", "trash", "usage", "image-edit", "image-regenerate", "image-replace", "folders", "folder-colors", "maintenance"],
+    "features": ["collection", "facets", "media-batch", "trash", "usage", "image-edit", "image-regenerate", "image-replace", "folders", "folder-colors", "maintenance", "usage-visual-portfolio"],
     "missingFeatures": [], "required": { "major": 1, "minMinor": 0 },
     "bundled": { "version": "1.0.0", "api": "1.0", "features": ["…"], "changelog": [] },
     "message": null
@@ -688,7 +688,8 @@ interface UsageRef {         // the one unified UsageRef (implementation plan §
 
 `UsageContext` is one of `featured`, `image-block`, `gallery-block`, `file-block`, `cover-block`,
 `media-text`, `video-block`, `audio-block`, `content` (a URL or `wp-image-N` class in other content),
-`shortcode-gallery`, `site-logo`, `site-icon`. Refs are sorted: site-level refs first, then refs
+`shortcode-gallery`, `visual-portfolio` (Visual Portfolio galleries and saved layouts, D22), `site-logo`,
+`site-icon`. Refs are sorted: site-level refs first, then refs
 with `featured`, then by post title.
 
 ```json

@@ -13,6 +13,7 @@ COPY plugin/package.json plugin/package.json
 # The image never runs browser tests, so skip Playwright's browser download.
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci
+COPY shared shared
 COPY server server
 COPY client client
 RUN npm run build
@@ -33,6 +34,11 @@ WORKDIR /app
 COPY --from=server-deps /app/node_modules /app/node_modules
 COPY server/package.json server/package.json
 COPY server/src server/src
+# Only the dependency-free shared files: the server must never import
+# schemas or fixtures at runtime (implementation-plan §2.3).
+COPY shared/package.json shared/package.json
+COPY shared/library-api.ts shared/library-api.ts
+COPY shared/plugin-api.ts shared/plugin-api.ts
 COPY --from=client-builder /app/client/dist client/dist
 
 ENV PORT=3001

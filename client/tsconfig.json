@@ -8,6 +8,7 @@
     "jsx": "react-jsx",
     "types": ["vite/client"],
     "isolatedModules": true,
+    "allowImportingTsExtensions": true,
     "moduleDetection": "force",
     "resolveJsonModule": true
   },

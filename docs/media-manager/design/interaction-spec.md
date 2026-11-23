@@ -47,7 +47,7 @@ app works under any sub-path:
 - **Entering detail pushes** a history entry. Stepping between items and changing filters **replace** it,
   so Back always returns to the grid you came from.
 - **Deep links:** `?item=<id>` opens detail mode directly, with the grid behind it.
-- **Trash view (not yet in the URL):** it should become `folder=trash` so it can be linked to. See
+- **Trash view** *(amended: it is `folder=trash`, see [server-api.md](../contracts/server-api.md) §6)*: it should become `folder=trash` so it can be linked to. See
   [system.md](specs/system.md) §9.
 
 ## 2. Grid
@@ -339,7 +339,7 @@ each area spec.
 | Area | Need |
 |---|---|
 | Detection | REST namespace on `GET /wp-json/` (plugin present; version); FileBird present, **Pro** licence, **per-user mode**; `MEDIA_TRASH` and `EMPTY_TRASH_DAYS`. *Amended (D15, [implementation plan](../implementation-plan.md) §0): Pro is detection-gated and tested in mock mode only* |
-| Listing | `GET /wp/v2/media?fbv=<id\|0>` with paging and sort; `fbv_folder` field on every item; orderby/filter on size, dimensions, file name, type; missing-alt filter; alt and EXIF search; month list with counts; compact id/width/height list for the justified layout |
+| Listing | *(Amended: superseded by the plugin's `/collection` and the `wpu.folder` field, see [plugin-api.md](../contracts/plugin-api.md).)* `GET /wp/v2/media?fbv=<id\|0>` with paging and sort; `fbv_folder` field on every item; orderby/filter on size, dimensions, file name, type; missing-alt filter; alt and EXIF search; month list with counts; compact id/width/height list for the justified layout |
 | Folders | Tree with counts in one call; create/rename returning the final (auto-suffixed) name; move/reorder with cycle check; recursive delete returning the moved count; atomic bulk assign returning counts; Pro colour/sort only when Pro is licensed |
 | Metadata | Batch metadata update (or proxy fan-out) with per-item results |
 | Images | In-place edit `{rotate, flip, crop, scale, applyTo}`, undo last edit, restore original, regenerate (single + batch, pollable), replace file (keeps ID and URL) |

@@ -294,6 +294,10 @@ are registered with `registerBindings` and appear in the shortcut sheet (group "
 
 ## 10. Companion plugin API needs
 
+> **Superseded by the contracts.** The edit body `{rotate, flipH, flipV, crop, scale, applyTo}` is replaced by `EditRequest` (an ordered `ops` list), and the usage shape by `UsageRef`. The binding definitions are in
+> [plugin-api.md](../../contracts/plugin-api.md) and [server-api.md](../../contracts/server-api.md); this
+> section is kept for the design rationale.
+
 | Need | Proposed route | Notes |
 |---|---|---|
 | In-place edit | `POST /wp-upload/v1/media/{id}/edit` `{ rotate, flipH, flipV, crop: {x,y,w,h}, scale: {w,h}, applyTo: all\|thumbnail\|nothumb }` | Coordinates in the oriented full image. Overwrites in place (same ID and URL), keeps a backup per edit (`_wp_attachment_backup_sizes`), regenerates sizes, returns the new `media_details` |

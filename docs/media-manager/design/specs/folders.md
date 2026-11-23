@@ -229,6 +229,10 @@ under the "Folders" group, so the `?` sheet lists them):
 
 ## 10. What the companion plugin / server must provide
 
+> **Superseded by the contracts.** The `fbv_folder` field and `/wp/v2/media?fbv=` listing are replaced by `wpu.folder` and the plugin's `/collection`; folder routes are the plugin's `wp-upload/v1/folders` (no `filebird/v1`, D2). The binding definitions are in
+> [plugin-api.md](../../contracts/plugin-api.md) and [server-api.md](../../contracts/server-api.md); this
+> section is kept for the design rationale.
+
 | Need | Why | FileBird today |
 |---|---|---|
 | Tree with id, name, parent, order, colour (Pro), in one call | Render the column | `filebird/v1/get-folders` (`tree`) |

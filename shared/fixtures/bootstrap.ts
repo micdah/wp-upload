@@ -24,6 +24,7 @@ const features = [
   'folders',
   'folder-colors',
   'maintenance',
+  'usage-visual-portfolio',
 ]
 const required = { major: 1, minMinor: 0 }
 

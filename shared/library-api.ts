@@ -116,6 +116,7 @@ export const USAGE_CONTEXTS = [
   'audio-block',
   'content',
   'shortcode-gallery',
+  'visual-portfolio',
   'site-logo',
   'site-icon',
 ] as const
@@ -159,6 +160,7 @@ export const PLUGIN_FEATURES = [
   'folders',
   'folder-colors',
   'maintenance',
+  'usage-visual-portfolio',
 ] as const
 export type PluginFeature = (typeof PLUGIN_FEATURES)[number]
 

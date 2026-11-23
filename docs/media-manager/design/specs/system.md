@@ -295,6 +295,10 @@ All keys are layout-safe (`assertKeymapIsLayoutSafe`) and match `event.key`.
 
 ## 8. Companion plugin and API needs
 
+> **Superseded by the contracts.** The where-used shape `[{id, type, title, context}]` is replaced by `UsageRef`; "processing status" is `sizesPending` and the `processing` job state. The binding definitions are in
+> [plugin-api.md](../../contracts/plugin-api.md) and [server-api.md](../../contracts/server-api.md); this
+> section is kept for the design rationale.
+
 | Need | Why |
 |---|---|
 | **Plugin detection:** a REST namespace such as `wp-upload/v1` on `GET /wp-json/` | Onboarding versus app; "Check again" re-runs the probe |

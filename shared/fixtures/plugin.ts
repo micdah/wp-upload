@@ -36,6 +36,7 @@ export const pluginInfo = {
     'folders',
     'folder-colors',
     'maintenance',
+    'usage-visual-portfolio',
   ],
   install: 'plugin',
   wpVersion: '7.1.5',

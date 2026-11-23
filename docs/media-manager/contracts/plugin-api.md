@@ -151,8 +151,9 @@ server reports `plugin.state: "missing"` and onboarding names the minimums.
 | `folders` | `/folders` routes, `folder=` filters, `wpu.folder` |
 | `folder-colors` | `PATCH /folders/{id}` with `color` |
 | `maintenance` | `POST /maintenance/step` |
+| `usage-visual-portfolio` | The `visual-portfolio` usage context (D22); scanned only while the Visual Portfolio plugin is active |
 
-API 1.0 builds list all eleven. `/info` and `/rev` are not features: every build has them. A feature
+API 1.0 builds list all twelve. `/info` and `/rev` are not features: every build has them. A feature
 name is never removed or renamed within a major.
 
 ### 2.3 Additive-only policy
@@ -232,7 +233,7 @@ interface PluginInfo {
   "plugin": "wp-upload-companion",
   "version": "1.0.0",
   "api": "1.0",
-  "features": ["collection", "facets", "media-batch", "trash", "usage", "image-edit", "image-regenerate", "image-replace", "folders", "folder-colors", "maintenance"],
+  "features": ["collection", "facets", "media-batch", "trash", "usage", "image-edit", "image-regenerate", "image-replace", "folders", "folder-colors", "maintenance", "usage-visual-portfolio"],
   "install": "plugin",
   "wpVersion": "7.1.5",
   "user": { "id": 2, "name": "Anna Berg", "roles": ["editor"],
@@ -1107,6 +1108,7 @@ patterns and templates use media too.)
 | `content` | `wp-image-<id>` classes, or an upload URL that resolves to the attachment (`attachment_url_to_postid()` on the original or a sub-size URL), outside the blocks above |
 | `shortcode-gallery` | `[gallery ids="…"]` |
 | `site-logo`, `site-icon` | `site_logo` and `site_icon` options (`source_id` 0) |
+| `visual-portfolio` | Visual Portfolio galleries (D22, feature `usage-visual-portfolio`, only while that plugin is active; spike X10 confirms the storage): (1) the `images` attribute of a `visual-portfolio/block` and `imagesQuery.images` of its loop-gallery blocks, in the post that contains them; (2) a saved layout (`vp_lists` post) whose `vp_images` meta or layout content lists the attachment, reported on the layout itself; (3) a post that embeds a saved layout through the `visual-portfolio/saved` block (`id` attribute) or the `[visual_portfolio id=N]` shortcode, reported on that post with the layout's images. Image entries are `{id, …}` objects; entries without an id (external `imgUrl`) are ignored |
 
 Uses in theme files, custom CSS or other plugins' settings aren't detected (inspector.md §5's
 footnote).
