@@ -12,5 +12,11 @@
     "moduleDetection": "force",
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vite.config.ts",
+    "vite.mock.config.ts",
+    "vitest.config.ts"
+  ]
 }

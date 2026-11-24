@@ -314,11 +314,6 @@ export const tileItems = [
         height: 1024,
       },
       {
-        url: 'https://example.com/wp-content/uploads/2025/01/landscape-erik-heddema-522-768x1024.jpg',
-        width: 768,
-        height: 1024,
-      },
-      {
         url: 'https://example.com/wp-content/uploads/2025/01/landscape-erik-heddema-522-1152x1536.jpg',
         width: 1152,
         height: 1536,
@@ -1771,11 +1766,6 @@ export const fullItems = [
         url: 'https://example.com/wp-content/uploads/2025/01/landscape-erik-heddema-522-225x300.jpg',
         width: 225,
         height: 300,
-      },
-      {
-        url: 'https://example.com/wp-content/uploads/2025/01/landscape-erik-heddema-522-768x1024.jpg',
-        width: 768,
-        height: 1024,
       },
       {
         url: 'https://example.com/wp-content/uploads/2025/01/landscape-erik-heddema-522-768x1024.jpg',
@@ -3513,7 +3503,8 @@ export const fullItems = [
         width: 1240,
         height: 1754,
         mime: 'image/jpeg',
-        filesize: 168000,
+        // REST drops the size of a PDF's `full` entry (server-api.md §8.1)
+        filesize: null,
       },
     ],
     exif: null,

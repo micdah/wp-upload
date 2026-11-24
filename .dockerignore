@@ -12,3 +12,4 @@ playwright-report
 dev
 e2e/test-results
 plugin/dist
+plugin/vendor

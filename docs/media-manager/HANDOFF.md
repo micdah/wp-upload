@@ -80,6 +80,7 @@ From [`research/00-synthesis.md`](research/00-synthesis.md) ("Decisions" and "De
 | D15–D17 | No FileBird Pro licence (Pro features are detection-gated and mock-tested); a folder change replaces the history entry; never modify FileBird (no schema, index or direct writes). See plan §0 |
 | D18 | **No hosted environments.** Two modes of one local Docker Compose project driven by `dev/run`: `dev` (hot reload) and `test` (all automated tests, including the production image under a sub-path). No test needs a real WordPress site; CI calls the same commands, so local runs and CI are interchangeable (plan §5) |
 | D19–D30 | Checkpoint 4 decisions: in-place edits keep the same URL; `-scaled` replace warns then proceeds; Attach finds published posts only; usage covers core plus Visual Portfolio; folder colours Pro-only; bulk operations client-chunked; per-user mode shows own folders read-only; separate Editor and Author test users; plugin minimums WordPress 7.0 / PHP 8.1; Biome excludes the design prototype; the contracts' 45 detailed decisions accepted; dev-stack defaults accepted. See plan §0 |
+| D31–D32 | M1 review: the 150 kB initial-chunk budget stays, M2 uses per-component Mantine CSS; no "view attachment page" link in v1. See plan §0 |
 
 **v1 scope:**
 

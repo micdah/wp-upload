@@ -4,7 +4,10 @@ import path from 'node:path'
 import { Readable } from 'node:stream'
 import type { AxiosResponse } from 'axios'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { pluginInfo } from '../../../shared/fixtures/index.ts'
 import { connectionState, wpAxios } from '../config/wpClient.ts'
+import { currentRev, noteRev, resetCacheForTests } from './library/cache.ts'
+import { callsTo, fakeWordPress, plugin } from './library/specSupport.ts'
 import {
   filenameToSlug,
   findExistingMediaBySlug,
@@ -165,6 +168,26 @@ describe('uploadToWordPress', () => {
       sourceUrl: 'https://example.invalid/photo.png',
       mimeType: 'image/png',
     })
+  })
+
+  it('makes the media manager poll the library rev again after a success', async () => {
+    noteRev('100', 'poll')
+    vi.spyOn(wpAxios, 'post').mockResolvedValue({
+      data: { id: 7, source_url: 'https://example.invalid/photo.png' },
+    } as unknown as AxiosResponse)
+    const revPoll = fakeWordPress({
+      [plugin('GET', '/rev')]: () => ({ rev: '101', index: pluginInfo.index }),
+    })
+    try {
+      // Fresh poll: no need to ask the plugin.
+      expect(await currentRev()).toBe('100')
+      await uploadToWordPress(file)
+      expect(await currentRev()).toBe('101')
+      expect(callsTo(revPoll, plugin('GET', '/rev'))).toHaveLength(1)
+    } finally {
+      revPoll.mockRestore()
+      resetCacheForTests()
+    }
   })
 
   it('falls back to the original filename when WordPress omits a title', async () => {

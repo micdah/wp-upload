@@ -2,11 +2,14 @@
 # dev/run: the one entry point to the media manager's dev and test stack (implementation plan
 # §5.2). People, track agents and CI all use it, so local runs and CI are interchangeable.
 #
-#   dev/run up [dev|test]          start the stack, install WordPress + FileBird, write dev/.env.wp
+#   dev/run up [dev|test]          start the stack, install WordPress, FileBird, Visual Portfolio
+#                                  and the Editor + Author app users, write dev/.env.wp
 #   dev/run seed small|large       seed deterministically, then snapshot DB + uploads
 #   dev/run reset [small|large]    restore DB + uploads from that snapshot (default: small)
-#   dev/run variant k=v ...        trash=on|off filebird=on|off peruser=on|off role=editor|author
-#   dev/run test <suite>           run a suite in the runner (see `dev/run help`)
+#   dev/run variant k=v ...        trash=on|off filebird=on|off peruser=on|off vp=on|off
+#                                  role=editor|author (the app user's role)
+#   dev/run test <suite> [-- args] run a suite in the runner (see `dev/run help`); args after
+#                                  `--` go to its test runner (Playwright or Vitest)
 #   dev/run logs [compose args]    show logs; without arguments, save them to test-results/logs/
 #   dev/run down [--volumes]       stop both modes' stacks (and delete their data)
 #   dev/run info                   print this worktree's project names, ports and URLs
@@ -53,9 +56,11 @@ cmd_up() {
   fi
   warn_on_wordpress_version_drift
   install_filebird
+  install_visual_portfolio
+  activate_third_party_plugins
 
-  log_step "Ensuring the app user ($APP_USER_LOGIN) and its Application Password"
-  ensure_app_user
+  log_step "Ensuring the app users ($APP_USER_LOGIN, $AUTHOR_USER_LOGIN) and their Application Passwords"
+  ensure_app_users
   save_mode_state "$mode"
   if [ "$mode" = "dev" ]; then
     write_env_wp_file
@@ -88,6 +93,7 @@ print_stack_summary() {
   log_info "Compose project:  $COMPOSE_PROJECT_NAME"
   log_info "Port block:       $WPU_PORT_BLOCK (block $(port_block_index_of "$WPU_PORT_BLOCK"))"
   log_info "App user:         $WPU_APP_USER (app password in dev/.state/$mode/stack.env)"
+  log_info "Author user:      $WPU_AUTHOR_USER (D26; app password in the same file)"
   log_info "wp-admin login:   $ADMIN_USER / $ADMIN_PASSWORD"
   if [ "$mode" = "dev" ]; then
     log_info "WordPress:        $WPU_SITE_URL/wp-admin/"
@@ -114,7 +120,7 @@ cmd_seed() {
       seed_small_profile
       ;;
     large)
-      not_available "the 'large' seed (50k attachments, plan §5.4) is scheduled for track D in M1 (spike X4)."
+      seed_large_profile
       ;;
     *)
       die "Usage: dev/run seed small|large"
@@ -169,6 +175,13 @@ cmd_test() {
       --base)
         version_bump_base="${2:-}"
         shift 2
+        ;;
+      --)
+        # Everything after `--` goes to the suite's test runner (Playwright, Vitest), e.g.
+        # `dev/run test e2e-live -- --trace on --grep smoke`.
+        shift
+        SUITE_EXTRA_ARGS=("$@")
+        break
         ;;
       *)
         die "Unknown option '$1' for 'dev/run test'."

@@ -11,6 +11,10 @@ RESULTS_DIR="$REPO_ROOT/test-results"
 ENV_WP_FILE="$DEV_DIR/.env.wp"
 PLUGIN_SOURCE_DIR="$REPO_ROOT/plugin/wp-upload-companion"
 PLUGIN_DIST_DIR="$REPO_ROOT/plugin/dist/wp-upload-companion"
+# D30: the build's single file, installed as a regular plugin or dropped into mu-plugins.
+PLUGIN_DIST_FILE="$PLUGIN_DIST_DIR/wp-upload-companion.php"
+PLUGIN_BUILD_SCRIPT="$REPO_ROOT/plugin/scripts/build.mjs"
+OLDEST_PLUGIN_BUILD_ROOT="$DEV_DIR/.build/plugin-oldest"
 
 # ---- Pins --------------------------------------------------------------------------------
 # Why: local runs and CI must use exactly the same software (plan §5.3). Container images are
@@ -19,6 +23,15 @@ EXPECTED_WORDPRESS_VERSION="7.1.5"
 FILEBIRD_VERSION="6.5.9"
 FILEBIRD_ZIP_SHA256="a4192f265a396ce28610f796d347cea0f50b3069c889d4269d1a97f374d07cc2"
 FILEBIRD_ZIP_URL="https://downloads.wordpress.org/plugin/filebird.${FILEBIRD_VERSION}.zip"
+# D22: the usage index reads Visual Portfolio galleries; spike X10 confirms where they live.
+VISUAL_PORTFOLIO_VERSION="3.11.0"
+VISUAL_PORTFOLIO_ZIP_SHA256="27bd3caa9c7b6954d384322c47f2ca6bd404982fbc44aea27e5fb858606580dc"
+VISUAL_PORTFOLIO_ZIP_URL="https://downloads.wordpress.org/plugin/visual-portfolio.${VISUAL_PORTFOLIO_VERSION}.zip"
+# The oldest companion-plugin release the app must still work with (plan §2.6): plugin-contract
+# also runs against this git tag's build. Empty means the oldest `plugin-v*` tag; with no such
+# tag yet (before the first release) it is the current build. Raise it with the server's
+# required API level (minMinor). WPU_PLUGIN_OLDEST_REF overrides it with any git ref.
+PLUGIN_OLDEST_SUPPORTED_TAG=""
 # Must match @playwright/test once the e2e workspace pins it (change request in the D handoff).
 PLAYWRIGHT_VERSION="1.65.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579"
@@ -30,6 +43,8 @@ NODE_IMAGE="node:24.22.3-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2ef
 ADMIN_USER="admin"
 ADMIN_PASSWORD="admin"
 APP_USER_LOGIN="wpu-app"
+# D26: a separate Author user, so tests can check per-item permissions in one run.
+AUTHOR_USER_LOGIN="wpu-author"
 LOGIN_USER="dev"
 LOGIN_PASSWORD="dev-password"
 SESSION_SECRET="wp-upload-dev-stack-session-secret-not-for-production"

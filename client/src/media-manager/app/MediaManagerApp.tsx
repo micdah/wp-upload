@@ -1,19 +1,23 @@
-import { MantineProvider } from '@mantine/core'
-import '@mantine/core/styles.css'
-import { Shell } from '../shell/Shell'
+import { AuthGate } from './auth/AuthGate'
+import { Boot } from './boot/Boot'
 import { registerFeatures } from './features'
+import { AppProviders } from './providers'
+import { registerCoreCommands } from './runtime'
 
+// Core first, so features see core's commands and keymap when they register.
+registerCoreCommands()
 registerFeatures()
 
 // Entry of the lazily loaded media-manager chunk (`?view=library`). It mounts
-// its own Mantine provider, so the original upload page's theme and global
-// CSS never load here. Track F3 supplies the real theme (design tokens, both
-// colour schemes, fonts); track F1 adds boot (plugin check first), auth and
-// the real shell.
+// its own Mantine provider, so the old upload page's theme and global CSS
+// never load here. Order: providers → session (login) → boot (plugin check
+// first) → shell.
 export default function MediaManagerApp() {
   return (
-    <MantineProvider defaultColorScheme='auto'>
-      <Shell />
-    </MantineProvider>
+    <AppProviders>
+      <AuthGate>
+        <Boot />
+      </AuthGate>
+    </AppProviders>
   )
 }

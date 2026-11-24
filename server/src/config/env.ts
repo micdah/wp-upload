@@ -1,5 +1,7 @@
 import crypto from 'node:crypto'
 import net from 'node:net'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
 
 dotenv.config()
@@ -39,7 +41,17 @@ export interface Env {
   // HMAC key that signs session cookies.
   sessionSecret: Buffer
   sessionMaxAgeDays: number
+  // Where the bundled companion plugin lives: its zip plus the build's
+  // plugin.json and changelog.json sidecars (implementation plan §2.6).
+  pluginBundleDir: string
 }
+
+// The plugin build's output in a checkout (plugin/scripts/build.mjs). The
+// Docker image sets WPU_PLUGIN_BUNDLE_DIR to where it copies the build.
+const DEFAULT_PLUGIN_BUNDLE_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../plugin/dist',
+)
 
 export function loadEnv(): Env {
   const missing = REQUIRED_VARS.filter((key) => !process.env[key])
@@ -86,6 +98,8 @@ export function loadEnv(): Env {
       authPassword: process.env.AUTH_PASSWORD as string,
     }),
     sessionMaxAgeDays: parseSessionMaxAgeDays(process.env.SESSION_MAX_AGE_DAYS),
+    pluginBundleDir:
+      process.env.WPU_PLUGIN_BUNDLE_DIR?.trim() || DEFAULT_PLUGIN_BUNDLE_DIR,
   }
 }
 

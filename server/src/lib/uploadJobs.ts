@@ -68,15 +68,25 @@ export const FINISHED_JOB_TTL_MS = 10 * 60_000
 
 const jobs = new Map<string, JobEntry>()
 
+/**
+ * How a new media item gets into a folder: resolves once it is filed, throws
+ * (ideally a `{status, code, message}` WpError) when it couldn't be. The
+ * legacy upload page files through FileBird's public API (`assignToFolder`);
+ * the media manager passes its own strategy (the companion plugin).
+ */
+export type FileInto = (mediaId: number, folderId: number) => Promise<void>
+
 // Hands a fully received temp file off to a background WordPress upload, so
 // the browser connection that delivered it can be freed straight away. This
 // is what lets more uploads process in WordPress at once than the browser's
 // per-origin connection limit would otherwise allow (see #37). The job owns
 // the temp file from here on and removes it once it settles. A non-null
-// folderId files the new media item into that FileBird folder afterwards.
+// folderId files the new media item into that FileBird folder afterwards,
+// using the `fileInto` strategy.
 export function createJob(
   file: Express.Multer.File,
   folderId: number | null = null,
+  fileInto: FileInto = assignToFolder,
 ): string {
   const job: JobEntry = {
     id: randomUUID(),
@@ -87,7 +97,7 @@ export function createJob(
     tempFilePath: file.path,
   }
   jobs.set(job.id, job)
-  void runJob(job, file, folderId)
+  void runJob(job, file, folderId, fileInto)
   return job.id
 }
 
@@ -95,6 +105,7 @@ async function runJob(
   job: JobEntry,
   file: Express.Multer.File,
   folderId: number | null,
+  fileInto: FileInto,
 ): Promise<void> {
   await acquireSlot()
   try {
@@ -108,7 +119,12 @@ async function runJob(
     // Filed before reporting success, so the client sees the folder outcome
     // together with the upload result rather than in a later poll.
     job.result =
-      folderId === null ? result : await fileIntoFolder(result, folderId)
+      folderId === null
+        ? result
+        : {
+            ...result,
+            folder: await fileIntoFolder(result.id, folderId, fileInto),
+          }
     job.status = 'success'
   } catch (err) {
     job.status = 'error'
@@ -139,22 +155,24 @@ function removeTempFile(job: JobEntry): void {
 
 // The media item already exists at this point, so a filing failure must not
 // turn into an upload error (retrying would just create a duplicate) - it's
-// reported alongside the result instead.
-async function fileIntoFolder(
-  result: UploadResult,
+// reported alongside the result instead. Shared with the media manager's
+// upload jobs (routes/library/upload.ts), which pass their own strategy.
+export async function fileIntoFolder(
+  mediaId: number,
   folderId: number,
-): Promise<JobResult> {
+  fileInto: FileInto,
+): Promise<FolderAssignment> {
   try {
-    await assignToFolder(result.id, folderId)
-    return { ...result, folder: { id: folderId, assigned: true } }
+    await fileInto(mediaId, folderId)
+    return { id: folderId, assigned: true }
   } catch (folderError) {
     const message = isWpError(folderError)
       ? folderError.message
       : 'Could not file the upload into the FileBird folder.'
     console.error(
-      `Uploaded media ${result.id} but could not file it into FileBird folder ${folderId}: ${message}`,
+      `Uploaded media ${mediaId} but could not file it into FileBird folder ${folderId}: ${message}`,
     )
-    return { ...result, folder: { id: folderId, assigned: false, message } }
+    return { id: folderId, assigned: false, message }
   }
 }
 

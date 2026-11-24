@@ -644,6 +644,7 @@ interface LibraryItemBase {
   alt: string
   uploadedAt: string
   modifiedAt: string
+  /** `post_author`; 0 when the item has none (e.g. Visual Portfolio's placeholder image) */
   authorId: number
   /** FileBird folder id (0 = Uncategorized); null without active FileBird */
   folder: number | null
@@ -709,6 +710,7 @@ export interface LibraryItemFull extends LibraryItemBase {
   /** raw (unrendered) values */
   caption: string
   description: string
+  /** id 0 and name '' when the item has no author */
   author: { id: number; name: string }
   attachedTo: PostRef | null
   /** the untouched upload when WordPress scaled or rotated it */

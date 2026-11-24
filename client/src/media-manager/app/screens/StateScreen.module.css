@@ -1,0 +1,55 @@
+/* Full-window state screens. The --surface-* tokens come from the theme
+   (track F3); the fallbacks keep Mantine's defaults until it lands. */
+
+.screen {
+  min-height: 100dvh;
+  padding-block: var(--mantine-spacing-xl);
+  background: var(--surface-app, var(--mantine-color-body));
+}
+
+.brand {
+  font-weight: 700;
+  font-size: var(--mantine-font-size-lg);
+  letter-spacing: 0.02em;
+}
+
+.card {
+  background: var(--surface-panel, var(--mantine-color-body));
+}
+
+.icon {
+  display: flex;
+  color: var(--mantine-color-dimmed);
+}
+
+.hairline {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 2px;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.hairlineBar {
+  width: 30%;
+  height: 100%;
+  background: var(--mantine-primary-color-filled);
+  animation: hairline 1.4s linear infinite;
+}
+
+@keyframes hairline {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hairlineBar {
+    width: 100%;
+    animation: none;
+    opacity: 0.6;
+  }
+}

@@ -1,0 +1,9 @@
+/* The onboarding slot takes no space of its own; once the system feature's
+   Onboarding renders anything, the fallback screen after it hides. */
+.onboarding {
+  display: contents;
+}
+
+.onboarding:not(:empty) + .fallback {
+  display: none;
+}

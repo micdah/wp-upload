@@ -46,11 +46,15 @@ services:
     command: ["apache2-foreground"]
     environment:
       <<: *wordpress-env
+      # PHP's own conf.d plus dev/wordpress/php/ (64 MB uploads, CR-P2-7).
+      PHP_INI_SCAN_DIR: /usr/local/etc/php/conf.d:/opt/wpu/php
     volumes:
       - wp_html:/var/www/html
       - wp_uploads:/var/www/html/wp-content/uploads
+      # The dev mu-plugin loads from here through a loader file that dev/wordpress/entrypoint.sh
+      # writes. A single-file bind mount would keep serving the old file after an editor or
+      # `sed -i` replaces it.
       - ./wordpress:/opt/wpu:ro
-      - ./wordpress/mu-plugins/wpu-dev.php:/var/www/html/wp-content/mu-plugins/wpu-dev.php:ro
     healthcheck:
       # A static file: it answers as soon as Apache serves the copied WordPress files,
       # before WordPress is installed.
@@ -78,7 +82,6 @@ services:
       - wp_html:/var/www/html
       - wp_uploads:/var/www/html/wp-content/uploads
       - ./wordpress:/opt/wpu:ro
-      - ./wordpress/mu-plugins/wpu-dev.php:/var/www/html/wp-content/mu-plugins/wpu-dev.php:ro
       - ./fixtures:/opt/wpu-fixtures:ro
       - ./.cache/downloads:/cache/downloads
       - snapshots:/snapshots
@@ -135,6 +138,17 @@ services:
     volumes:
       - ${WPU_REPO_ROOT}:${WPU_REPO_ROOT}:ro
 
+  # The shipped plugin must still parse on PHP 7.4, so the entry file's minimum check can
+  # run and log on old sites (P1 handoff §2, CR-4). Only the shipped files are linted here.
+  php74:
+    profiles: [php]
+    image: php:7.4.33-cli@sha256:620a6b9f4d4feef2210026172570465e9d0c1de79766418d3affd09190a7fda5
+    user: "${WPU_UID}:${WPU_GID}"
+    working_dir: ${WPU_REPO_ROOT}
+    volumes:
+      - ${WPU_REPO_ROOT}:${WPU_REPO_ROOT}:ro
+
+  # Also runs PHPStan, from the vendor directory the `composer` one-off installs.
   php84:
     profiles: [php]
     image: php:8.4.28-cli@sha256:6b13a8678b38ca38e4e3950be57b664ed8c8706131a0586111f68792aede4c58
@@ -142,6 +156,24 @@ services:
     working_dir: ${WPU_REPO_ROOT}
     volumes:
       - ${WPU_REPO_ROOT}:${WPU_REPO_ROOT}:ro
+      - plugin_vendor:${WPU_REPO_ROOT}/plugin/vendor
+
+  # One-off: installs plugin/composer.lock (PHPStan and the WordPress stubs, dev-only) for
+  # `plugin-static` (D30). The vendor directory is a named volume, like the runner's
+  # node_modules, so nothing lands in the repo; the repo itself stays read-only.
+  composer:
+    profiles: [php]
+    image: composer:2.11.2@sha256:50ea4d33fdcde1adb0f045547295faa1548b33872e5f789dae5b02ce2fb5de93
+    user: "${WPU_UID}:${WPU_GID}"
+    working_dir: ${WPU_REPO_ROOT}/plugin
+    environment:
+      COMPOSER_HOME: /tmp/composer-home
+      COMPOSER_CACHE_DIR: /cache/composer
+      COMPOSER_NO_INTERACTION: "1"
+    volumes:
+      - ${WPU_REPO_ROOT}:${WPU_REPO_ROOT}:ro
+      - plugin_vendor:${WPU_REPO_ROOT}/plugin/vendor
+      - ./.cache/composer:/cache/composer
 
 # The project name differs per worktree and mode, so every stack gets its own volumes.
 volumes:
@@ -150,3 +182,4 @@ volumes:
   wp_uploads:
   snapshots:
   runner_node_modules:
+  plugin_vendor:

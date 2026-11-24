@@ -49,6 +49,9 @@ check_playwright_pin() {
 
 RUNNER_READY=false
 
+# Arguments after `--` on `dev/run test <suite> -- ...`, for the suite's test runner.
+SUITE_EXTRA_ARGS=()
+
 ensure_runner_ready() {
   if [ "$RUNNER_READY" = "true" ]; then
     return 0
@@ -59,13 +62,22 @@ ensure_runner_ready() {
   RUNNER_READY=true
 }
 
+# Extra `--env NAME=value` arguments for the next run_in_runner call (plugin-contract tells
+# the tests which plugin install they face). Callers set and reset it.
+RUNNER_EXTRA_ENV=()
+
 # Runs a bash script in the runner, after `npm ci` when the lockfile changed since the last
-# install into the node_modules volume. Output is also saved to test-results/<suite>/.
+# install into the node_modules volume. Output is also saved to test-results/<suite>/ (or
+# test-results/<suite>/<subdirectory>/ when one is given), which is WPU_SUITE_RESULTS_DIR.
 run_in_runner() {
   local suite="$1"
   local script="$2"
+  local results_subdirectory="${3:-}"
   local results_dir
   results_dir="$(suite_results_dir "$suite")"
+  if [ -n "$results_subdirectory" ]; then
+    results_dir="$results_dir/$results_subdirectory"
+  fi
   mkdir -p "$results_dir"
   ensure_runner_ready
 
@@ -81,9 +93,10 @@ run_in_runner() {
       echo "$lock_hash" > "$marker"
     fi
   '
-  log_step "Suite $suite"
+  log_step "Suite $suite${results_subdirectory:+ ($results_subdirectory)}"
   compose_run \
     --env WPU_SUITE_RESULTS_DIR="$results_dir" \
+    ${RUNNER_EXTRA_ENV[@]+"${RUNNER_EXTRA_ENV[@]}"} \
     runner bash -c "$install_dependencies
 $script" 2>&1 | tee "$results_dir/output.log"
 }
@@ -131,6 +144,88 @@ suite_unit() {
   '
 }
 
+# ---- plugin-static ---------------------------------------------------------------------------
+
+# Builds the plugin with P1's build script (plugin/scripts/build.mjs) in the runner, and checks
+# that the single file D30 names exists.
+build_plugin() {
+  local suite="$1"
+  local results_subdirectory="${2:-}"
+  run_in_runner "$suite" 'node plugin/scripts/build.mjs' "$results_subdirectory"
+  if [ ! -f "$PLUGIN_DIST_FILE" ]; then
+    die "plugin/scripts/build.mjs didn't produce ${PLUGIN_DIST_FILE#"$REPO_ROOT"/} (D30)."
+  fi
+}
+
+# php -l over everything under plugin/ (sources, scripts and, once built, the single file in
+# plugin/dist/), on the oldest and newest supported PHP versions.
+lint_plugin_php() {
+  local php_service="$1"
+  local results_dir="$2"
+  local lint_script='
+    set -eu
+    php --version | head -n 1
+    find plugin -name "*.php" -not -path "plugin/vendor/*" -not -path "*/node_modules/*" -print0 \
+      | xargs -0 -n 1 php -l > /dev/null
+    echo "php -l: no syntax errors"
+  '
+  log_step "plugin-static: php -l on $php_service"
+  compose_run "$php_service" sh -c "$lint_script" 2>&1 | tee "$results_dir/$php_service-lint.log"
+}
+
+# php -l on PHP 7.4 over the shipped files only (the source and the built single file). The
+# file can be dropped into mu-plugins, where WordPress doesn't check `Requires PHP`, so it must
+# parse on old PHP for its minimum check to run and log (P1 handoff §2, CR-4). Tests and
+# dev-only files may use newer syntax.
+lint_shipped_plugin_php74() {
+  local results_dir="$1"
+  local lint_script='
+    set -eu
+    php --version | head -n 1
+    find plugin/wp-upload-companion plugin/dist/wp-upload-companion -name "*.php" -print0 \
+      | xargs -0 -n 1 php -l > /dev/null
+    echo "php -l: no syntax errors in the shipped files"
+  '
+  log_step "plugin-static: php -l on php74 (shipped files)"
+  compose_run php74 sh -c "$lint_script" 2>&1 | tee "$results_dir/php74-lint.log"
+}
+
+# PHPStan config files PHPStan itself picks up from plugin/.
+plugin_phpstan_config() {
+  local config_name
+  for config_name in phpstan.neon phpstan.neon.dist phpstan.dist.neon; do
+    if [ -f "$REPO_ROOT/plugin/$config_name" ]; then
+      printf '%s' "$config_name"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# PHPStan with WordPress stubs (D30): composer installs plugin/composer.lock from the pinned
+# composer image into the plugin_vendor volume, then PHPStan runs on PHP 8.4.
+run_plugin_phpstan() {
+  local results_dir="$1"
+  local config_name="$2"
+  # The named volume starts out root-owned; composer runs as the host user.
+  compose_run --user 0 --entrypoint chown composer "$WPU_UID:$WPU_GID" "$REPO_ROOT/plugin/vendor" >/dev/null
+
+  log_step "plugin-static: composer install (plugin/composer.lock)"
+  compose_run composer install --no-progress --prefer-dist 2>&1 | tee "$results_dir/composer.log"
+
+  log_step "plugin-static: PHPStan ($config_name) on php84"
+  compose_run \
+    --workdir "$REPO_ROOT/plugin" \
+    php84 php -d memory_limit=1G vendor/bin/phpstan analyse \
+    --configuration="$config_name" \
+    --no-progress \
+    --no-interaction \
+    2>&1 | tee "$results_dir/phpstan.log"
+}
+
+# plan §6: the single-file build and zip, `php -l` on PHP 8.1 and 8.4 (including the built
+# file; the shipped files also on 7.4), and PHPStan. Everything that can run does; then a missing piece reports "not
+# available yet", so the gate never passes without it.
 suite_plugin_static() {
   if [ ! -d "$PLUGIN_SOURCE_DIR" ]; then
     not_available "plugin-static: plugin/wp-upload-companion/ doesn't exist yet (track P1)."
@@ -138,39 +233,152 @@ suite_plugin_static() {
   local results_dir
   results_dir="$(suite_results_dir plugin-static)"
   mkdir -p "$results_dir"
+  local missing=""
 
-  local lint_script='
-    set -eu
-    php --version | head -n 1
-    find plugin -name "*.php" -not -path "*/vendor/*" -print0 | xargs -0 -n 1 php -l > /dev/null
-    echo "php -l: no syntax errors"
-  '
+  if [ -f "$PLUGIN_BUILD_SCRIPT" ]; then
+    build_plugin plugin-static
+    lint_shipped_plugin_php74 "$results_dir"
+  else
+    missing="$missing plugin/scripts/build.mjs (track P1);"
+  fi
+
   local php_service
   for php_service in php81 php84; do
-    log_step "plugin-static: php -l on $php_service"
-    compose_run "$php_service" sh -c "$lint_script" 2>&1 | tee "$results_dir/$php_service-lint.log"
+    lint_plugin_php "$php_service" "$results_dir"
   done
 
-  if [ -f "$REPO_ROOT/plugin/composer.lock" ]; then
-    not_available "plugin-static: PHPStan needs a composer install step in dev/run (track D, M1)."
-  fi
-  if [ -f "$REPO_ROOT/plugin/scripts/build.mjs" ]; then
-    run_in_runner plugin-static 'node plugin/scripts/build.mjs'
+  local config_name=""
+  if [ ! -f "$REPO_ROOT/plugin/composer.lock" ]; then
+    missing="$missing plugin/composer.json + composer.lock for PHPStan (track P1);"
+  elif ! config_name="$(plugin_phpstan_config)"; then
+    missing="$missing plugin/phpstan.neon(.dist) for PHPStan (track P1);"
   else
-    not_available "plugin-static: plugin/scripts/build.mjs doesn't exist yet (track P1)."
+    run_plugin_phpstan "$results_dir" "$config_name"
+  fi
+
+  if [ -n "$missing" ]; then
+    not_available "plugin-static: missing${missing%;}."
   fi
 }
 
+# ---- plugin-contract -------------------------------------------------------------------------
+
+# The git ref of the oldest supported plugin release, or nothing before the first release.
+oldest_supported_plugin_ref() {
+  if [ -n "${WPU_PLUGIN_OLDEST_REF:-}" ]; then
+    printf '%s' "$WPU_PLUGIN_OLDEST_REF"
+  elif [ -n "$PLUGIN_OLDEST_SUPPORTED_TAG" ]; then
+    printf '%s' "$PLUGIN_OLDEST_SUPPORTED_TAG"
+  else
+    git -C "$REPO_ROOT" tag --list 'plugin-v*' --sort=version:refname | head -n 1
+  fi
+}
+
+# Builds the plugin as it was at a git ref, with that ref's own build script, into
+# dev/.build/plugin-oldest/. Sets OLDEST_PLUGIN_DIST_DIR.
+build_plugin_at_ref() {
+  local ref="$1"
+  log_step "plugin-contract: building the oldest supported plugin ($ref)"
+  rm -rf "$OLDEST_PLUGIN_BUILD_ROOT"
+  mkdir -p "$OLDEST_PLUGIN_BUILD_ROOT"
+  git -C "$REPO_ROOT" archive "$ref" plugin | tar -x -C "$OLDEST_PLUGIN_BUILD_ROOT"
+  local build_script="${OLDEST_PLUGIN_BUILD_ROOT#"$REPO_ROOT"/}/plugin/scripts/build.mjs"
+  run_in_runner plugin-contract "node '$build_script'" oldest-build
+  OLDEST_PLUGIN_DIST_DIR="$OLDEST_PLUGIN_BUILD_ROOT/plugin/dist/wp-upload-companion"
+  if [ ! -f "$OLDEST_PLUGIN_DIST_DIR/wp-upload-companion.php" ]; then
+    die "The build of $ref didn't produce plugin/dist/wp-upload-companion/wp-upload-companion.php."
+  fi
+}
+
+# Puts the restored `small` stack into one of the three installs the contract tests run on
+# (plan §2.6, D30):
+#   plugin     the current build as a regular plugin (what every restore sets up)
+#   oldest     the oldest supported build as a regular plugin, on a site without plugin state
+#   mu-plugin  the current single file in mu-plugins/, on a site without plugin state
+# "Without plugin state" runs the plugin's uninstall steps first, so schema creation without
+# an activation hook (mu-plugins) and a fresh install of the old release are both exercised.
+install_companion_for_contract_run() {
+  local install_name="$1"
+  restore_snapshot small
+  after_restore
+  case "$install_name" in
+    plugin)
+      ;;
+    oldest)
+      wpcli eval-file /opt/wpu/setup/companion-uninstall.php
+      install_companion_build "$OLDEST_PLUGIN_DIST_DIR" plugin
+      activate_plugin wp-upload-companion
+      ;;
+    mu-plugin)
+      wpcli eval-file /opt/wpu/setup/companion-uninstall.php
+      install_companion_build "$PLUGIN_DIST_DIR" mu-plugin
+      ;;
+    *)
+      die "Unknown plugin install '$install_name'."
+      ;;
+  esac
+}
+
+# One contract run. The tests get WPU_PLUGIN_INSTALL=plugin|oldest|mu-plugin, and their results
+# go to test-results/plugin-contract/<install>/. Records a failed run in CONTRACT_FAILED_RUNS.
+run_contract_tests_on() {
+  local install_name="$1"
+  local status
+  log_step "plugin-contract: the '$install_name' install"
+  set +e
+  (
+    set -e
+    install_companion_for_contract_run "$install_name"
+    RUNNER_EXTRA_ENV=(--env "WPU_PLUGIN_INSTALL=$install_name")
+    run_in_runner plugin-contract \
+      "cd plugin && npx vitest run --config vitest.config.ts $(quoted_extra_args)" \
+      "$install_name"
+  )
+  status=$?
+  set -e
+  if [ "$status" -ne 0 ]; then
+    CONTRACT_FAILED_RUNS="$CONTRACT_FAILED_RUNS $install_name"
+  fi
+}
+
+# plan §6 and contract §2.4: the contract tests (P1's plugin/vitest.config.ts, run from
+# plugin/) against the current build as a regular plugin, against the oldest supported build,
+# and once with the build in mu-plugins/. The plugin is built first, so the integration job
+# needs no plugin-static run. All three run even after a failure; the stack ends on the
+# regular install again.
 suite_plugin_contract() {
   if [ ! -f "$REPO_ROOT/plugin/vitest.config.ts" ]; then
     not_available "plugin-contract: plugin/vitest.config.ts and plugin/tests/contract/ don't exist yet (track P1)."
   fi
-  if [ ! -d "$PLUGIN_DIST_DIR" ]; then
-    not_available "plugin-contract: no built plugin at plugin/dist/wp-upload-companion/ (run 'dev/run test plugin-static' first)."
+  if [ ! -f "$PLUGIN_BUILD_SCRIPT" ]; then
+    not_available "plugin-contract: plugin/scripts/build.mjs doesn't exist yet (track P1)."
   fi
+  build_plugin plugin-contract build
   prepare_live_stack
-  run_in_runner plugin-contract 'npx vitest run --config plugin/vitest.config.ts'
+
+  local oldest_ref
+  oldest_ref="$(oldest_supported_plugin_ref)"
+  if [ -n "$oldest_ref" ]; then
+    build_plugin_at_ref "$oldest_ref"
+  else
+    log_info "No plugin-v* release tag yet: the oldest supported build is the current build."
+    OLDEST_PLUGIN_DIST_DIR="$PLUGIN_DIST_DIR"
+  fi
+
+  CONTRACT_FAILED_RUNS=""
+  local install_name
+  for install_name in plugin oldest mu-plugin; do
+    run_contract_tests_on "$install_name"
+  done
+
+  log_step "Back to the regular install"
+  restore_snapshot small
+  after_restore
   collect_stack_logs
+  if [ -n "$CONTRACT_FAILED_RUNS" ]; then
+    log_warn "plugin-contract failed on:$CONTRACT_FAILED_RUNS"
+    return 1
+  fi
 }
 
 suite_server_live() {
@@ -182,22 +390,87 @@ suite_server_live() {
   collect_stack_logs
 }
 
+require_e2e_workspace() {
+  local suite="$1"
+  if [ ! -f "$REPO_ROOT/e2e/package.json" ] || [ ! -f "$REPO_ROOT/e2e/playwright.config.ts" ]; then
+    not_available "$suite: the e2e/ workspace or e2e/playwright.config.ts doesn't exist yet."
+  fi
+}
+
+# Arguments after `--` on the dev/run command line, shell-quoted for a runner script.
+quoted_extra_args() {
+  local quoted=""
+  local argument
+  for argument in ${SUITE_EXTRA_ARGS[@]+"${SUITE_EXTRA_ARGS[@]}"}; do
+    quoted="$quoted $(printf '%q' "$argument")"
+  done
+  printf '%s' "$quoted"
+}
+
+# The VITE_MOCK build the proxy serves under /wp-upload-mock/ (CR-6 in the M0 handoff).
+# Track F2's client/vite.mock.config.ts makes it (MSW and its worker included) and writes it
+# to dev/.build/mock-dist/ (F2's CR-F2-6). Vite empties that directory but keeps it, so the
+# proxy's mount stays valid.
+mock_build_script() {
+  printf '%s\n' 'npm run build:mock -w client'
+}
+
+# The mock project needs only the proxy (which serves the mock build), but the proxy is part
+# of the test stack, so the stack must be up. No WordPress data is involved.
 suite_e2e_mock() {
-  if [ ! -f "$REPO_ROOT/e2e/package.json" ]; then
-    not_available "e2e-mock: the e2e/ workspace doesn't exist yet (orchestrator, M0)."
+  require_e2e_workspace e2e-mock
+  if ! stack_is_running; then
+    cmd_up test
+    prepare_stack test
   fi
-  not_available "e2e-mock: the VITE_MOCK build and its Playwright project aren't defined yet (tracks F2 and D)."
+  run_in_runner e2e-mock "
+    ( $(mock_build_script) )
+    npx playwright test --config e2e/playwright.config.ts --project=mock $(quoted_extra_args)
+  "
 }
 
+# The live project drives the production image under /wp-upload/ against the restored
+# `small` seed. The app is rebuilt first (cached layers), so it always runs this worktree's
+# code. Live specs share one WordPress, so they run one at a time.
 suite_e2e_live() {
-  if [ ! -f "$REPO_ROOT/e2e/package.json" ]; then
-    not_available "e2e-live: the e2e/ workspace doesn't exist yet (orchestrator, M0)."
-  fi
-  not_available "e2e-live: the live Playwright project isn't defined yet (track D, after the e2e workspace lands)."
+  require_e2e_workspace e2e-live
+  prepare_live_stack
+  start_test_app
+  run_in_runner e2e-live "
+    npx playwright test --config e2e/playwright.config.ts --project=live --workers=1 $(quoted_extra_args)
+  "
+  collect_stack_logs
 }
 
+# plan §9 and spike X4: times the plugin's /collection, /facets and Uncategorized query (p95
+# over 20 runs, budget 300 ms) on the `large` seed, plus core REST and FileBird's own queries
+# as a baseline (dev/perf/measure.mjs). Seeds `large` first when there is no snapshot. The
+# current plugin build is installed, so it measures this worktree's code.
 suite_perf() {
-  not_available "perf: needs the 'large' seed and the perf e2e suite (track D, M1, spike X4)."
+  if [ -f "$PLUGIN_BUILD_SCRIPT" ]; then
+    build_plugin perf build
+  fi
+  if ! stack_is_running; then
+    cmd_up test
+    prepare_stack test
+  fi
+  if ! snapshot_exists large; then
+    seed_large_profile
+  fi
+  log_step "Restoring the 'large' snapshot"
+  restore_snapshot large
+  after_restore
+
+  local results_dir
+  results_dir="$(suite_results_dir perf)"
+  mkdir -p "$results_dir"
+  log_step "perf: FileBird's own queries, in-process"
+  wpcli eval-file /opt/wpu/perf/filebird-queries.php "${WPU_PERF_RUNS:-20}" \
+    > "$results_dir/filebird-in-process.json"
+  RUNNER_EXTRA_ENV=(--env "WPU_PERF_RUNS=${WPU_PERF_RUNS:-20}")
+  run_in_runner perf "node dev/perf/measure.mjs $(quoted_extra_args)"
+  RUNNER_EXTRA_ENV=()
+  collect_stack_logs
 }
 
 # Compares shipped plugin source against a base commit (plan §2.6). The base comes from

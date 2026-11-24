@@ -1,0 +1,22 @@
+# PHPStan for the companion plugin's shipped source (plugin-static suite).
+# Run from plugin/: composer install && composer phpstan
+parameters:
+  level: 8
+  paths:
+    - wp-upload-companion
+  # The shipped file must still parse and load on older PHP in mu-plugins
+  # (plugin-api.md §2.1); 8.1 is the minimum it runs on.
+  phpVersion: 80100
+  bootstrapFiles:
+    - phpstan-bootstrap.php
+  treatPhpDocTypesAsCertain: false
+  dynamicConstantNames:
+    - MEDIA_TRASH
+    - EMPTY_TRASH_DAYS
+    - REST_REQUEST
+  ignoreErrors:
+    # FileBird isn't installed for analysis; the adapter feature-detects its
+    # classes and methods on purpose (plugin-api.md §10.3).
+    -
+      identifier: function.impossibleType
+      path: wp-upload-companion/src/FileBird/Adapter.php

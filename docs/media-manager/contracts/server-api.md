@@ -138,6 +138,11 @@ matching row wins**:
 | 11 | 5xx with a JSON body | 502 `wp_error` | `details.upstreamStatus`, `details.upstreamCode` |
 | 12 | Any non-JSON body | 502 `wp_unexpected_response` | As `normaliseWpError` does today |
 
+Rows 5–11 apply to WordPress **JSON** error bodies. A non-JSON body (a WAF page, a wrong `WP_URL` path)
+on any status except 401 is row 12, so a non-JSON 403 or 404 is 502 `wp_unexpected_response`, not
+`forbidden` or `not_found`; a 401 is row 4 with any body. A status no row names (405, 410, 429 with a
+JSON body) is 502 `wp_error` with `details.upstreamStatus`.
+
 The plugin never answers 401 itself (plugin-api.md §1.4); a 401 always comes from WordPress core's
 Application Password check.
 
@@ -153,6 +158,9 @@ with a newer rev than the data it holds, and a cache keyed by rev can't serve st
 - The server keeps **`currentRev`**: the newest `rev` it has seen from any plugin response. It refreshes
   it from the plugin's `GET /rev` at most every **2 s** (single-flight), and immediately from every
   mutation response.
+- A write through WordPress core REST (an upload) carries no rev, so after one the server's next read
+  polls `GET /rev` at once instead of waiting out the 2 s. A `/rev` answer may lower `currentRev` (a
+  restored database), except when a write was seen while that poll was in flight: then it only raises it.
 - Every `/api/library/*` response that knows a rev sends the header **`X-Library-Rev: <rev>`**, and most
   bodies carry `rev` too.
 
@@ -187,7 +195,8 @@ gets the same data from the server cache anyway.
   accepts `br`) by the `compression` middleware (change request in the contracts handoff).
 - **Not** compressed: `items/:id/download`, `plugin/download` (already-compressed files) and the upload
   routes.
-- Budget: `collection` at 50k items ≤ 250 kB gzip (implementation plan §9).
+- Budget: `collection` at 50k items ≤ 250 kB gzip for the default sort, ≤ 300 kB for any sort
+  (implementation plan §9, spike C5).
 
 ## 4. Limits and timeouts
 
@@ -944,7 +953,10 @@ type EditOp =
   (`wpu_mime_mismatch`, 415). `result.urlChanged` reports the rare case where the URL could not be kept
   (spike X3).
 - `regenerate` runs its ids one by one and reports per-item results; one item failing (e.g.
-  `wpu_unsupported_type` for an SVG) doesn't fail the job.
+  `wpu_unsupported_type` for an SVG) doesn't fail the job. Errors that mean WordPress or the plugin is
+  gone (`wp_unreachable`, `wp_auth_failed`, `wp_redirect`, `plugin_missing`) fail the whole job.
+- If the operation succeeded in WordPress but reading the item back failed, the job fails with that
+  error and `details: {applied: true, itemId}`; the client refetches the item rather than retrying.
 
 **Result** (in `job.result` once `succeeded`):
 
@@ -1058,7 +1070,7 @@ concurrency gate, background jobs). The client's transport is `core/uploads`.
 | Field | Required | Meaning |
 |---|---|---|
 | `file` | yes | The file. UTF-8 file names are kept (`defParamCharset: 'utf8'`) |
-| `folder` | no | Folder id to file it in. Absent, empty or `0` = Uncategorized. Ignored without active FileBird |
+| `folder` | no | Folder id to file it in. Absent, empty or `0` = Uncategorized. Without active FileBird the field is ignored and `result.folder` is null |
 
 **Response 202:** `{ "jobId": "6f1c2a4e-…" }`, as soon as the file is on the server's disk.
 
@@ -1066,6 +1078,9 @@ concurrency gate, background jobs). The client's transport is `core/uploads`.
   `POST /folders/assign` (or `?fbv=` on the upload, if spike X6 succeeds), then hydrates the new item.
 - A filing failure doesn't fail the upload: `result.folder = { id, assigned: false, message }`.
 - In per-user mode filing is skipped and reported the same way (`assigned: false`).
+- If the upload succeeded in WordPress but reading the new item back failed, the job fails with that
+  error and `details: {applied: true, itemId}`; the client refetches the item rather than retrying (a
+  retried upload would create a duplicate).
 
 **Errors:** 400 `upload_error` (no `file`); 413 `file_too_large`; 400 `invalid_request` (`folder` not a
 non-negative integer); 409 `plugin_incompatible`; 401 session.
@@ -1089,7 +1104,8 @@ A succeeded upload's `result` is `{ item: LibraryItemTile, folder: FolderAssignm
 #### DELETE `upload/jobs/:id`
 
 Cancels an upload: a queued job never starts; a running one is aborted (WordPress may already have
-created the item). **204**, or **404 `job_not_found`**.
+created the item). **204**, or **404 `job_not_found`**. A cancelled job is forgotten at once: later polls
+read it as `not_found`.
 
 #### GET `upload/check`
 
@@ -1125,11 +1141,13 @@ Cache-Control: private, no-store
 ```
 
 - The server looks the item up (as `items`), then streams the file URL WordPress reports. It follows at
-  most 3 redirects and only fetches `http(s)` URLs that came from WordPress's own response.
+  most 3 redirects and only fetches `http(s)` URLs that came from WordPress's own response. The file is
+  fetched without WordPress credentials (`source_url` is often on a CDN).
 - The download name is the original file name, or for `file` of a `-scaled` image, its actual basename.
 
 **Errors:** 404 `not_found` (unknown or not visible); 502 `wp_unreachable` / 504 `wp_timeout` when the
-file can't be fetched; §2.3.
+file can't be fetched; 502 `wp_unexpected_response` when the file server sends a header the server can't
+pass on; §2.3.
 
 ### 7.17 GET `plugin/download`
 
@@ -1169,11 +1187,11 @@ fields:
 | `alt` | string | `alt_text`; `''` when none |
 | `uploadedAt` | string | `date_gmt` + `Z` |
 | `modifiedAt` | string | `modified_gmt` + `Z`. Used as `expectedModified` |
-| `authorId` | number | `author` |
+| `authorId` | number | `author` (0 when the item has no author) |
 | `folder` | number \| null | `wpu.folder`: 0 = Uncategorized, null without active FileBird |
 | `url` | string | `source_url` |
 | `thumb` | `ImageSource` \| null | `media_details.sizes.thumbnail` (usually a 150 px square crop) |
-| `srcset` | `ImageSource[]` | every **uncropped** size in `media_details.sizes` plus the full file, ascending by width. Empty for items without image renditions. PDFs: the preview sizes |
+| `srcset` | `ImageSource[]` | every **uncropped** size in `media_details.sizes` plus the full file, ascending by width, each file once. Empty for items without image renditions. PDFs: the preview sizes |
 | `poster` | `ImageSource` \| null | `wpu.poster`: a video's or audio's cover image (`featured_media`), medium-large size |
 | `duration` | number \| null | `wpu.duration` (seconds), video and audio |
 | `pages` | number \| null | `wpu.pages`: PDF page count when known |
@@ -1189,13 +1207,13 @@ fields:
 | `author` | `{id, name}` | `wpu.author` |
 | `attachedTo` | `PostRef` \| null | `post` + `_embedded["wp:attached-to"]` (or one `GET /wp/v2/posts/{id}`); null when 0 |
 | `original` | `{url, width, height, filename}` \| null | `wpu.original`: the untouched upload when WordPress scaled (`-scaled`) or rotated it |
-| `sizes` | `NamedSize[]` | every entry of `media_details.sizes` (`name`, `url`, `width`, `height`, `mime`, `filesize`), smallest first, ending with `full`. SVG: just `full`. Video, audio, archives: `[]` |
+| `sizes` | `NamedSize[]` | every entry of `media_details.sizes` (`name`, `url`, `width`, `height`, `mime`, `filesize`), in the order of `bootstrap.site.imageSizes` (the registered sizes), then other sizes by pixel count, ending with `full`. A PDF's `full.filesize` is null (REST replaces that entry with the PDF's MIME type and no size). SVG: just `full`. Video, audio, archives: `[]` |
 | `exif` | `ExifInfo` \| null | `media_details.image_meta` (images only; null when it has no useful value). `shutter` is formatted from `shutter_speed` ("1/60", "2s"); `takenAt` from `created_timestamp`; `lens` from the plugin's `lens` key when present |
 | `media` | `MediaFileInfo` \| null | video/audio `media_details`: `fileformat`, `codec`/`dataformat`, `bitrate`, `sample_rate`, `channels` |
 | `edited`, `undoable`, `restorable` | boolean | `wpu.edited` (edited in place), `wpu.undoable` (the last plugin edit can be undone), `wpu.restorable` (an original backup exists) |
 | `editedAt` | string \| null | `wpu.editedAt`: when it was last edited in place (the inspector's "edited on"); null if never |
 | `usageCount` | number \| null | `wpu.usageCount`; null while the usage index doesn't cover the item |
-| `links` | `{edit, view}` | `edit`: `<WP_URL>/wp-admin/post.php?post=<id>&action=edit`; `view`: `link` when attachment pages are enabled, else null |
+| `links` | `{edit, view}` | `edit`: `<WP_URL>/wp-admin/post.php?post=<id>&action=edit`; `view`: null for now. REST's `link` is `?attachment_id=N` whether or not the site has attachment pages, so the server can't tell; a plugin signal (`/info.attachmentPages`) is an open owner decision |
 
 Examples: `shared/fixtures/items.ts`. Tile of a big image (item 1000):
 
@@ -1301,6 +1319,9 @@ WP-Cron:
   true. It updates `currentRev` from each answer.
 - It stops when `more` is false, after 3 consecutive errors (it restarts on the next trigger), or when the
   plugin answers `locked: true` five times in a row (another server is running it).
+- It also stops after 5 steps in a row that did nothing (`did` all zero, not locked) although `more` was
+  true. After that, neither `bootstrap` nor `rev` restarts it for 10 minutes, so a plugin that keeps
+  saying `more` isn't stepped forever.
 
 ### 9.3 Plugin version check
 

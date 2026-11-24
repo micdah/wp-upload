@@ -69,6 +69,7 @@ load_mode_state() {
 
   STATE_PORT_BLOCK=""
   STATE_APP_PASSWORD=""
+  STATE_AUTHOR_APP_PASSWORD=""
   if [ ! -f "$state_file" ]; then
     return 0
   fi
@@ -81,6 +82,7 @@ load_mode_state() {
   fi
   STATE_PORT_BLOCK="${WPU_PORT_BLOCK:-}"
   STATE_APP_PASSWORD="${WPU_APP_PASSWORD:-}"
+  STATE_AUTHOR_APP_PASSWORD="${WPU_AUTHOR_APP_PASSWORD:-}"
 }
 
 # Writes the state file. Values never contain single quotes, so plain single quoting keeps the
@@ -98,6 +100,8 @@ save_mode_state() {
     echo "WPU_SITE_URL='$WPU_SITE_URL'"
     echo "WPU_APP_USER='$WPU_APP_USER'"
     echo "WPU_APP_PASSWORD='$WPU_APP_PASSWORD'"
+    echo "WPU_AUTHOR_USER='$WPU_AUTHOR_USER'"
+    echo "WPU_AUTHOR_APP_PASSWORD='$WPU_AUTHOR_APP_PASSWORD'"
   } > "$(mode_state_file "$mode")"
   chmod 600 "$(mode_state_file "$mode")"
 }
@@ -116,6 +120,9 @@ write_env_wp_file() {
     echo "PORT='$WPU_PORT_SERVER'"
     echo "WPU_VITE_PORT='$WPU_PORT_VITE'"
     echo "WPU_API_TARGET='http://localhost:$WPU_PORT_SERVER'"
+    echo "# The Author user (D26), for tests and manual checks of per-item permissions."
+    echo "WPU_AUTHOR_USER='$WPU_AUTHOR_USER'"
+    echo "WPU_AUTHOR_APP_PASSWORD='$WPU_AUTHOR_APP_PASSWORD'"
     echo "WPU_WP_ADMIN_URL='$wordpress_url/wp-admin/'"
     echo "WPU_ADMIN_USER='$ADMIN_USER'"
     echo "WPU_ADMIN_PASSWORD='$ADMIN_PASSWORD'"
@@ -132,10 +139,8 @@ build_compose_file_args() {
       COMPOSE_FILE_ARGS+=(--file "$DEV_DIR/compose.plugin-source.yml")
     fi
   else
+    # The built plugin isn't mounted in test mode: dev/run copies it in (install_companion_build).
     COMPOSE_FILE_ARGS+=(--file "$DEV_DIR/compose.test.yml")
-    if [ -d "$PLUGIN_DIST_DIR" ]; then
-      COMPOSE_FILE_ARGS+=(--file "$DEV_DIR/compose.plugin-dist.yml")
-    fi
     if is_ci; then
       COMPOSE_FILE_ARGS+=(--file "$DEV_DIR/compose.ci.yml")
     fi
@@ -143,14 +148,20 @@ build_compose_file_args() {
 }
 
 # Bind-mount sources must exist before compose runs, or Docker creates them as root.
+# plugin/vendor is the mount point of the composer volume inside the read-only repo mount; on
+# the host it stays an empty directory, which git doesn't list.
 ensure_host_directories() {
   local mode="$1"
   mkdir -p \
     "$(mode_state_dir "$mode")/ca" \
     "$CACHE_DIR/downloads" \
     "$CACHE_DIR/npm" \
+    "$CACHE_DIR/composer" \
     "$MOCK_BUILD_DIR" \
     "$RESULTS_DIR"
+  if [ -d "$REPO_ROOT/plugin" ]; then
+    mkdir -p "$REPO_ROOT/plugin/vendor"
+  fi
 }
 
 # Sets and exports everything compose needs for one mode.
@@ -201,6 +212,8 @@ prepare_stack() {
 
   export WPU_APP_USER="$APP_USER_LOGIN"
   export WPU_APP_PASSWORD="$STATE_APP_PASSWORD"
+  export WPU_AUTHOR_USER="$AUTHOR_USER_LOGIN"
+  export WPU_AUTHOR_APP_PASSWORD="$STATE_AUTHOR_APP_PASSWORD"
   export WPU_ADMIN_USER="$ADMIN_USER"
   export WPU_ADMIN_PASSWORD="$ADMIN_PASSWORD"
   export WPU_LOGIN_USER="$LOGIN_USER"

@@ -8,7 +8,12 @@
     "build": "tsc -b --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --project unit",
+    "test:browser": "vitest run --project browser",
+    "budget": "node scripts/bundle-budget.mjs",
+    "dev:mock": "vite --config vite.mock.config.ts",
+    "build:mock": "vite build --config vite.mock.config.ts"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^4.0.0",
@@ -16,6 +21,7 @@
     "@atlaskit/pragmatic-drag-and-drop-hitbox": "^3.0.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
+    "@fontsource/orbitron": "^5.3.0",
     "@mantine/core": "^9.8.2",
     "@mantine/dropzone": "^9.8.2",
     "@mantine/hooks": "^9.8.2",

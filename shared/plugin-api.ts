@@ -149,6 +149,7 @@ export interface WpuField {
   poster: { url: string; width: number; height: number } | null
   original: OriginalFile | null
   raw: { title: string; caption: string; description: string }
+  /** `post_author` and its display name; `{id: 0, name: ''}` when there is none */
   author: { id: number; name: string }
   edited: boolean
   editedAt: string | null

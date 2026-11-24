@@ -58,6 +58,13 @@ if ( ! defined( 'MEDIA_TRASH' ) ) {
 	define( 'MEDIA_TRASH', wpu_dev_media_trash_enabled() );
 }
 
+// No WP-Cron spawned by requests: jobs running in the background (pings and enclosure checks
+// on published posts, plugin checks, Visual Portfolio's backfills) would change rows at random
+// moments, so seeds and snapshots wouldn't be repeatable and tests would race them. The
+// companion plugin doesn't use WP-Cron (its maintenance is server-driven, contract §5.21). A
+// test that needs cron runs it explicitly (`dev/run wp cron event run --due-now`).
+define( 'DISABLE_WP_CRON', true );
+
 // The stack is pinned: nothing may update itself behind our back.
 define( 'AUTOMATIC_UPDATER_DISABLED', true );
 define( 'WP_AUTO_UPDATE_CORE', false );

@@ -4,6 +4,25 @@ import { Readable } from 'node:stream'
 import axios from 'axios'
 import { invalidateConnection, wpAxios } from '../config/wpClient.ts'
 
+// Listeners told after every successful write through WordPress core REST.
+// The library cache registers one (lib/library/cache.ts) to expire its rev
+// poll. A registry rather than an import: cache.ts already depends on this
+// module (through pluginClient.ts and errors.ts), and importing it here made
+// a cycle whose evaluation order depended on the entry module.
+const coreWriteListeners = new Set<() => void>()
+
+/** Calls `listener` after every successful core-REST write; returns an unsubscribe. */
+export function onCoreWrite(listener: () => void): () => void {
+  coreWriteListeners.add(listener)
+  return () => {
+    coreWriteListeners.delete(listener)
+  }
+}
+
+function notifyCoreWrite(): void {
+  for (const listener of coreWriteListeners) listener()
+}
+
 export interface WpError {
   status: number
   code: string
@@ -188,6 +207,9 @@ export async function uploadToWordPress(
       maxRedirects: 0,
       signal: options.signal,
     })
+    // The library changed, but core's answer carries no library rev: make
+    // the media manager's next read ask the plugin for it.
+    notifyCoreWrite()
 
     return {
       id: data.id,

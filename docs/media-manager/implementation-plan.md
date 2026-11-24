@@ -30,6 +30,8 @@ D19–D30 were recorded at Checkpoint 4 (M0). These add to D1–D11 in the [synt
 | D28 | **Biome excludes `docs/media-manager/design/**`**: the prototype is reference material, not shipped code |
 | D29 | **The contracts agent's 45 detailed decisions** (`tracks/contracts-handoff.md`, "Decisions taken") **are accepted as written.** Changes later go through the normal contract change-request process |
 | D30 | **Dev stack defaults accepted:** bind to 127.0.0.1 with `admin`/`admin` (`WPU_BIND_ADDRESS` can open it up), WordPress pinned to the exact 7.1.5 image, ports from 20000–27999 in 20-port blocks per worktree, PHPStan's composer from a digest-pinned `composer:2` image, and the built plugin at `plugin/dist/wp-upload-companion/wp-upload-companion.php` plus its zip |
+| D31 | **Bundle budget stays at 150 kB gzip** for the initial media-manager chunk (§9). M2 switches from Mantine's global stylesheet to per-component Mantine CSS (measured −25 kB), which makes room for the data layer, theme and fonts (M1 review) |
+| D32 | **No "view attachment page" link in v1:** `links.view` stays null, because core reports an attachment-page link even when the site has attachment pages off. An `attachmentPages` flag in `/info` can come later as an optional plugin feature (M1 review) |
 
 The plan ends with a `final-reviewer` step that addresses the findings worth acting on (M5).
 
@@ -63,7 +65,7 @@ documents:
 - the prototype as the behavioural reference. It is **not** code to port, except a few pure algorithms
   listed below.
 
-The binding decisions are D1–D11 plus D1c and D12–D30 (§0). The app becomes **one UI**: the
+The binding decisions are D1–D11 plus D1c and D12–D32 (§0). The app becomes **one UI**: the
 media manager. It needs the companion plugin, and without it the user sees the onboarding screen.
 
 **Architecture in one paragraph:**
@@ -685,7 +687,7 @@ mode only (D15).
 | Measure | Budget |
 |---|---|
 | Plugin `/collection`, `/facets` and Uncategorized | p95 ≤ 300 ms at 50k |
-| Collection payload | ≤ 250 kB gzip at 50k |
+| Collection payload | ≤ 250 kB gzip at 50k for the default sort; ≤ 300 kB for any sort (spike C5) |
 | Justified layout of 50k items | ≤ 50 ms |
 | Long tasks while scrolling | none over 50 ms |
 | Initial media-manager chunk | ≤ 150 kB gzip; editor, palette, sheet, trash and onboarding are nested lazy chunks |

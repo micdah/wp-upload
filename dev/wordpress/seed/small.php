@@ -12,9 +12,15 @@
  *   (D17), with about 80 % of the files assigned;
  * - 30 posts and pages that use media in every usage context: featured image, image block,
  *   gallery block (nested and legacy), file block, cover, media-text, classic `wp-image-N`,
- *   the `[gallery]` shortcode, plus the site logo and site icon.
+ *   the `[gallery]` shortcode, plus the site logo and site icon;
+ * - media and two posts owned by the Author user (D26), for per-item permission checks;
+ * - Visual Portfolio galleries and saved layouts in every form the usage index reads (D22,
+ *   spike X10; seed/visual-portfolio.php).
  *
- * Arguments: <app user login>
+ * The last two are added after everything that draws from the random generator and draw
+ * nothing themselves, so every earlier row is the same as before they existed.
+ *
+ * Arguments: <app user login> <author user login>
  */
 
 if ( ! class_exists( '\FileBird\Model\Folder' ) ) {
@@ -37,7 +43,14 @@ $wpu_seed_app_user  = get_user_by( 'login', $wpu_seed_app_login );
 if ( ! $wpu_seed_app_user ) {
 	WP_CLI::error( "Unknown app user '$wpu_seed_app_login'." );
 }
+$wpu_seed_author_login = $args[1] ?? '';
+$wpu_seed_author_user  = get_user_by( 'login', $wpu_seed_author_login );
+if ( ! $wpu_seed_author_user ) {
+	WP_CLI::error( "Unknown Author user '$wpu_seed_author_login'." );
+}
 $wpu_seed_admin_id = 1;
+
+require '/opt/wpu/seed/visual-portfolio.php';
 
 /**
  * A generator of our own, so nothing else in WordPress that calls mt_rand() can shift the
@@ -658,6 +671,59 @@ function wpu_seed_fix_modified_dates( array $ids ) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// The Author user's content (D26).
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Gives the Author user every 25th media item (from the 13th) that the admin owns, plus a
+ * published post and a draft that use the first two of them. Picked by position, without the
+ * random generator, so nothing else in the seed moves. The ownership is set with SQL, so no
+ * modified date is stamped.
+ *
+ * @return array{media: int[], posts: int[]}
+ */
+function wpu_seed_author_content( array $media, $author_id, $admin_id ) {
+	global $wpdb;
+	$author_media = array();
+	foreach ( $media as $position => $item ) {
+		if ( 12 === $position % 25 && $admin_id === $item['spec']['author'] ) {
+			$author_media[] = $item['id'];
+		}
+	}
+	foreach ( $author_media as $media_id ) {
+		$wpdb->update( $wpdb->posts, array( 'post_author' => $author_id ), array( 'ID' => $media_id ) );
+		clean_post_cache( $media_id );
+	}
+
+	$posts = array();
+	foreach ( array( 'publish', 'draft' ) as $index => $status ) {
+		$date    = gmdate( 'Y-m-d H:i:s', strtotime( '2026-02-02 10:00:00 UTC' ) + $index * DAY_IN_SECONDS );
+		$post_id = wp_insert_post(
+			array(
+				'post_type'     => 'post',
+				'post_status'   => $status,
+				'post_title'    => 'publish' === $status ? 'Author post' : 'Author draft',
+				'post_content'  => wpu_seed_paragraph( 'Written by the Author user.' ) . "\n\n" . wpu_seed_block_image( array( $author_media[ $index ] ) ),
+				'post_author'   => $author_id,
+				'post_date'     => $date,
+				'post_date_gmt' => $date,
+			),
+			true
+		);
+		if ( is_wp_error( $post_id ) ) {
+			WP_CLI::error( $post_id );
+		}
+		set_post_thumbnail( $post_id, $author_media[ $index ] );
+		$posts[] = $post_id;
+	}
+
+	return array(
+		'media' => $author_media,
+		'posts' => $posts,
+	);
+}
+
+// ---------------------------------------------------------------------------------------------
 // Main.
 // ---------------------------------------------------------------------------------------------
 
@@ -714,16 +780,29 @@ set_theme_mod( 'custom_logo', $wpu_seed_image_ids[1] );
 update_option( 'site_logo', $wpu_seed_image_ids[1] );
 update_option( 'site_icon', $wpu_seed_image_ids[0] );
 
+WP_CLI::log( 'Giving media and posts to the Author user...' );
+$wpu_seed_author_content = wpu_seed_author_content( $wpu_seed_media, $wpu_seed_author_user->ID, $wpu_seed_admin_id );
+
+WP_CLI::log( 'Creating Visual Portfolio galleries and saved layouts...' );
+$wpu_seed_vp = wpu_seed_visual_portfolio( $wpu_seed_image_ids );
+
+// Visual Portfolio's lazy first run, now, at a fixed point (see mu-plugins/wpu-dev.php).
+wpu_dev_finish_visual_portfolio_setup();
 wpu_seed_fix_modified_dates(
 	array_merge(
 		array_column( $wpu_seed_media, 'id' ),
-		array_column( $wpu_seed_posts, 'id' )
+		array_column( $wpu_seed_posts, 'id' ),
+		$wpu_seed_author_content['posts'],
+		array_column( $wpu_seed_vp['posts'], 'id' ),
+		array_column( $wpu_seed_vp['layouts'], 'id' )
 	)
 );
 
+WP_CLI::log( 'Author media: ' . implode( ',', $wpu_seed_author_content['media'] ) . '; Author posts: ' . implode( ',', $wpu_seed_author_content['posts'] ) );
+WP_CLI::log( 'Visual Portfolio: ' . wp_json_encode( $wpu_seed_vp ) );
 WP_CLI::success(
 	sprintf(
-		'Seeded %d media items, 15 folders and %d posts.',
+		'Seeded %d media items, 15 folders, %d posts, 2 Author posts, 4 Visual Portfolio posts and 2 saved layouts.',
 		count( $wpu_seed_media ),
 		count( $wpu_seed_posts )
 	)

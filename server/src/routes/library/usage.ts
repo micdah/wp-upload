@@ -1,10 +1,52 @@
-import { Router } from 'express'
-import { notImplemented } from './notImplemented.ts'
+import { type Request, type Response, Router } from 'express'
+import { LIMITS, type UsageResponse } from '../../../../shared/library-api.ts'
+import { serveCachedRead } from '../../lib/library/cache.ts'
+import {
+  asyncRoute,
+  objectBody,
+  parseIdArray,
+  parseIdList,
+  queryParams,
+  rejectUnknownFields,
+} from '../../lib/library/errors.ts'
+import { pluginClient } from '../../lib/library/pluginClient.ts'
+import { requireFeature } from './bootstrap.ts'
 
-// Stub from the M0 scaffold, owned by track S2
-// (docs/media-manager/implementation-plan.md §7). Implement these routes
-// as specified in docs/media-manager/contracts/server-api.md.
+// GET usage (server-api.md §7.9): where items are used. `POST usage` with
+// `{ids}` is the same read for proxies that limit URL length, as the
+// plugin's own `POST /usage` (plugin-api.md §5.10). Both are cached per rev
+// and id list (§3.2).
+
 export const usageRouter = Router()
 
-usageRouter.get('/usage', notImplemented)
-usageRouter.post('/usage', notImplemented)
+usageRouter.use('/usage', requireFeature('usage'))
+
+function serveUsage(req: Request, res: Response, ids: number[]) {
+  return serveCachedRead<UsageResponse>(
+    req,
+    res,
+    'usage',
+    `ids=${ids.join(',')}`,
+    () => pluginClient.usage(ids),
+  )
+}
+
+usageRouter.get(
+  '/usage',
+  asyncRoute(async (req, res) => {
+    const raw = queryParams(req, ['ids'])
+    const ids = parseIdList(raw.ids, 'ids', LIMITS.usageIds)
+    await serveUsage(req, res, ids)
+  }),
+)
+
+usageRouter.post(
+  '/usage',
+  asyncRoute(async (req, res) => {
+    queryParams(req, [])
+    const body = objectBody(req)
+    rejectUnknownFields(body, ['ids'])
+    const ids = parseIdArray(body.ids, 'ids', LIMITS.usageIds)
+    await serveUsage(req, res, ids)
+  }),
+)

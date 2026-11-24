@@ -1,5 +1,9 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import { loadEnv, MIN_SESSION_SECRET_LENGTH } from './env.ts'
+
+const here = path.dirname(fileURLToPath(import.meta.url))
 
 const REQUIRED_ENV = {
   WP_URL: 'https://wp.example.invalid',
@@ -87,6 +91,7 @@ describe.concurrent('loadEnv', () => {
         FILEBIRD_API_KEY: undefined,
         SESSION_SECRET: undefined,
         SESSION_MAX_AGE_DAYS: undefined,
+        WPU_PLUGIN_BUNDLE_DIR: undefined,
       },
       () => {
         expect(loadEnv()).toEqual({
@@ -104,7 +109,17 @@ describe.concurrent('loadEnv', () => {
           filebirdApiKey: null,
           sessionSecret: expect.any(Buffer),
           sessionMaxAgeDays: 30,
+          pluginBundleDir: path.resolve(here, '../../../plugin/dist'),
         })
+      },
+    )
+  })
+
+  it('reads the bundled plugin directory from WPU_PLUGIN_BUNDLE_DIR', () => {
+    withEnv(
+      { ...REQUIRED_ENV, WPU_PLUGIN_BUNDLE_DIR: ' /app/plugin/dist ' },
+      () => {
+        expect(loadEnv().pluginBundleDir).toBe('/app/plugin/dist')
       },
     )
   })

@@ -127,10 +127,14 @@ block_is_free_for_mode() {
   return 0
 }
 
+# Only service containers count: a one-off (`compose run`, e.g. the runner building the
+# plugin) that is still exiting must not make a stopped stack look like it runs.
 project_has_running_containers() {
   local project_name="$1"
   local container_ids
-  container_ids="$(docker ps --quiet --filter "label=com.docker.compose.project=$project_name")"
+  container_ids="$(docker ps --quiet \
+    --filter "label=com.docker.compose.project=$project_name" \
+    --filter "label=com.docker.compose.oneoff=False")"
   [ -n "$container_ids" ]
 }
 

@@ -1,0 +1,92 @@
+/*
+ * Global styles of the media manager that a Mantine theme object can't
+ * express: reduced motion, the focus ring colour, base type, and the few
+ * Mantine surfaces that don't read a colour variable we can redirect.
+ * Loaded only inside the media-manager chunk (MediaManagerThemeProvider).
+ *
+ * `:root:root` and `:root` raise specificity over Mantine's own rules,
+ * whatever order the stylesheets end up in.
+ */
+
+/* Reduced motion: no slides, scales or morphs; short fades stay. */
+@media (prefers-reduced-motion: reduce) {
+  :root:root {
+    --dur-2: 1ms;
+    --dur-morph: 1ms;
+  }
+}
+
+:root[data-mantine-color-scheme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-mantine-color-scheme="light"] {
+  color-scheme: light;
+}
+
+/* Machine values (counts, sizes, indexes, kbd) use tabular figures. */
+:root code,
+:root kbd,
+:root .mantine-Kbd-root,
+:root .mantine-Code-root {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keyboard focus is a 2 px ring in --focus-ring (cyan-700 in light, 3:1). */
+:root .mantine-focus-auto:focus-visible,
+:root .mantine-focus-always:focus {
+  outline-color: var(--focus-ring);
+}
+
+/* Inputs: --line-input edges (≥ 3:1), the focus ring on focus. */
+:root:root .mantine-Input-wrapper[data-variant="default"] {
+  --input-bd: var(--line-input);
+  --input-bg: var(--surface-input);
+  --input-bd-focus: var(--focus-ring);
+}
+
+:root:root .mantine-Input-wrapper[data-variant="filled"] {
+  --input-bg: var(--surface-input);
+  --input-bd-focus: var(--focus-ring);
+}
+
+/* Menus, popovers, comboboxes and dialogs sit on the overlay surface. */
+:root .mantine-Popover-dropdown,
+:root .mantine-Menu-dropdown,
+:root .mantine-Combobox-dropdown {
+  --popover-border-color: var(--line-2);
+  background-color: var(--surface-overlay);
+  color: var(--text-1);
+}
+
+:root .mantine-Menu-item {
+  --menu-item-hover: var(--surface-hover);
+}
+
+:root .mantine-Modal-content,
+:root .mantine-Drawer-content {
+  background-color: var(--surface-overlay);
+}
+
+:root .mantine-Modal-header,
+:root .mantine-Drawer-header {
+  background-color: var(--surface-overlay);
+}
+
+:root .mantine-Modal-overlay,
+:root .mantine-Drawer-overlay {
+  --overlay-bg: var(--scrim);
+}
+
+/* Tooltips are inverted: text-1 background, panel-coloured text. */
+:root .mantine-Tooltip-tooltip {
+  --tooltip-bg: var(--text-1);
+  --tooltip-color: var(--surface-panel);
+  font-size: var(--fs-12);
+}
+
+/* Toasts sit on the overlay surface too. */
+:root .mantine-Notification-root {
+  background-color: var(--surface-overlay);
+}

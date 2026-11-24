@@ -52,6 +52,11 @@ complete contract between the two.
   columns.
 - Ids are integers. Folder `0` means Uncategorized; there is no folder `-1` in this API (All files is
   `folder=all`).
+- Every number in a body (ids, `budgetMs`, `folder`, scale sizes) must be a JSON integer: `1.5`, `1.0`
+  and `"1"` are rejected with 400 `wpu_invalid_param`. Every id list (`ids` in bodies, `ids=` in query
+  strings) is read the same way: positive integers, at most the route's maximum entries (counted
+  before duplicates are removed), duplicates dropped with the first one kept, so a batch answers once
+  per distinct id.
 - Text is plain text: titles and folder names are HTML-entity **decoded** before they are returned
   (WordPress's kses stores `Tom &amp; Jerry`; the API returns `Tom & Jerry`). Caption and description are
   the raw stored values.
@@ -153,7 +158,8 @@ server reports `plugin.state: "missing"` and onboarding names the minimums.
 | `maintenance` | `POST /maintenance/step` |
 | `usage-visual-portfolio` | The `visual-portfolio` usage context (D22); scanned only while the Visual Portfolio plugin is active |
 
-API 1.0 builds list all twelve. `/info` and `/rev` are not features: every build has them. A feature
+A build lists the features it implements; a complete API 1.0 build lists all twelve. `/info` and
+`/rev` are not features: every build has them. A feature
 name is never removed or renamed within a major.
 
 ### 2.3 Additive-only policy
@@ -250,7 +256,9 @@ interface PluginInfo {
 
 (Fixture `pluginInfo` in `shared/fixtures/plugin.ts`.)
 
-- `mimes` keys come from `get_allowed_mime_types()`'s `jpg|jpeg|jpe` patterns, split and lowercased.
+- `mimes` keys come from `get_allowed_mime_types()`'s `jpg|jpeg|jpe` patterns, split and lowercased;
+  tokens that aren't `[a-z0-9]+` (core's `x-wav`) are dropped, and so are entries left with no
+  extensions.
 - `index.media.total` is the number of attachments (any status but `auto-draft`); `index.usage.total` is
   the number of indexable posts (§8.2).
 
@@ -562,7 +570,9 @@ The Trash summary. **Owner:** P2. **Feature:** `trash`. **Bumps rev:** no.
 { "rev": "1795867200000", "enabled": true, "days": 30, "count": 2, "bytes": 2241760 }
 ```
 
-`count` and `bytes` cover every trashed attachment. The Trash's items and their order come from
+`count` and `bytes` cover the trashed attachments the user may see in the Trash, the same set as
+`/collection?folder=trash` (§5.2's visibility rule: every trashed attachment for Editors and
+Administrators, only their own for Authors). The Trash's items and their order come from
 `/collection?folder=trash`; their `trashedAt` from the `wpu` field.
 
 ### 5.8 `POST /trash/restore`
@@ -688,7 +698,10 @@ proportional within 1 px or is larger than the cropped size).
   stack; at least the last edit is undoable).
 - Regenerates the affected sizes, updates `_wp_attachment_metadata`, the media index row, and
   `post_modified` (so `expectedModified` detects concurrent edits).
-- Holds a per-item lock (a transient, 10 minutes) for the whole operation.
+- Holds a per-item lock for the whole operation: one options row taken with `INSERT IGNORE` (atomic),
+  holding `<expiry>:<token>`, 10 minutes. An expired lock is taken over by one conditional `UPDATE`, and
+  a holder deletes the row only while it still holds its own token. Not a transient (not atomic, and it
+  lives in the object cache when one is configured).
 
 **Response 200:** `PluginImageOpResponse`:
 
@@ -717,6 +730,7 @@ Reverts the most recent plugin edit that hasn't been undone. **Owner:** P2. **Fe
 e.g. after `restore` or a `replace`).
 
 **Response 200:** `PluginImageOpResponse` (`undoable` tells whether another undo is possible).
+`sizesRegenerated` counts the sizes in the restored metadata (files are moved back, not regenerated).
 
 ### 5.13 `POST /media/{id}/restore`
 
@@ -726,6 +740,10 @@ wp-admin). Clears the undo stack. **Owner:** P2. **Feature:** `image-edit`. **Bu
 **Body:** `{ expectedModified: string }`.
 
 **Checks:** 404, 403, 409 `wpu_stale`, 409 `wpu_locked`, 409 `wpu_not_edited` (no original backup).
+
+`sizesRegenerated` counts the sizes in the restored metadata (files are moved back, not regenerated).
+An image edited in wp-admin is restored with core's `wp_restore_image()`, which switches the attached
+file back to wp-admin's original: `urlChanged: true`.
 
 **Response 200:** `PluginImageOpResponse` (fixture `pluginRestoreImage`):
 
@@ -742,8 +760,9 @@ files that are no longer referenced. **Owner:** P2. **Feature:** `image-regenera
 
 **Body:** none or `{}`.
 
-**Checks:** 404, 403, 415 `wpu_unsupported_type` (not a raster image in `imageEditor.mimes` and not a
-PDF), 409 `wpu_locked`.
+**Checks:** 404, 403, 415 `wpu_unsupported_type` (not a raster image in `imageEditor.mimes`, or a PDF
+on a site that can't render PDFs), 409 `wpu_locked`. New sizes are made under temporary names and
+swapped in only when every one was made; otherwise 500 `wpu_image_error` and nothing changes.
 
 **Response 200:** `PluginImageOpResponse`. Also updates `post_modified`.
 
@@ -767,10 +786,9 @@ Replaces the item's file, keeping its id, file name and URL. **Owner:** P2 (spik
   deletes sub-size files that are no longer produced, clears the undo stack, updates the index row and
   `post_modified`.
 - Works for every kind (images, SVG, video, audio, documents), as long as the MIME type matches.
-- **`-scaled` images (spike X3):** the goal is that the attached file's URL stays the same. If X3 shows
-  it can't for some inputs (e.g. the new image is under the big-image threshold, so WordPress wouldn't
-  make a `-scaled` file), the plugin keeps the URL working where it can and reports
-  `urlChanged: true`; the UI warns.
+- **`-scaled` images (spike X3):** the attached file always keeps its name: an oversized or rotated
+  upload becomes the original and the attached file gets the processed copy; otherwise the upload is the
+  attached file and an old original is deleted. `urlChanged` is false; wp-admin's backups are kept.
 
 **Response 200:** `PluginImageOpResponse`.
 
@@ -915,12 +933,16 @@ when it changed anything visible (index rows, usage rows, folder column).
 
 **What a step does, in order, until the budget is spent:**
 
-1. Takes the lock (`add_option('wpu_maintenance_lock', …)`, which is atomic; a lock older than 2 minutes
-   is stale and is taken over). If it can't, it answers at once with `locked: true`.
+1. Takes the lock with `INSERT IGNORE` into `wp_options` (`wpu_maintenance_lock`; atomic, which
+   `add_option()` isn't: it checks, then upserts). A lock older than 2 minutes is stale and is taken
+   over. If it can't, it answers at once with `locked: true`.
 2. Ensures the schemas are current (§9.2).
-3. **Media index:** indexes attachments without a row, or whose row is older than their
-   `post_modified_gmt` or the current row format, in batches of 200 by ascending id. After a stale mark
-   (§9.3) it reconciles every row once (new, changed and deleted attachments).
+3. **Media index:** indexes attachments without a row, or whose row was computed from a different
+   `post_modified_gmt` (its `modified_gmt`, §8.1) or has an older row format, in batches of 200 by
+   ascending id. After a stale mark (§9.3) it reconciles every row once (new, changed and deleted
+   attachments). Within a batch it works in small sub-batches, checking the budget and saving its
+   cursor after each, so a step stops close to its budget and a request killed by the host keeps the
+   work it finished. The first sub-batch of a step always runs, so every step makes progress.
 4. **Folder column:** in shared mode, compares `folder_id` with FileBird's relation table (read-only)
    for a batch of rows and fixes differences (FileBird changes made while the plugin was off, or through
    code paths without hooks).
@@ -949,9 +971,10 @@ when it changed anything visible (index rows, usage rows, folder column).
   serve stale data.
 - **Atomic:** the bump is **one SQL statement**, never a read-modify-write through `get_option()` (which
   may read a stale cached `alloptions` and lose or repeat a value under concurrency):
-  `UPDATE {prefix}options SET option_value = GREATEST(CAST(option_value AS UNSIGNED) + 1, %d) WHERE
-  option_name = 'wpu_rev'` (the option is created on install, §9.2). Afterwards the plugin reads the
-  new value with a direct `SELECT` and drops the cached copies (`wp_cache_delete('wpu_rev', 'options')`,
+  `UPDATE {prefix}options SET option_value = LAST_INSERT_ID(GREATEST(CAST(option_value AS UNSIGNED) + 1,
+  %d)) WHERE option_name = 'wpu_rev'` (the option is created on install, §9.2). Afterwards the plugin
+  reads the new value with `SELECT LAST_INSERT_ID()` on the same connection, so each bump reports its
+  own value even under concurrency, and drops the cached copies (`wp_cache_delete('wpu_rev', 'options')`,
   `wp_cache_delete('alloptions', 'options')`), so mutation responses report the fresh value.
 - **Read:** routes read it before querying (§1.7) and return it as a decimal string; a direct `SELECT`
   is used there too when a persistent object cache is active.
@@ -992,16 +1015,16 @@ requested (WordPress skips unrequested fields under `_fields`).
 | `perms` | `{edit, delete}` | `current_user_can('edit_post' \| 'delete_post', id)` | P1 |
 | `trashedAt` | string \| null | `_wp_trash_meta_time` while trashed | P1 |
 | `duration` | number \| null | Seconds (`length` in the metadata), video and audio | P1 `MediaIndex` |
-| `pages` | number \| null | PDF page count when known (best effort, counted at index time) | P1 `MediaIndex` |
+| `pages` | number \| null | PDF page count when known (best effort, counted at index time; a PDF over 2 MB is read only in its first and last MB, so its count can be null) | P1 `MediaIndex` |
 | `poster` | `{url, width, height}` \| null | The `featured_media` image of a video or audio item, `medium_large` size (else full) | P1 |
 | `original` | `{url, width, height, filename}` \| null | `wp_get_original_image_path()` / `original_image` when the attached file is a scaled or rotated copy | P1 |
 | `raw` | `{title, caption, description}` | Raw `post_title` (entity-decoded), `post_excerpt`, `post_content`, in every context | P1 |
-| `author` | `{id, name}` | `post_author` and its `display_name` | P1 |
+| `author` | `{id, name}` | `post_author` and its `display_name`; `{id: 0, name: ""}` for an attachment without an author (Visual Portfolio's placeholder image has `post_author` 0) | P1 |
 | `edited` | boolean | Edited in place (by the plugin or wp-admin's editor) | P2 |
 | `editedAt` | string \| null | When it was last edited in place (the plugin records it; for wp-admin edits, the time of the newest backup in `_wp_attachment_backup_sizes` when known, else null) | P2 |
 | `undoable` | boolean | `edit/undo` would succeed | P2 |
 | `restorable` | boolean | `restore` would succeed | P2 |
-| `sizesPending` | boolean | A registered size that applies to this item has no generated file yet (core's `missing_image_sizes` logic) | P2 |
+| `sizesPending` | boolean | A registered size that applies to this item has no generated file yet (core's `missing_image_sizes` logic, counting only sizes the attached file itself is large enough for, so an edited `-scaled` item isn't pending for sizes only its unscaled original allows) | P2 |
 | `usageCount` | number \| null | Refs in `wpu_usage`; null while the usage index hasn't scanned enough to know | P2 `UsageIndex` |
 
 Example (item 1009; fixture `wpuFieldEdited`):
@@ -1063,6 +1086,7 @@ One row per attachment (any status except `auto-draft`). Kept current by hooks (
 | `pages` | `INT UNSIGNED NULL` | PDF pages |
 | `folder_id` | `BIGINT UNSIGNED NOT NULL DEFAULT 0` | **Denormalised FileBird folder** in shared mode (0 = none), written **by the plugin's own folder routes** right after their FileBird call (assign, delete), and kept current for changes made elsewhere (wp-admin, FileBird's own UI) from `fbv_after_set_folder` / `fbv_after_assign_folder` / `fbv_after_folder_deleted` / `fbv_after_delete_all` (some fire only from FileBird's controllers, so the plugin never relies on them for its own changes); reconciled by maintenance. FileBird's own tables are never altered (D17) |
 | `trashed_gmt` | `DATETIME NULL` | From `_wp_trash_meta_time` |
+| `modified_gmt` | `DATETIME NULL` | The attachment's `post_modified_gmt` when the row was computed; the row is outdated when it differs (so a future-dated attachment doesn't keep the index stale). Added in schema version 2 (row version 2) |
 | `row_version` | `SMALLINT UNSIGNED NOT NULL` | Format of this row; a lower value is re-indexed |
 | `indexed_gmt` | `DATETIME NOT NULL` | When the row was written |
 
@@ -1091,8 +1115,9 @@ Indexes: `PRIMARY KEY (attachment_id, source_id, context)`, `KEY source (source_
 | Column | Type | Notes |
 |---|---|---|
 | `source_id` | `BIGINT UNSIGNED NOT NULL` | Primary key; 0 = the site-level slots |
-| `scanned_gmt` | `DATETIME NOT NULL` | Compared with the post's `post_modified_gmt` |
+| `scanned_gmt` | `DATETIME NOT NULL` | When the post was scanned (pending detection uses `modified_gmt`) |
 | `row_version` | `SMALLINT UNSIGNED NOT NULL` | Parser version; a lower value is rescanned |
+| `modified_gmt` | `DATETIME NULL` | The post's `post_modified_gmt` when it was scanned; the post is pending when it differs (so a future-dated post doesn't stay pending) |
 
 **Indexable posts:** every post type with `show_ui` except `attachment`, `revision`, `nav_menu_item`,
 `wp_global_styles`, `wp_font_family`, `wp_font_face`; statuses `publish`, `future`, `draft`, `pending`,
@@ -1115,8 +1140,9 @@ footnote).
 
 ### 8.3 Edit backups (P2)
 
-The undo stack lives in post meta `_wpu_edit_backups` (a list, newest last, at most 10 entries, each
-naming the backup file and the metadata it replaces). Backup files sit next to the original in the
+The undo stack lives in post meta `_wpu_edit_backups` (a list, newest last, at most 10 entries; the two
+oldest merge beyond that), each holding the metadata before the edit, the backups of the files it
+overwrote, the `_wp_attachment_backup_sizes` keys it set, and a fingerprint of the state after. Backup files sit next to the original in the
 uploads folder. Deleting the attachment deletes them. WordPress's own `_wp_attachment_backup_sizes` keeps
 the original, so wp-admin's "Restore image" keeps working.
 
@@ -1152,7 +1178,7 @@ It has no admin UI, no front-end hooks, no assets and no settings.
 - On `plugins_loaded`, the plugin creates `wpu_rev` (`add_option`, value = the current time in ms) if
   it doesn't exist.
 - On `plugins_loaded`, each index compares its `*_db_version` option with its code's version; when they
-  differ it runs `dbDelta()` under a short lock (`add_option` of a lock key), updates the option, and
+  differ it runs `dbDelta()` under a short lock (a lock row taken with `INSERT IGNORE`, released only by its holder), updates the option, and
   marks its index `building` if the change needs a re-index (`row_version` bump).
 - Also on `plugins_loaded`: if `wpu_installed_version` differs from `WPU_VERSION`, run upgrade steps and
   bump `wpu_rev`.
@@ -1166,9 +1192,9 @@ It has no admin UI, no front-end hooks, no assets and no settings.
   `indexComplete: false`.
 - A mu-plugin can't be deactivated, and a regular plugin can be removed without its deactivation
   hook running; either way hooks were missed. To catch that, `/info` runs a cheap consistency check
-  (cached for 60 s in a transient): the number of attachments vs index rows, and the newest
-  attachment `post_modified_gmt` vs the newest `indexed_gmt`; for usage, the newest indexable post
-  `post_modified_gmt` vs the newest `scanned_gmt`. A mismatch marks that index `stale`. The server also
+  (cached for 60 s in a transient): the number of attachments vs index rows, and any
+  attachment whose `post_modified_gmt` differs from its row's `modified_gmt` (or has no row); for usage, any indexable post
+  whose `post_modified_gmt` differs from its source row's `modified_gmt` (or has no row). A mismatch marks that index `stale`. The server also
   runs one maintenance step per process start (server-api.md §9.2), which reconciles anyway.
 
 ### 9.4 Uninstall
@@ -1216,8 +1242,8 @@ When `active` is false, folder routes answer 409 `wpu_filebird_inactive` and `wp
 | `PATCH` name | The model method behind FileBird's `update-folder` (`Folder.php:392-433`) | FileBird refuses duplicates; the adapter picks the first free "Name (N)" first, reading siblings read-only |
 | `PATCH` parent / position | The move/reorder logic behind `update-folder-ord` (`FolderController.php:146-353`), called in PHP with a `WP_REST_Request` it builds (`dropPosition` as an integer) | Its cycle check (`isSelfOrDescendant`) is mirrored by ours first, for a clean 409 |
 | `PATCH` color | The logic behind `update-folder-color` (`FolderController.php:59-89`), which stores `fbv_folder_colors` | Pro detected only (D15) |
-| `DELETE` | `FolderModel::deleteFolderAndItsChildren()` (`Folder.php:647-680`) | Recursive |
-| `POST /folders/assign` | `FolderModel::setFoldersForPosts($ids, $folder)` (documented) | One call for all allowed ids |
+| `DELETE` | `FolderModel::delete([$id])` (what FileBird's own UI calls; fires `fbv_after_folder_deleted` per folder), else `FolderModel::deleteFolderAndItsChildren()` (`Folder.php:647-680`) | Recursive |
+| `POST /folders/assign` | `FolderModel::assignFolder()` (FileBird's UI path: one `DELETE` plus one `INSERT`), else `FolderModel::setFoldersForPosts($ids, $folder)` (documented) | One call for all allowed ids |
 
 If a method is missing in a FileBird version, the adapter returns 501 `wpu_not_implemented` for that
 operation (never a direct table write), and `/info` keeps reporting FileBird's version so the problem is

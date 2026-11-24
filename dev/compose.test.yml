@@ -31,6 +31,9 @@ services:
       WPU_WP_URL: https://wp.wpu.test
       WPU_APP_USER: ${WPU_APP_USER:-}
       WPU_APP_PASSWORD: ${WPU_APP_PASSWORD:-}
+      # The separate Author user (D26); always an Author, whatever `role=` says.
+      WPU_AUTHOR_USER: ${WPU_AUTHOR_USER:-}
+      WPU_AUTHOR_APP_PASSWORD: ${WPU_AUTHOR_APP_PASSWORD:-}
       WPU_ADMIN_USER: ${WPU_ADMIN_USER:-}
       WPU_ADMIN_PASSWORD: ${WPU_ADMIN_PASSWORD:-}
       WPU_LOGIN_USER: ${WPU_LOGIN_USER:-}

@@ -1,9 +1,17 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import request from 'supertest'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { app, clientDist } from './app.ts'
 import { env } from './config/env.ts'
+import { wpAxios } from './config/wpClient.ts'
 import { failures } from './lib/loginLockout.ts'
 import { SESSION_COOKIE_NAME } from './lib/session.ts'
 
@@ -89,6 +97,34 @@ describe('app', () => {
     expect(failures.size).toBe(0)
   })
 
+  it('rejects library requests without a session with a JSON 401 and no challenge', async () => {
+    const wordPress = vi.spyOn(wpAxios, 'request')
+    const res = await request(app)
+      .get('/api/library/bootstrap')
+      .set('X-Forwarded-For', '10.3.0.2')
+      .expect(401)
+
+    expect(res.body).toEqual({
+      code: 'unauthorized',
+      message: 'Log in to continue.',
+    })
+    expect(res.headers['www-authenticate']).toBeUndefined()
+    expect(wordPress).not.toHaveBeenCalled()
+  })
+
+  it('rejects a cross-site library mutation with 403, even with a session', async () => {
+    const wordPress = vi.spyOn(wpAxios, 'request')
+    const res = await request(app)
+      .post('/api/library/items/batch')
+      .set('Cookie', await sessionCookieHeader())
+      .set('Sec-Fetch-Site', 'cross-site')
+      .send({ ids: [1000], set: { alt: 'x' } })
+      .expect(403)
+
+    expect(res.body.code).toBe('cross_site_request')
+    expect(wordPress).not.toHaveBeenCalled()
+  })
+
   it('serves the API to a client that logged in via /session', async () => {
     const res = await request(app)
       .get('/api/status')
@@ -117,30 +153,187 @@ describe('app', () => {
   })
 
   // The app must work under any sub-path behind a prefix-stripping reverse
-  // proxy, so the built page may only reference its assets relatively.
-  it('builds index.html with relative asset URLs only', () => {
-    const html = readFileSync(path.join(clientDist, 'index.html'), 'utf8')
+  // proxy, so the built client may only use relative URLs (CLAUDE.md). The
+  // guards below look for root-relative URLs (`/x`, not `//host/x`):
+  //
+  // - in index.html: any attribute value (src, href, content, action, …)
+  //   and every srcset entry;
+  // - in scripts: any string or template literal that starts with `/` and a
+  //   path character (`"/api/…"`, `'/session'`, `` `/assets/…` ``).
+  //
+  // Deliberately not flagged, to stay free of false positives: a bare `"/"`,
+  // `/` followed by a space, `*`, `$`, `&` or another `/` (globs, comments,
+  // template interpolations such as a file picker's `/${name}` paths,
+  // protocol-relative URLs), regex literals (not quoted) and MIME types like
+  // `image/png` (no leading slash). URLs assembled at run time from such
+  // pieces can't be judged statically.
+  describe('root-relative URL guards', () => {
+    const ROOT_RELATIVE_HTML = [
+      // An attribute whose value starts with a single `/`.
+      /\s[\w:.-]+\s*=\s*["']?\s*\/(?![/\s])[^"'\s>]*/g,
+      // A later srcset entry starting with a single `/`.
+      /\ssrcset\s*=\s*["'][^"']*?,\s*\/(?!\/)[^"'\s,]*/g,
+    ]
+    const ROOT_RELATIVE_SCRIPT = [/["'`]\/[\w~.%-][^"'`\s]*/g]
 
-    expect(html).toContain('./assets/')
-    expect(html).not.toMatch(/(?:src|href)="\/(?!\/)/)
+    // Lists `file: match` for every match, so a failure prints the offending
+    // URLs rather than a whole minified bundle.
+    function rootRelativeUrls(
+      root: string,
+      files: string[],
+      patterns: RegExp[],
+    ): string[] {
+      return files.flatMap((file) => {
+        const text = readFileSync(path.join(root, file), 'utf8')
+        return patterns.flatMap((pattern) =>
+          [...text.matchAll(pattern)].map((match) => `${file}: ${match[0]}`),
+        )
+      })
+    }
+
+    function builtScripts(): string[] {
+      return readdirSync(path.join(clientDist, 'assets'))
+        .filter((name) => name.endsWith('.js'))
+        .map((name) => `assets/${name}`)
+    }
+
+    // Files written into a temp dir, to prove each guard catches what it is
+    // meant to: a guard that matches nothing would pass on any build.
+    function planted(files: Record<string, string>): string {
+      const dir = mkdtempSync(path.join(os.tmpdir(), 'wpu-url-guard-'))
+      onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
+      for (const [name, content] of Object.entries(files)) {
+        writeFileSync(path.join(dir, name), content)
+      }
+      return dir
+    }
+
+    it('finds none in the built index.html', () => {
+      const html = readFileSync(path.join(clientDist, 'index.html'), 'utf8')
+      expect(html).toContain('./assets/')
+      expect(
+        rootRelativeUrls(clientDist, ['index.html'], ROOT_RELATIVE_HTML),
+      ).toEqual([])
+    })
+
+    it('finds none in the built scripts', () => {
+      expect(builtScripts()).not.toHaveLength(0)
+      expect(
+        rootRelativeUrls(clientDist, builtScripts(), ROOT_RELATIVE_SCRIPT),
+      ).toEqual([])
+    })
+
+    it('flags root-relative attributes in a planted index.html', () => {
+      const dir = planted({
+        'index.html': [
+          '<link rel="icon" href="/favicon.png" />',
+          '<script type="module" src=/assets/x.js></script>',
+          '<meta property="og:image" content="/og.png" />',
+          "<form action='/session'></form>",
+          '<img srcset="./a.png 1x, /b.png 2x" src="./a.png" />',
+          // Fine: relative, absolute, protocol-relative and non-URL values.
+          '<link href="./assets/a.css" /><link href="https://example.com/" />',
+          '<link href="//cdn.example.com/x.css" />',
+          '<meta name="viewport" content="width=device-width" />',
+        ].join('\n'),
+      })
+      expect(
+        rootRelativeUrls(dir, ['index.html'], ROOT_RELATIVE_HTML).map(
+          (offence) => offence.replace(/^index\.html: \s*/, ''),
+        ),
+      ).toEqual([
+        'href="/favicon.png',
+        'src=/assets/x.js',
+        'content="/og.png',
+        "action='/session",
+        'srcset="./a.png 1x, /b.png',
+      ])
+    })
+
+    it('flags root-relative app URLs in a planted script', () => {
+      const dir = planted({
+        'x.js': [
+          'fetch("/api/library/rev");',
+          "fetch('/session',{method:'DELETE'});",
+          `import(\`/assets/chunk-\${n}.js\`);`,
+          'img.src="/favicon.svg";',
+          // Fine: relative URLs, a bare slash, globs, interpolated paths,
+          // protocol-relative URLs, regexes and MIME types.
+          'fetch("api/library/rev");const a="./assets/x.js";',
+          `const b="/";const c=\`/*\`;const d=\`/\${name}\`;`,
+          'const e="//cdn.example.com/x";const f=/\\/api\\//g;',
+          'const g="image/png";',
+        ].join('\n'),
+      })
+      expect(rootRelativeUrls(dir, ['x.js'], ROOT_RELATIVE_SCRIPT)).toEqual([
+        'x.js: "/api/library/rev',
+        "x.js: '/session",
+        `x.js: \`/assets/chunk-\${n}.js`,
+        'x.js: "/favicon.svg',
+      ])
+    })
   })
 
-  it('builds client scripts that call the API with relative URLs only', () => {
-    const assetsDir = path.join(clientDist, 'assets')
-    const scripts = readdirSync(assetsDir).filter((name) =>
-      name.endsWith('.js'),
-    )
+  describe('the built client (bundle and URL guards)', () => {
+    // Every file in client/dist, relative to it, with forward slashes.
+    function distFiles(dir = clientDist): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const fullPath = path.join(dir, entry.name)
+        if (entry.isDirectory()) return distFiles(fullPath)
+        return [path.relative(clientDist, fullPath).split(path.sep).join('/')]
+      })
+    }
 
-    expect(scripts).not.toHaveLength(0)
-    // Collect just the offending URLs: matching against the whole minified
-    // bundle would make a failure print hundreds of KB of JavaScript.
-    const rootRelativeApiUrls = scripts.flatMap((script) => {
-      const source = readFileSync(path.join(assetsDir, script), 'utf8')
-      return [...source.matchAll(/["'`](\/(?:api\/|session\b)[^"'`]*)/g)].map(
-        (match) => `${script}: ${match[1]}`,
+    function read(file: string): string {
+      return readFileSync(path.join(clientDist, file), 'utf8')
+    }
+
+    // Lists `file: match` for every match, so a failure prints the offending
+    // URLs rather than a whole minified bundle.
+    function offences(files: string[], pattern: RegExp): string[] {
+      return files.flatMap((file) =>
+        [...read(file).matchAll(pattern)].map(
+          (match) => `${file}: ${match[0]}`,
+        ),
       )
+    }
+
+    const scripts = () => distFiles().filter((file) => file.endsWith('.js'))
+    const stylesheets = () =>
+      distFiles().filter((file) => file.endsWith('.css'))
+
+    it('splits the client into more than one JS chunk', () => {
+      // The media manager and the old page are lazy chunks; a single bundle
+      // means the split (and the bundle budget) silently stopped working.
+      expect(scripts().length).toBeGreaterThan(1)
     })
-    expect(rootRelativeApiUrls).toEqual([])
+
+    it('never calls WordPress directly', () => {
+      // The browser only talks to this server; /wp-json lives behind it.
+      expect(
+        offences(['index.html', ...scripts()], /.{0,20}\/wp-json.{0,20}/g),
+      ).toEqual([])
+    })
+
+    it('has no root-relative url() in stylesheets', () => {
+      expect(stylesheets()).not.toHaveLength(0)
+      expect(offences(stylesheets(), /url\(\s*["']?\/[^)]*\)/g)).toEqual([])
+    })
+
+    it('contains no MSW or mock service worker', () => {
+      const mswFiles = distFiles().filter((file) =>
+        /mockServiceWorker|(^|\/)msw/i.test(file),
+      )
+      expect(mswFiles).toEqual([])
+      // Never a bare "msw": the legacy page's bundle contains
+      // `application/msword`.
+      expect(
+        offences(
+          ['index.html', ...scripts()],
+          /.{0,20}(?:mockServiceWorker|setupWorker\(|\[MSW\]).{0,20}/g,
+        ),
+      ).toEqual([])
+    })
   })
 
   it('serves /healthz without requiring authentication', async () => {
