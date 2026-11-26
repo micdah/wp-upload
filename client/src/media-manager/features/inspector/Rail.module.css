@@ -9,9 +9,8 @@
   gap: var(--space-1);
   width: var(--rail-w);
   padding: var(--space-2) 0;
-  /* Chrome: no text selection or long-press callout (theme.css). */
-  -webkit-user-select: none;
-  user-select: none;
+  /* Chrome: no long-press callout; text selection is cancelled by the
+     selection guard (core/ui/noSelect.ts), not user-select (theme.css). */
   -webkit-touch-callout: none;
 }
 

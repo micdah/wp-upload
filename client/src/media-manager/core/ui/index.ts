@@ -19,6 +19,12 @@ export {
   prefersReducedMotion,
 } from './morph'
 export {
+  blocksSelectionAt,
+  installSelectionGuard,
+  NO_SELECT_ATTRIBUTE,
+  noSelectProps,
+} from './noSelect'
+export {
   canUndo,
   setToastBackendForTesting,
   type ToastAction,

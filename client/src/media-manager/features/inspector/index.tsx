@@ -34,6 +34,7 @@ import {
 } from '../../core/state'
 import type { InspectorTab } from '../../core/state/store'
 import { CropIcon, InfoIcon, UsageIcon } from '../../core/ui/icons'
+import { noSelectProps } from '../../core/ui/noSelect'
 import { urlStore } from '../../core/url/useUrlState'
 import { bridgeStore, resetInspectorSession } from './bridge'
 import { isImageLike } from './format'
@@ -85,6 +86,7 @@ function Rail({ open, current }: { open: boolean; current: InspectorTab }) {
       className={classes.rail}
       aria-label='Inspector panels'
       data-open={open || undefined}
+      {...noSelectProps}
     >
       {TABS.map(({ tab, label, Icon }) => (
         <RailTab

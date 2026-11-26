@@ -9,8 +9,9 @@ import {
   it,
   vi,
 } from 'vitest'
+import { userEvent as browserUserEvent } from 'vitest/browser'
 import { getCurrentCollection } from '../../core/collection/hooks'
-import { coreStore } from '../../core/state'
+import { coreStore, isInspectorOpen } from '../../core/state'
 import { failOnReactWarnings } from '../../test/consoleErrors'
 import {
   cleanupLibrary,
@@ -180,6 +181,82 @@ describe('detail mode', () => {
   })
 })
 
+describe('keys with nothing focused (mm/m2-keys)', () => {
+  // A fresh tab, or a click on something that takes no focus (Safari
+  // doesn't focus buttons on click): keydown goes to <body>, and the
+  // window-level dispatcher must still run grid and detail keys.
+  function blurToBody(): void {
+    const active = document.activeElement
+    if (active instanceof HTMLElement) {
+      active.blur()
+    }
+    expect(document.activeElement).toBe(document.body)
+  }
+
+  it('drives the grid, the panels and detail from <body>', async () => {
+    const user = userEvent.setup()
+    const { search } = await renderLibrary()
+    const [first, second] = tiles() as [HTMLElement, HTMLElement]
+    blurToBody()
+
+    // The first arrow starts at the first item and focuses its tile.
+    await user.keyboard('{ArrowRight}')
+    await waitFor(() => expect(document.activeElement).toBe(first))
+    expect(first.getAttribute('aria-selected')).toBe('true')
+
+    blurToBody()
+    await user.keyboard('{ArrowRight}')
+    await waitFor(() => expect(document.activeElement).toBe(second))
+
+    // Panels (mode `any`) from the body.
+    blurToBody()
+    const inspectorOpen = isInspectorOpen(coreStore.getState())
+    await user.keyboard('i')
+    expect(isInspectorOpen(coreStore.getState())).toBe(!inspectorOpen)
+    await user.keyboard('i')
+    expect(isInspectorOpen(coreStore.getState())).toBe(inspectorOpen)
+
+    // Enter opens the focused item; detail focuses itself.
+    blurToBody()
+    await user.keyboard('{Enter}')
+    const detail = await stage()
+    expect(search()).toContain(`item=${idOf(second)}`)
+    await waitFor(() =>
+      expect(detail.contains(document.activeElement)).toBe(true),
+    )
+
+    // ←/→ in detail from the body.
+    blurToBody()
+    await user.keyboard('{ArrowLeft}')
+    expect(search()).toContain(`item=${idOf(first)}`)
+
+    // Esc from the body leaves detail and focuses the tile.
+    blurToBody()
+    await user.keyboard('{Escape}')
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Detail' })).toBeNull(),
+    )
+    await waitFor(() => expect(document.activeElement).toBe(first))
+  })
+
+  it('a press on Next keeps the keys working in detail', async () => {
+    const user = userEvent.setup()
+    const { search } = await renderLibrary()
+    const ids = tiles().map(idOf)
+    await user.click(tiles()[0] as HTMLElement)
+    await user.keyboard('{Enter}')
+    const detail = await stage()
+    await user.click(screen.getByRole('button', { name: 'Next item' }))
+    expect(search()).toContain(`item=${ids[1]}`)
+    // Chromium focuses the button, Safari the detail region around it.
+    expect(detail.contains(document.activeElement)).toBe(true)
+    await user.keyboard('{ArrowRight}')
+    expect(search()).toContain(`item=${ids[2]}`)
+    await user.keyboard('{ArrowLeft}')
+    expect(search()).toContain(`item=${ids[1]}`)
+  })
+})
+
 describe('fast taps on the chrome (iPad feel review)', () => {
   function style(element: Element | null): CSSStyleDeclaration {
     if (!element) throw new Error('element not rendered')
@@ -202,11 +279,21 @@ describe('fast taps on the chrome (iPad feel review)', () => {
       bar,
       title: detail.querySelector('h2'),
       stage: stageBox,
-      next,
     }
+    // The selection guard covers them (core/ui/noSelect.ts), and none is
+    // `user-select: none`: on iPadOS that keeps the keyboard from the page
+    // (mm/m2-keys).
     for (const [name, element] of Object.entries(chrome)) {
-      expect(style(element).userSelect, name).toBe('none')
+      expect(element?.closest('[data-mm-no-select]'), name).not.toBeNull()
+      expect(style(element).userSelect, name).not.toBe('none')
+      expect(
+        style(element).getPropertyValue('-webkit-user-select'),
+        name,
+      ).not.toBe('none')
     }
+    // A real double-click on the title selects no word.
+    await browserUserEvent.dblClick(chrome.title as HTMLElement)
+    expect(window.getSelection()?.toString() ?? '').toBe('')
     // No long-press callout on tiles and the stage's buttons (WebKit only;
     // Chromium has no such property, so only check where it exists).
     for (const element of [tile, next]) {

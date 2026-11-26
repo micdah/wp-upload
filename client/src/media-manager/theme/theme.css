@@ -103,14 +103,16 @@
 
 /*
  * The chrome's text isn't selectable: the toolbar, the rail, the grid and
- * detail's bar and stage each opt out in their own module (user-select and
- * -webkit-touch-callout: none), because quick taps or a long press there
- * would start a text selection over the UI. Fields stay selectable wherever
- * they sit, and the inspector panel (file name, URLs, EXIF) isn't chrome,
- * so its values can still be copied.
+ * detail's bar and stage carry [data-mm-no-select], where the selection
+ * guard (core/ui/noSelect.ts) cancels `selectstart`, so quick taps don't
+ * select a word. Their modules also drop the long-press callout.
+ *
+ * Never `user-select: none` on them: iPadOS Safari doesn't hand the
+ * keyboard to a page whose content a trackpad click can't select, and then
+ * no shortcut works (mm/m2-keys). Fields stay selectable wherever they sit,
+ * and the inspector panel (file name, URLs, EXIF) isn't chrome, so its
+ * values can still be copied.
  */
 :where(:root) :where(input, textarea, [contenteditable="true"]) {
-  -webkit-user-select: text;
-  user-select: text;
   -webkit-touch-callout: default;
 }

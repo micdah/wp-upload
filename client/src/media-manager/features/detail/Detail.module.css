@@ -20,9 +20,8 @@
   height: var(--filterbar-h);
   padding: 0 var(--space-3);
   color: var(--text-2);
-  /* Chrome: no text selection or long-press callout (theme.css). */
-  -webkit-user-select: none;
-  user-select: none;
+  /* Chrome: no long-press callout; text selection is cancelled by the
+     selection guard (core/ui/noSelect.ts), not user-select (theme.css). */
   -webkit-touch-callout: none;
 }
 
@@ -95,10 +94,8 @@
   place-items: center;
   padding: var(--space-4) 40px;
   overflow: hidden;
-  /* Chrome: no text selection (theme.css); the picture keeps its
-     long-press menu (save, copy). */
-  -webkit-user-select: none;
-  user-select: none;
+  /* No text selection here either (the selection guard, theme.css); the
+     picture keeps its long-press menu (save, copy). */
 }
 
 .stage[data-zoomed] {

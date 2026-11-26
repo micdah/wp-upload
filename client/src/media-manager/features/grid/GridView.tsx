@@ -43,6 +43,7 @@ import { runCommand } from '../../core/commands/registry'
 import { alignedChunks, useItemChunks } from '../../core/data/items'
 import { libraryKeys } from '../../core/data/keys'
 import { coreStore, useCore } from '../../core/state'
+import { noSelectProps } from '../../core/ui/noSelect'
 import { hasActiveFilters } from '../../core/url/codec'
 import { urlStore, useUrlState } from '../../core/url/useUrlState'
 import { setGridController } from './controller'
@@ -554,6 +555,7 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
       ref={scrollRef}
       className={classes.scroller}
       data-mm-grid-scroll=''
+      {...noSelectProps}
       data-placeholder={collection.isPlaceholder ? '' : undefined}
       onPointerDown={() => {
         pointerDownRef.current = true

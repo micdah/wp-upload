@@ -29,6 +29,7 @@ import { installKeymap } from '../core/keymap/dispatch'
 import { type CoreStore, coreStore, installCoreSync } from '../core/state'
 import { announce, plural } from '../core/ui/announce'
 import { morph } from '../core/ui/morph'
+import { installSelectionGuard } from '../core/ui/noSelect'
 import { canUndo, undoLast } from '../core/ui/toast'
 import { MAX_DENSITY } from '../core/url/codec'
 import { urlStore } from '../core/url/useUrlState'
@@ -106,20 +107,52 @@ export function openDetail(id: number): Promise<void> {
  * then its picture is the morph's target.
  */
 export async function closeDetail(): Promise<void> {
-  const id = urlStore().get().item
-  if (id === null) {
+  let shown = urlStore().get().item
+  if (shown === null) {
     return
   }
-  await morph(() => urlStore().closeItem(), {
-    from: () => centerApi.stageElement(),
-    // Only the hero the grid names (fully in view); otherwise no hero,
-    // never a half-hidden tile (spike C2).
-    to: async () => {
-      await centerApi.revealItem(id)
-      return centerApi.heroElement(id)
+  await morph(
+    () => {
+      // The item on stage when the view transition runs its update: a key
+      // pressed right after Esc may still have stepped (WebKit, mm/m2-keys).
+      shown = urlStore().get().item ?? shown
+      urlStore().closeItem()
     },
-  })
-  centerApi.focusTile(id)
+    {
+      from: () => centerApi.stageElement(),
+      // Only the hero the grid names (fully in view); otherwise no hero,
+      // never a half-hidden tile (spike C2).
+      to: async () => {
+        const id = shown as number
+        await centerApi.revealItem(id)
+        // The grid is back (no longer inert): focus the tile now, not when
+        // the morph has finished, so keys pressed during the animation
+        // already reach the grid.
+        returnFocusToTile()
+        return centerApi.heroElement(id)
+      },
+    },
+  )
+  returnFocusToTile()
+}
+
+/**
+ * Gives keyboard focus to the focused item's tile once detail has closed,
+ * unless something else has focus by now. Without that check, the call
+ * after the morph moved focus back to the tile detail closed on after an
+ * arrow key had already moved on (WebKit, mm/m2-keys), so the focused tile
+ * and the selection disagreed.
+ */
+function returnFocusToTile(): void {
+  if (urlStore().get().item !== null) {
+    return
+  }
+  const active = document.activeElement
+  const focusIsFree = active === null || active === document.body
+  const focus = coreStore.getState().focus
+  if (focusIsFree && focus !== null) {
+    centerApi.focusTile(focus)
+  }
 }
 
 /**
@@ -357,13 +390,15 @@ export function installConnectivityMirror(
 
 /**
  * Installs the DOM side of the runtime while the shell is mounted: the
- * keyboard dispatcher, the URL ↔ core-store rules, and connectivity.
+ * keyboard dispatcher, the selection guard over the chrome, the URL ↔
+ * core-store rules, and connectivity.
  * Returns the uninstall function.
  */
 export function installRuntime(): () => void {
   const uninstallKeymap = installKeymap({
     getMode: () => (urlStore().get().item === null ? 'grid' : 'detail'),
   })
+  const uninstallSelectionGuard = installSelectionGuard()
   const uninstallSync = installCoreSync(urlStore(), coreStore)
   const uninstallConnectivity = installConnectivityMirror()
   // Keep detail's position current, so an item that leaves the view while
@@ -380,6 +415,7 @@ export function installRuntime(): () => void {
   remember()
   return () => {
     uninstallKeymap()
+    uninstallSelectionGuard()
     uninstallSync()
     uninstallConnectivity()
     unsubscribeUrl()

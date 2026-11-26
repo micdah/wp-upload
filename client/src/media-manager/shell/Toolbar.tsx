@@ -21,6 +21,7 @@ import {
   MoonIcon,
   SunIcon,
 } from '../core/ui/icons'
+import { noSelectProps } from '../core/ui/noSelect'
 import { CommandIconButton } from './CommandButton'
 import classes from './Shell.module.css'
 import { type ToolbarSlot, useToolbarItems } from './slots'
@@ -84,7 +85,7 @@ export function Toolbar() {
   const inspectorOpen = useCore(isInspectorOpen)
   const dark = useComputedColorScheme('dark') === 'dark'
   return (
-    <header className={classes.toolbar}>
+    <header className={classes.toolbar} {...noSelectProps}>
       <Text className={classes.brand} component='div'>
         Media
       </Text>

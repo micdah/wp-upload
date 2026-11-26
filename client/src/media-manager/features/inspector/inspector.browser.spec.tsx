@@ -11,6 +11,7 @@ import { runCommand } from '../../core/commands/registry'
 import { libraryKeys } from '../../core/data/keys'
 import { coreStore, resetSession } from '../../core/state'
 import { subscribeAnnouncements } from '../../core/ui/announce'
+import { blocksSelectionAt } from '../../core/ui/noSelect'
 import {
   setToastBackendForTesting,
   type ToastBackend,
@@ -182,7 +183,10 @@ describe('the Info panel', () => {
     select(1001)
     renderInspector()
     const rail = screen.getByRole('navigation', { name: 'Inspector panels' })
-    expect(getComputedStyle(rail).userSelect).toBe('none')
+    // Chrome: the selection guard covers it, never `user-select: none`
+    // (core/ui/noSelect.ts, mm/m2-keys).
+    expect(rail.hasAttribute('data-mm-no-select')).toBe(true)
+    expect(getComputedStyle(rail).userSelect).not.toBe('none')
     expect(
       getComputedStyle(screen.getByRole('button', { name: /^Info/ }))
         .touchAction,
@@ -197,6 +201,7 @@ describe('the Info panel', () => {
     for (const element of values) {
       expect(element).not.toBeNull()
       expect(getComputedStyle(element as Element).userSelect).not.toBe('none')
+      expect(blocksSelectionAt(element)).toBe(false)
     }
   })
 

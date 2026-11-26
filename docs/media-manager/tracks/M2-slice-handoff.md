@@ -334,8 +334,12 @@ The owner's iPad (Safari) feel review found four problems. All are fixed on `mm/
    - `test/consoleErrors.ts`'s `failOnReactWarnings()` guards the grid, detail and D52 specs; every grid
      and detail test failed on the old code.
 4. **Fast taps on Next started a text selection.**
-   - The toolbar, rail, grid, detail bar, stage and step buttons now have `user-select: none` (with
-     Safari's `-webkit-` prefix) and no long-press callout. The stage picture keeps its callout.
+   - ~~`user-select: none` on the chrome~~. **Superseded:** on iPad Safari, `user-select: none` stops a
+     Magic Keyboard trackpad click from handing the page its keyboard, so no shortcut works. The chrome
+     regions are now marked `data-mm-no-select`, and a guard (`core/ui/noSelect.ts`) cancels
+     `selectstart` there. Never use `user-select: none` on the chrome. No long-press callout; the stage
+     picture keeps its callout. The `?mock-keylog` mock panel shows where keydowns go, for debugging
+     keyboard delivery on a device.
    - Every control is `touch-action: manipulation`.
    - Inputs, textareas and the inspector panel stay selectable.
    - Tests: computed-style checks in the detail and inspector browser specs, and the e2e step that taps

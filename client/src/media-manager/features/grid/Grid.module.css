@@ -14,9 +14,8 @@
   /* A scrollbar appearing never changes the width the layout fills (C1). */
   scrollbar-gutter: stable;
   outline: none;
-  /* Chrome: no text selection or long-press callout (theme.css). */
-  -webkit-user-select: none;
-  user-select: none;
+  /* Chrome: no long-press callout; text selection is cancelled by the
+     selection guard (core/ui/noSelect.ts), not user-select (theme.css). */
   -webkit-touch-callout: none;
 }
 
@@ -43,8 +42,6 @@
   border-radius: var(--radius-tile);
   background: var(--surface-tile);
   cursor: default;
-  -webkit-user-select: none;
-  user-select: none;
   /* Long press belongs to selection and drag, not the image menu. */
   -webkit-touch-callout: none;
   /* No double-tap zoom on tiles: two taps open detail (GridView). */

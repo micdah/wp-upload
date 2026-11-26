@@ -13,6 +13,7 @@ import samplePdf from '../../../../dev/fixtures/sample.pdf?url'
 import { createMockContext, type MockContext, setMockContext } from './context'
 import { installDevtools } from './devtools'
 import { handlers } from './handlers'
+import { installKeyLogIfRequested } from './keyLog'
 import { browserSettings } from './scenarios'
 import { ALIVE_HEADER, PING_PATH, WORKER_SCRIPT } from './watchdog'
 import { installWorkerWatchdog } from './workerRecovery'
@@ -51,5 +52,6 @@ export async function startMockWorker(): Promise<MockContext> {
   })
   installWorkerWatchdog()
   installDevtools(context, worker)
+  installKeyLogIfRequested()
   return context
 }

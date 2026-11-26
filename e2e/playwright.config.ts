@@ -11,8 +11,12 @@ import { defineConfig, devices } from '@playwright/test'
 //   proxy, against the stack's WordPress (WPU_APP_URL). This is where the
 //   "deployable under any path" rule is tested on every run.
 //
-// Chromium only for now: the runner trusts the stack's dev CA in Chromium's NSS
+// Chromium for now: the runner trusts the stack's dev CA in Chromium's NSS
 // database, not yet in Firefox's or WebKit's (open question in the D handoff).
+// One exception: mock/keyboard.webkit.spec.ts runs the slice's keyboard flow
+// in WebKit (iPad and desktop) inside the mock project, so `dev/run test
+// e2e-mock` covers it. It sets `browserName: 'webkit'` itself and accepts the
+// proxy's certificate, as it needs nothing else from the stack.
 //
 // Results go to WPU_SUITE_RESULTS_DIR (test-results/<suite>/ on the host).
 // Traces are off by default; pass `-- --trace on` to dev/run to record them.

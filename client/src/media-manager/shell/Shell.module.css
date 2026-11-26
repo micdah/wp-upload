@@ -50,9 +50,8 @@
   padding-inline: var(--mantine-spacing-sm);
   border-bottom: 1px solid var(--line-1, var(--mantine-color-default-border));
   background: var(--surface-panel, var(--mantine-color-body));
-  /* Chrome: no text selection or long-press callout (theme.css). */
-  -webkit-user-select: none;
-  user-select: none;
+  /* Chrome: no long-press callout; text selection is cancelled by the
+     selection guard (core/ui/noSelect.ts), not user-select (theme.css). */
   -webkit-touch-callout: none;
 }
 

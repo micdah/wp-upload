@@ -43,6 +43,7 @@ import {
   PreviousIcon,
   ZoomInIcon,
 } from '../../core/ui/icons'
+import { noSelectProps } from '../../core/ui/noSelect'
 import { useUrlState } from '../../core/url/useUrlState'
 import classes from './Detail.module.css'
 import { fitInto, zoomedSize } from './fit'
@@ -99,7 +100,7 @@ function Detail({ id }: { id: number }) {
       tabIndex={-1}
       data-mm-detail=''
     >
-      <header className={classes.bar}>
+      <header className={classes.bar} {...noSelectProps}>
         <Tooltip label='Back to grid (Esc)' openDelay={400}>
           <ActionIcon
             variant='subtle'
@@ -253,6 +254,7 @@ function Stage({
       ref={stageRef}
       className={classes.stage}
       data-zoomed={zoomed ? '' : undefined}
+      {...noSelectProps}
       data-nudge={nudge ?? undefined}
       onAnimationEnd={() => setNudge(null)}
     >
