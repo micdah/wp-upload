@@ -340,6 +340,11 @@ The owner's iPad (Safari) feel review found four problems. All are fixed on `mm/
      `selectstart` there. Never use `user-select: none` on the chrome. No long-press callout; the stage
      picture keeps its callout. The `?mock-keylog` mock panel shows where keydowns go, for debugging
      keyboard delivery on a device.
+     iPadOS starts some selections in UIKit (trackpad drag, a quick double-click on a button) without a
+     `selectstart`, so a document `selectionchange` listener also clears any selection inside a
+     `data-mm-no-select` region (not in fields or `[data-mm-selectable]`). The step buttons' icons are
+     `-webkit-user-select: none`; the buttons and tile images are not, so a click on them still hands
+     the page the keyboard.
    - Every control is `touch-action: manipulation`.
    - Inputs, textareas and the inspector panel stay selectable.
    - Tests: computed-style checks in the detail and inspector browser specs, and the e2e step that taps

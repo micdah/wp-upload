@@ -145,6 +145,17 @@
   -webkit-touch-callout: none;
 }
 
+/* The step buttons' icons: on the iPad a quick double-click is a UIKit
+   text-selection gesture, which WebKit doesn't start over user-select:
+   none (mm/m2-select). Only the icon, a leaf: we don't make the button or
+   the stage unselectable, since a click there is what can hand the page
+   the keyboard (core/ui/noSelect.ts). The selection guard drops whatever
+   a gesture around the icon still selects. */
+.nav svg {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .stage:hover .nav,
 .nav:focus-visible {
   opacity: 1;

@@ -8,6 +8,11 @@ import { expect, test } from '../support/fixtures.ts'
 // or click, keys that land on <body>, detail's ←/→ after a tap on Next, and
 // focus returning to the right tile after Esc.
 //
+// And the selection side (mm/m2-select): no text selection from a drag
+// over the grid or rapid clicks on Next, and a selection that a gesture
+// sets without `selectstart` (what iPadOS's trackpad gestures do) is
+// dropped again, with focus and keys intact.
+//
 // Playwright's WebKit is the Linux port, so it can't show iPadOS's own part
 // (whether Safari hands the keyboard to the page at all): see the selection
 // guard in client/src/media-manager/core/ui/noSelect.ts for that.
@@ -74,6 +79,28 @@ async function expectPanelKeys(page: Page): Promise<void> {
     await expect(app(page)).not.toHaveAttribute(attribute, before ?? '')
     await page.keyboard.press(key)
     await expect(app(page)).toHaveAttribute(attribute, before ?? '')
+  }
+}
+
+/** Whether nothing is selected (no range, or only a caret). */
+function selectionIsEmpty(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const selection = getSelection()
+    return (
+      !selection ||
+      selection.rangeCount === 0 ||
+      (selection.isCollapsed && selection.toString() === '')
+    )
+  })
+}
+
+/** The centre of an element, for raw pointer input. */
+async function centreOf(target: Locator): Promise<{ x: number; y: number }> {
+  const box = await target.boundingBox()
+  expect(box, 'element on screen').not.toBeNull()
+  return {
+    x: (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    y: (box?.y ?? 0) + (box?.height ?? 0) / 2,
   }
 }
 
@@ -181,6 +208,31 @@ function defineKeyboardFlow(press: Press): void {
     expect(await focusedTile(page)).toBe(ids[2])
     expect(await selectedTiles(page)).toEqual([ids[2]])
   })
+
+  test('a selection a gesture sets over the grid is dropped; keys stay', async ({
+    page,
+  }) => {
+    await openLibrary(page)
+    const ids = await Promise.all(
+      [0, 1, 2, 3].map((index) => idOf(tiles(page).nth(index))),
+    )
+    await press(tiles(page).first())
+    await expect.poll(() => focusedTile(page)).toBe(ids[0])
+    // What a trackpad drag does on the iPad: WebKit sets the selection
+    // itself, with no selectstart to cancel.
+    await page.evaluate(() => {
+      const all = document.querySelectorAll('[data-mm-tile]')
+      const from = all[0]
+      const to = all[3]
+      if (from && to) {
+        getSelection()?.setBaseAndExtent(from, 0, to, to.childNodes.length)
+      }
+    })
+    await expect.poll(() => selectionIsEmpty(page)).toBe(true)
+    expect(await focusedTile(page)).toBe(ids[0])
+    await page.keyboard.press('ArrowRight')
+    await expect.poll(() => focusedTile(page)).toBe(ids[1])
+  })
 }
 
 test.describe('iPad (touch, hardware keyboard)', () => {
@@ -188,6 +240,28 @@ test.describe('iPad (touch, hardware keyboard)', () => {
     devices['iPad Pro 11 landscape']
   test.use(iPad)
   defineKeyboardFlow((target) => target.tap())
+
+  test('six rapid taps on Next step six times and select no text', async ({
+    page,
+  }) => {
+    await openLibrary(page)
+    const ids = await Promise.all(
+      [0, 1, 2, 3, 4, 5, 6].map((index) => idOf(tiles(page).nth(index))),
+    )
+    await tiles(page).first().tap()
+    await page.keyboard.press('Enter')
+    await expect(detail(page)).toBeVisible()
+    const { x, y } = await centreOf(
+      detail(page).getByRole('button', { name: 'Next item' }),
+    )
+    for (let tap = 0; tap < 6; tap++) {
+      await page.touchscreen.tap(x, y)
+    }
+    await expect.poll(() => itemInUrl(page)).toBe(ids[6])
+    expect(await selectionIsEmpty(page)).toBe(true)
+    await page.keyboard.press('ArrowLeft')
+    await expect.poll(() => itemInUrl(page)).toBe(ids[5])
+  })
 })
 
 test.describe('desktop (mouse)', () => {
@@ -215,5 +289,51 @@ test.describe('desktop (mouse)', () => {
     // And the keys still work afterwards.
     await page.keyboard.press('ArrowLeft')
     await expect.poll(() => itemInUrl(page)).toBe(ids[4])
+  })
+
+  test('a mouse drag across several tiles selects no text', async ({
+    page,
+  }) => {
+    await openLibrary(page)
+    const ids = await Promise.all(
+      [0, 1, 2, 3].map((index) => idOf(tiles(page).nth(index))),
+    )
+    const start = await centreOf(tiles(page).first())
+    const end = await centreOf(tiles(page).nth(3))
+    await page.mouse.move(start.x, start.y)
+    await page.mouse.down()
+    await page.mouse.move(end.x, end.y + 40, { steps: 12 })
+    await page.mouse.up()
+    expect(await selectionIsEmpty(page)).toBe(true)
+    // A click and the keys still work as before.
+    await tiles(page).nth(1).click()
+    await expect.poll(() => focusedTile(page)).toBe(ids[1])
+    await page.keyboard.press('ArrowRight')
+    await expect.poll(() => focusedTile(page)).toBe(ids[2])
+    expect(await selectionIsEmpty(page)).toBe(true)
+  })
+
+  test('six rapid clicks on Next step six times and select no text', async ({
+    page,
+  }) => {
+    await openLibrary(page)
+    const ids = await Promise.all(
+      [0, 1, 2, 3, 4, 5, 6].map((index) => idOf(tiles(page).nth(index))),
+    )
+    await tiles(page).first().click()
+    await page.keyboard.press('Enter')
+    await expect(detail(page)).toBeVisible()
+    await detail(page).hover()
+    const next = detail(page).getByRole('button', { name: 'Next item' })
+    const { x, y } = await centreOf(next)
+    // Two bursts of three: the browser counts them as double and triple
+    // clicks, which select a word unless something stops it.
+    for (let burst = 0; burst < 2; burst++) {
+      await page.mouse.click(x, y, { clickCount: 3 })
+    }
+    await expect.poll(() => itemInUrl(page)).toBe(ids[6])
+    expect(await selectionIsEmpty(page)).toBe(true)
+    await page.keyboard.press('ArrowLeft')
+    await expect.poll(() => itemInUrl(page)).toBe(ids[5])
   })
 })

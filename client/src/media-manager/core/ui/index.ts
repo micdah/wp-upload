@@ -23,6 +23,7 @@ export {
   installSelectionGuard,
   NO_SELECT_ATTRIBUTE,
   noSelectProps,
+  selectionToDrop,
 } from './noSelect'
 export {
   canUndo,
