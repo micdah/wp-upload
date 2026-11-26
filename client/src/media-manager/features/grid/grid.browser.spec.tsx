@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { centerApi } from '../../core/collection/centerApi'
 import { coreStore } from '../../core/state'
 import { urlStore } from '../../core/url/useUrlState'
+import { failOnReactWarnings } from '../../test/consoleErrors'
 import {
   cleanupLibrary,
   pollRevNow,
@@ -15,6 +16,10 @@ import {
 // newest first): justified tiles as an ARIA grid, pointer and keyboard
 // selection through the real keymap, URL-driven layout and density.
 
+// Following focus scrolls the grid; it must not flush React synchronously
+// from inside a lifecycle (iPad feel review).
+// Registered first, so it checks after the cleanup below has run.
+failOnReactWarnings()
 afterEach(cleanupLibrary)
 
 // The inspector has its own specs; keep these about the grid.

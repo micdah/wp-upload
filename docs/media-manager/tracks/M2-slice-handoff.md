@@ -287,3 +287,67 @@ Known, out of scope: the panel header's "Unsaved changes" note doesn't count typ
 2. **Inspector at iPad widths:** at 900–1199 px the inspector starts collapsed (interaction-spec §6). On
    an iPad in landscape (1024–1194 px) that hides the alt field by default. Fine for v1?
 3. **Morph in Vitest's iframe** (§5): worth a Chromium bug report, or ignore?
+
+## 8. Feel-review fixes (branch `mm/m2-feel`)
+
+The owner's iPad (Safari) feel review found four problems. All are fixed on `mm/m2-feel`, each with tests.
+
+1. **The inspector follows the item in detail mode (D52).** Before, stepping only moved the focus, and
+   the inspector showed the selection.
+   - Core sync now calls `followDetailItem()` whenever detail shows an item: when it opens, steps, comes
+     from a deep link or from history.
+   - With 0 or 1 items selected, the selection moves with the focus. With 2 or more, the selection is
+     kept and only the focus moves. Leaving detail keeps the selection as it is then.
+   - The inspector's panel, its rail dot and `A` all read `useInspectorTargets()`. In detail mode that is
+     the item on stage; batch editing stays in grid mode.
+   - Drafts still commit to the item they were typed for.
+   - Core API additions: `selectionRules.followDetailItem` and `inspectorTargetIds`, the store action
+     `followDetailItem`, and `useInspectorTargets` in core/collection.
+   - A deep link now also selects its item.
+   - Tests: `selection.spec.ts`, `store.spec.ts`, `features/inspector/detailMode.browser.spec.tsx`, and
+     the touch step in the e2e slice.
+2. **The mock fell through to the network** (`mock-scenario=large&mock-images=picsum` over LAN HTTPS).
+   - Cause, reproduced in Playwright WebKit: WebKit gives a service worker 70 s to answer a top-level
+     navigation. If it takes longer, WebKit loads the page from the network and terminates the worker.
+     From then on it sends every request of every tab past the worker, while
+     `navigator.serviceWorker.controller` stays set. MSW forwards every navigation to the page and waits
+     for it, for example during a reload while the old page is busy.
+   - MSW 3 already restores its clients after an ordinary worker restart (checked in Chromium with CDP
+     `ServiceWorker.stopAllWorkers`).
+   - The mock now registers `mock-sw.js` (`mocks/serviceWorker.js`), following MSW's "merging service
+     workers" recipe. It keeps navigations (except `api/` downloads) and cross-origin requests (picsum,
+     fonts) away from MSW, then imports the unchanged `mockServiceWorker.js`.
+   - `vite.mock.config.ts` no longer proxies `api`/`session`. Such a request gets a 503
+     (`mock_worker_bypassed`, header `X-WPU-Mock-Unhandled`) and a `[mock] … reached the dev server` log
+     line.
+   - A watchdog (`mocks/watchdog.ts`, `workerRecovery.ts`) pings the worker after a suspicious backend
+     response, a controller change, or when the page becomes visible. If the worker is bypassed, it
+     unregisters it and reloads once, with a "mock service worker was restarted" notice. A second
+     failure within 60 s shows a message instead of reloading again.
+   - `entry.ts` retries a failed start once and never boots the app without the mock.
+   - Tests: `mocks/watchdog.spec.ts`, `mocks/serviceWorker.spec.ts` and `e2e/mock/mock-worker.spec.ts`.
+3. **"flushSync was called from inside a lifecycle method."**
+   - Cause: the grid dispatched scroll events from layout effects (following the focused item,
+     re-layouts), and `@tanstack/react-virtual` answers a scroll event with `flushSync`.
+   - Those notifications now run in a microtask. Only `revealItem` (the morph's close path, spike C2,
+     outside React's lifecycles) still flushes synchronously.
+   - `test/consoleErrors.ts`'s `failOnReactWarnings()` guards the grid, detail and D52 specs; every grid
+     and detail test failed on the old code.
+4. **Fast taps on Next started a text selection.**
+   - The toolbar, rail, grid, detail bar, stage and step buttons now have `user-select: none` (with
+     Safari's `-webkit-` prefix) and no long-press callout. The stage picture keeps its callout.
+   - Every control is `touch-action: manipulation`.
+   - Inputs, textareas and the inspector panel stay selectable.
+   - Tests: computed-style checks in the detail and inspector browser specs, and the e2e step that taps
+     Next four times and expects four steps with no selection. A one-off WebKit check showed the old CSS
+     leaving a selection, and none with the new.
+
+**For the iPad re-test:**
+- Restart `npm run dev:mock -w client`.
+- Clear the LAN origin's website data once (Settings → Safari → Advanced → Website Data).
+- If the watchdog ever reloads, the Vite log names the requests that slipped past the worker.
+
+**Change request (design docs):** interaction-spec §1 "Targets" says the inspector shows the same targets
+as actions. Add D52: in detail mode it shows the item on stage, and stepping moves a selection of 0 or 1
+along. F2-handoff, which says the mock registers `mockServiceWorker.js`, is outdated: the mock now
+registers `mock-sw.js`, which loads it.

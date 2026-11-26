@@ -254,6 +254,58 @@ export function defineSliceTests(options: SliceOptions): void {
         }
       })
 
+      test.describe('on a touch screen', () => {
+        test.use({ hasTouch: true })
+
+        test('the inspector follows the item in detail (D52); fast taps on Next select no text', async ({
+          page,
+        }) => {
+          await openLibrary(page)
+          const names: string[] = []
+          const ids: number[] = []
+          for (let index = 0; index < 5; index++) {
+            const tile = tiles(page).nth(index)
+            ids.push(await itemOf(tile))
+            names.push((await tile.getAttribute('aria-label')) ?? '')
+          }
+          const fileName = page.getByTestId('file-name')
+          await tiles(page).first().click()
+          await page.keyboard.press('Enter')
+          const detail = page.getByRole('region', { name: 'Detail' })
+          await expect(detail).toBeVisible()
+          await expect(fileName).toHaveAttribute('title', names[0] as string)
+
+          // Four quick taps, as on the iPad: four steps, and no text
+          // selection started over the chrome (user-select, touch-action).
+          const next = detail.getByRole('button', { name: 'Next item' })
+          const box = await next.boundingBox()
+          expect(box).not.toBeNull()
+          const x = (box?.x ?? 0) + (box?.width ?? 0) / 2
+          const y = (box?.y ?? 0) + (box?.height ?? 0) / 2
+          for (let tap = 0; tap < 4; tap++) {
+            await page.touchscreen.tap(x, y)
+          }
+          await expect.poll(() => itemInUrl(page)).toBe(String(ids[4]))
+          expect(
+            await page.evaluate(() => window.getSelection()?.toString() ?? ''),
+          ).toBe('')
+          // The inspector shows the item on stage, which is now also the
+          // single selection (D52).
+          await expect(fileName).toHaveAttribute('title', names[4] as string)
+          await expect(page.getByLabel('Title', { exact: true })).toBeVisible()
+
+          // Leaving detail keeps that selection.
+          await page.keyboard.press('Escape')
+          await expect(detail).toBeHidden()
+          const last = page.locator(`[data-mm-tile="${ids[4]}"]`)
+          await expect(last).toHaveAttribute('aria-selected', 'true')
+          await expect(
+            page.locator(`[data-mm-tile="${ids[0]}"]`),
+          ).toHaveAttribute('aria-selected', 'false')
+          await expect(fileName).toHaveAttribute('title', names[4] as string)
+        })
+      })
+
       test('stops at the last item too (D34)', async ({ page }) => {
         await openLibrary(page)
         await tiles(page).first().click()

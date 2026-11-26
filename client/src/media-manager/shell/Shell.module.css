@@ -50,6 +50,10 @@
   padding-inline: var(--mantine-spacing-sm);
   border-bottom: 1px solid var(--line-1, var(--mantine-color-default-border));
   background: var(--surface-panel, var(--mantine-color-body));
+  /* Chrome: no text selection or long-press callout (theme.css). */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .brand {

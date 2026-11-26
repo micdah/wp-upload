@@ -5,6 +5,7 @@ export {
   type ItemResult,
   type Targets,
   useCollection,
+  useInspectorTargets,
   useItem,
   useTargets,
   useTrackCurrentCollection,

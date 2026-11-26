@@ -150,3 +150,26 @@ export function useTargets(): Targets {
     return { ids, source, hidden: hiddenSelectedCount(selection, order) }
   }, [selection, order])
 }
+
+/**
+ * What the inspector shows (D52). In grid mode the same as useTargets(); in
+ * detail mode always the item on stage, also with several selected (batch
+ * editing stays a grid-mode feature), so the panel follows ←/→.
+ */
+export function useInspectorTargets(): Targets {
+  const targets = useTargets()
+  const detailItem = useUrlState((state) => state.item)
+  return useMemo(() => {
+    if (detailItem === null) {
+      return targets
+    }
+    // The item on stage is the focus (core sync); with 0 or 1 selected it
+    // is the selection too.
+    const selected = targets.source === 'selection' && targets.ids.length === 1
+    return {
+      ids: [detailItem],
+      source: selected && targets.ids[0] === detailItem ? 'selection' : 'focus',
+      hidden: 0,
+    }
+  }, [targets, detailItem])
+}

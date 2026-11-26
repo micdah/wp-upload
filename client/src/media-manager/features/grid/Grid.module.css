@@ -14,6 +14,10 @@
   /* A scrollbar appearing never changes the width the layout fills (C1). */
   scrollbar-gutter: stable;
   outline: none;
+  /* Chrome: no text selection or long-press callout (theme.css). */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .scroller[data-placeholder] {
@@ -39,7 +43,10 @@
   border-radius: var(--radius-tile);
   background: var(--surface-tile);
   cursor: default;
+  -webkit-user-select: none;
   user-select: none;
+  /* Long press belongs to selection and drag, not the image menu. */
+  -webkit-touch-callout: none;
   /* No double-tap zoom on tiles: two taps open detail (GridView). */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;

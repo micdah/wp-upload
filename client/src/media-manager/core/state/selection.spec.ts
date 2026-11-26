@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   clearSelection,
   EMPTY_SELECTION,
+  followDetailItem,
   hiddenSelectedCount,
+  inspectorTargetIds,
   moveFocus,
   pruneSelection,
   rangeTo,
@@ -100,5 +102,37 @@ describe('selection rules', () => {
     expect(ids(pruned)).toEqual([10])
     expect(pruned).toMatchObject({ anchor: null, focus: null })
     expect(pruneSelection(pruned, new Set([42]))).toBe(pruned)
+  })
+
+  it('detail mode: 0 or 1 selected follow the item, 2+ keep the selection (D52)', () => {
+    // Nothing selected (a deep link): the item becomes the selection.
+    const opened = followDetailItem(EMPTY_SELECTION, 12)
+    expect(opened).toEqual({ selection: new Set([12]), anchor: 12, focus: 12 })
+    // One selected: the single selection moves along with the focus.
+    const stepped = followDetailItem(opened, 13)
+    expect(stepped).toEqual({ selection: new Set([13]), anchor: 13, focus: 13 })
+    // Already there: unchanged (no store update).
+    expect(followDetailItem(stepped, 13)).toBe(stepped)
+    // One selected elsewhere, focus moved without selecting: still follows.
+    const focusOnly = moveFocus(
+      selectOnly(EMPTY_SELECTION, 10),
+      14,
+      'focus-only',
+    )
+    expect(ids(followDetailItem(focusOnly, 14))).toEqual([14])
+    // Two or more: kept, only the focus moves (anchor too stays).
+    const several = rangeTo(selectOnly(EMPTY_SELECTION, 10), order, 12)
+    const kept = followDetailItem(several, 15)
+    expect(ids(kept)).toEqual([10, 11, 12])
+    expect(kept).toMatchObject({ anchor: 10, focus: 15 })
+    expect(followDetailItem(kept, 15)).toBe(kept)
+  })
+
+  it('the inspector shows the item on stage in detail mode, else the targets (D52)', () => {
+    const several = rangeTo(selectOnly(EMPTY_SELECTION, 10), order, 12)
+    expect(inspectorTargetIds(several, order, null)).toEqual([10, 11, 12])
+    expect(inspectorTargetIds(several, order, 14)).toEqual([14])
+    expect(inspectorTargetIds(EMPTY_SELECTION, order, 11)).toEqual([11])
+    expect(inspectorTargetIds(EMPTY_SELECTION, order, null)).toEqual([])
   })
 })

@@ -9,6 +9,10 @@
   gap: var(--space-1);
   width: var(--rail-w);
   padding: var(--space-2) 0;
+  /* Chrome: no text selection or long-press callout (theme.css). */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .rail[data-open] {

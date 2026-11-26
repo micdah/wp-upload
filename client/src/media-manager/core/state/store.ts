@@ -114,6 +114,11 @@ export interface CoreActions {
     order?: readonly number[],
   ): void
   setFocus(id: number | null): void
+  /**
+   * Detail mode shows `id` (D52): with 0 or 1 selected the selection moves
+   * with the focus; with 2 or more only the focus moves (selection.ts).
+   */
+  followDetailItem(id: number): void
   resetSelection(): void
   pruneSelection(removed: Iterable<number>): void
 
@@ -293,6 +298,10 @@ export function createCoreStore(
               set({ focus: id })
             }
           },
+          followDetailItem: (id) =>
+            setSelectionState(
+              selection.followDetailItem(pickSelection(get()), id),
+            ),
           resetSelection: () =>
             setSelectionState(selection.resetForFolderChange()),
           pruneSelection: (removed) =>

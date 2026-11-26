@@ -13,6 +13,12 @@
 // the current item (its row is revealed whenever focus moves), and
 // `revealItem` renders a far-away tile synchronously (flushSync plus a
 // direct scrollTop), never waiting for a frame.
+//
+// Only revealItem (the morph's close path, outside React's lifecycles) may
+// flush synchronously. Everything else that scrolls the grid from a layout
+// effect tells the virtualiser with notifyScrollSoon(): the virtualiser
+// answers a scroll event with flushSync, which React refuses (and warns
+// about) inside a lifecycle (iPad feel review).
 
 import { Button } from '@mantine/core'
 import { useQueryClient } from '@tanstack/react-query'
@@ -158,6 +164,26 @@ function GridEmpty() {
       </p>
     </div>
   )
+}
+
+/**
+ * Tells the virtualiser the scroller moved (C1 rule 2), synchronously. Only
+ * outside React's render and commit: it re-renders with flushSync.
+ */
+function notifyScroll(element: HTMLElement): void {
+  element.dispatchEvent(new Event('scroll'))
+}
+
+/**
+ * The same from a layout effect (or anything that may run inside one): a
+ * microtask runs once React has left the commit, still before paint.
+ */
+function notifyScrollSoon(element: HTMLElement): void {
+  queueMicrotask(() => {
+    if (element.isConnected) {
+      notifyScroll(element)
+    }
+  })
 }
 
 function pixelBox(element: HTMLElement): { width: number; height: number } {
@@ -306,7 +332,7 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
         sameQuery && anchor
           ? scrollTopForAnchor(layout, anchor) + PADDING_TOP
           : 0
-      element.dispatchEvent(new Event('scroll'))
+      notifyScrollSoon(element)
     }
     restoreFocusRef.current =
       element?.contains(document.activeElement) === true ||
@@ -328,7 +354,7 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
       const next = top + PADDING_TOP
       if (Math.abs(next - element.scrollTop) > 0.5) {
         element.scrollTop = next
-        element.dispatchEvent(new Event('scroll'))
+        notifyScrollSoon(element)
       }
     },
     [layout],
@@ -449,7 +475,7 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
             scroller.clientHeight - PADDING_TOP - PADDING_BOTTOM,
           )
           scroller.scrollTop = top + PADDING_TOP
-          scroller.dispatchEvent(new Event('scroll'))
+          notifyScroll(scroller)
           return Promise.resolve(tileElement(id))
         },
       }),

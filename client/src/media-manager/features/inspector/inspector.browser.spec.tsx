@@ -177,6 +177,29 @@ describe('the Info panel', () => {
     ).toBeTruthy()
   })
 
+  it('keeps its values selectable for copying, while the rail is chrome', async () => {
+    start()
+    select(1001)
+    renderInspector()
+    const rail = screen.getByRole('navigation', { name: 'Inspector panels' })
+    expect(getComputedStyle(rail).userSelect).toBe('none')
+    expect(
+      getComputedStyle(screen.getByRole('button', { name: /^Info/ }))
+        .touchAction,
+    ).toBe('manipulation')
+    const name = await screen.findByTestId('file-name')
+    const values = [
+      name,
+      name.nextElementSibling,
+      await titleField(),
+      await altField(),
+    ]
+    for (const element of values) {
+      expect(element).not.toBeNull()
+      expect(getComputedStyle(element as Element).userSelect).not.toBe('none')
+    }
+  })
+
   it('hides the preview in detail mode and Alt text for non-images', async () => {
     setUrlStoreForTesting(
       createUrlStore(

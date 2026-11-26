@@ -3,7 +3,7 @@
 // M2 slice; Edit image and Usage say they arrive later.
 
 import { useEffect, useId } from 'react'
-import { useTargets } from '../../core/collection/hooks'
+import { useInspectorTargets } from '../../core/collection/hooks'
 import type { InspectorTab } from '../../core/state/store'
 import { useUrlState } from '../../core/url/useUrlState'
 import { hasUnsavedText } from './autosave'
@@ -24,7 +24,8 @@ const LATER: Record<Exclude<InspectorTab, 'info'>, string> = {
 }
 
 export function Panel({ tab }: { tab: InspectorTab }) {
-  const targets = useTargets()
+  // In detail mode the item on stage, even with several selected (D52).
+  const targets = useInspectorTargets()
   const detailMode = useUrlState((state) => state.item !== null)
   const headingId = useId()
   const count = targets.ids.length

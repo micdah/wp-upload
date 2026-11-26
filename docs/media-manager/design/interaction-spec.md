@@ -24,7 +24,8 @@ A visual walkthrough of every flow is in [screens.md](screens.md).
   (the keyboard position). They are deliberately separate: focus moves without changing the selection
   only when you hold a modifier; plain arrow keys move focus *and* select (Finder/Lightroom behaviour).
 - **Targets.** Actions apply to the selection, or to the focused item when nothing is selected. The
-  inspector shows the same targets.
+  inspector shows the same targets in grid mode; in detail mode it shows the item on stage, and stepping
+  moves a selection of 0 or 1 items along with it (D52, [implementation plan](../implementation-plan.md) §0).
 - **Changing folder** clears the selection and focus. Changing filters or sort keeps the selection
   (hidden selected items stay selected, and the count says so).
 

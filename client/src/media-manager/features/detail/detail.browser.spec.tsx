@@ -11,6 +11,7 @@ import {
 } from 'vitest'
 import { getCurrentCollection } from '../../core/collection/hooks'
 import { coreStore } from '../../core/state'
+import { failOnReactWarnings } from '../../test/consoleErrors'
 import {
   cleanupLibrary,
   pollRevNow,
@@ -21,6 +22,10 @@ import {
 // pushes `?item=`, stepping replaces it and stops at both ends (D34), leaving
 // goes back to the grid entry and to the tile, with the return ring.
 
+// The grid follows the item while detail is open; that must not flush
+// React synchronously from inside a lifecycle (iPad feel review).
+// Registered first, so it checks after the cleanup below has run.
+failOnReactWarnings()
 afterEach(cleanupLibrary)
 
 // Without the View Transitions API here: in Vitest's iframe, Chromium's
@@ -172,6 +177,60 @@ describe('detail mode', () => {
     ).toBeTruthy()
     expect(detail).toBeTruthy()
     expect(coreStore.getState().focus).toBe(id)
+  })
+})
+
+describe('fast taps on the chrome (iPad feel review)', () => {
+  function style(element: Element | null): CSSStyleDeclaration {
+    if (!element) throw new Error('element not rendered')
+    return getComputedStyle(element)
+  }
+
+  it('select no text: toolbar, grid tiles, detail bar, stage and buttons', async () => {
+    const user = userEvent.setup()
+    await renderLibrary()
+    const tile = tiles()[1] as HTMLElement
+    await user.click(tile)
+    await user.keyboard('{Enter}')
+    const detail = await stage()
+    const bar = detail.querySelector('header')
+    const next = screen.getByRole('button', { name: 'Next item' })
+    const stageBox = next.parentElement
+    const chrome = {
+      toolbar: document.querySelector('header'),
+      tile,
+      bar,
+      title: detail.querySelector('h2'),
+      stage: stageBox,
+      next,
+    }
+    for (const [name, element] of Object.entries(chrome)) {
+      expect(style(element).userSelect, name).toBe('none')
+    }
+    // No long-press callout on tiles and the stage's buttons (WebKit only;
+    // Chromium has no such property, so only check where it exists).
+    for (const element of [tile, next]) {
+      const callout = style(element).getPropertyValue('-webkit-touch-callout')
+      expect(['', 'none']).toContain(callout)
+    }
+    // Quick taps are taps, not a double-tap zoom or a selection.
+    for (const element of [tile, next, screen.getByLabelText('Back to grid')]) {
+      expect(style(element).touchAction).toBe('manipulation')
+    }
+  })
+
+  it('steps once per click on Next, however fast, and leaves no selection', async () => {
+    const user = userEvent.setup({ delay: null })
+    const { search } = await renderLibrary()
+    const ids = tiles().map(idOf)
+    await user.click(tiles()[0] as HTMLElement)
+    await user.keyboard('{Enter}')
+    await stage()
+    const next = screen.getByRole('button', { name: 'Next item' })
+    await user.tripleClick(next)
+    await user.dblClick(next)
+    expect(search()).toContain(`item=${ids[5]}`)
+    expect(window.getSelection()?.toString() ?? '').toBe('')
   })
 })
 

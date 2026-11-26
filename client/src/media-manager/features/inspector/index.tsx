@@ -16,8 +16,8 @@ import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 import type { MediaKind } from '../../../../../shared/library-api'
 import {
   getCurrentCollection,
+  useInspectorTargets,
   useItem,
-  useTargets,
 } from '../../core/collection/hooks'
 import {
   type Availability,
@@ -34,6 +34,7 @@ import {
 } from '../../core/state'
 import type { InspectorTab } from '../../core/state/store'
 import { CropIcon, InfoIcon, UsageIcon } from '../../core/ui/icons'
+import { urlStore } from '../../core/url/useUrlState'
 import { bridgeStore, resetInspectorSession } from './bridge'
 import { isImageLike } from './format'
 import classes from './Rail.module.css'
@@ -74,7 +75,7 @@ export function InspectorPanel() {
 
 /** The icon rail: it still talks when collapsed (the missing-alt dot). */
 function Rail({ open, current }: { open: boolean; current: InspectorTab }) {
-  const targets = useTargets()
+  const targets = useInspectorTargets()
   const single = targets.ids.length === 1 ? (targets.ids[0] ?? null) : null
   const { item } = useItem(single, 'tile')
   const altMissing =
@@ -144,9 +145,14 @@ function RailTab({
 // The `A` command (inspector.focus-alt)
 // ---------------------------------------------------------------------------
 
+/** What the panel shows: in detail mode the item on stage (D52). */
 function currentTargets(): number[] {
   const order = getCurrentCollection()?.ids ?? []
-  return selectionRules.targetIds(coreStore.getState(), order)
+  return selectionRules.inspectorTargetIds(
+    coreStore.getState(),
+    order,
+    urlStore().get().item,
+  )
 }
 
 /** The kind from the collection rows, or from the item the panel shows. */

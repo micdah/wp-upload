@@ -20,6 +20,10 @@
   height: var(--filterbar-h);
   padding: 0 var(--space-3);
   color: var(--text-2);
+  /* Chrome: no text selection or long-press callout (theme.css). */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .title {
@@ -91,6 +95,10 @@
   place-items: center;
   padding: var(--space-4) 40px;
   overflow: hidden;
+  /* Chrome: no text selection (theme.css); the picture keeps its
+     long-press menu (save, copy). */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .stage[data-zoomed] {
@@ -137,6 +145,7 @@
   transform: translateY(-50%);
   opacity: 0;
   transition: opacity var(--dur-1) var(--ease-out);
+  -webkit-touch-callout: none;
 }
 
 .stage:hover .nav,

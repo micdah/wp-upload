@@ -28,7 +28,9 @@ The browser checks were run, not just built:
 - **The mock build, from a sub-path.** It was served under `/wp-upload-mock/` from a local static
   server and opened in Playwright Chromium at
   `/wp-upload-mock/?view=library&mock-scenario=author,trash`:
-  - the service worker registered at `/wp-upload-mock/mockServiceWorker.js`;
+  - the service worker registered at `/wp-upload-mock/mockServiceWorker.js` (since the M2 feel review the mock
+    registers `mock-sw.js`, which keeps page loads and other origins away from MSW and then loads
+    `mockServiceWorker.js`; see the M2-slice handoff §8);
   - relative `api/library/*` and `session` calls were answered;
   - placeholder renditions and the bundled sample video loaded;
   - the scenario switcher showed;

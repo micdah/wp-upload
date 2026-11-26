@@ -93,6 +93,39 @@ export function moveFocus(
   return { ...state, focus: id }
 }
 
+/**
+ * Detail mode showing `id` (opened, stepped to, deep-linked; D52): with 0
+ * or 1 items selected the single selection moves along with the focus
+ * (Lightroom), so selection, focus and inspector all track the item on
+ * stage. With 2 or more selected the selection is kept (the filmstrip shows
+ * the rings) and only the focus moves.
+ */
+export function followDetailItem(
+  state: SelectionState,
+  id: number,
+): SelectionState {
+  if (state.selection.size <= 1) {
+    if (state.selection.has(id) && state.anchor === id && state.focus === id) {
+      return state
+    }
+    return selectOnly(state, id)
+  }
+  return state.focus === id ? state : { ...state, focus: id }
+}
+
+/**
+ * What the inspector shows (D52): in detail mode always the item on stage,
+ * even with several selected (batch editing is a grid-mode feature);
+ * otherwise the same targets as actions (targetIds).
+ */
+export function inspectorTargetIds(
+  state: SelectionState,
+  order: readonly number[],
+  detailItem: number | null,
+): number[] {
+  return detailItem === null ? targetIds(state, order) : [detailItem]
+}
+
 /** Changing folder clears the selection and focus (interaction-spec §1). */
 export function resetForFolderChange(): SelectionState {
   return { selection: new Set(), anchor: null, focus: null }

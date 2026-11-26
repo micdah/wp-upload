@@ -164,11 +164,37 @@ describe('URL ↔ core sync', () => {
     expect(core.getState().selection.size).toBe(1)
   })
 
-  it('a deep link focuses its item', () => {
+  it('a deep link focuses and selects its item (D52)', () => {
     const env = createMemoryHistory('https://example.com/?view=library&item=42')
     const core = createCoreStore({ storage: null })
     installCoreSync(createUrlStore(env), core)
     expect(core.getState().focus).toBe(42)
+    expect([...core.getState().selection]).toEqual([42])
+  })
+
+  it('stepping moves a single selection along; leaving keeps it (D52)', () => {
+    const { env, url, core } = setup()
+    core.getState().selectOnly(3)
+    url.openItem(3)
+    url.openItem(4)
+    url.openItem(5)
+    expect(core.getState()).toMatchObject({ anchor: 5, focus: 5 })
+    expect([...core.getState().selection]).toEqual([5])
+    env.go(-1)
+    env.flush()
+    expect(url.get().item).toBeNull()
+    expect([...core.getState().selection]).toEqual([5])
+    expect(core.getState().focus).toBe(5)
+  })
+
+  it('stepping keeps a selection of two or more, moving only the focus (D52)', () => {
+    const { url, core } = setup()
+    core.getState().selectAll([1, 2, 3])
+    core.getState().setFocus(3)
+    url.openItem(3)
+    url.openItem(4)
+    expect([...core.getState().selection]).toEqual([1, 2, 3])
+    expect(core.getState().focus).toBe(4)
   })
 
   it('detail moves focus to the item, resets zoom and closes overlays', () => {

@@ -90,3 +90,27 @@
 :root .mantine-Notification-root {
   background-color: var(--surface-overlay);
 }
+
+/*
+ * Fast taps (iPad feel review): every control is `touch-action:
+ * manipulation`, so the browser neither holds a tap back for a double-tap
+ * zoom nor treats two quick taps on Next as a double-tap. Zero specificity,
+ * so a component's own value (the folder resizer's `none`) wins.
+ */
+:where(:root) :where(button, [role="button"], a[href], label, summary) {
+  touch-action: manipulation;
+}
+
+/*
+ * The chrome's text isn't selectable: the toolbar, the rail, the grid and
+ * detail's bar and stage each opt out in their own module (user-select and
+ * -webkit-touch-callout: none), because quick taps or a long press there
+ * would start a text selection over the UI. Fields stay selectable wherever
+ * they sit, and the inspector panel (file name, URLs, EXIF) isn't chrome,
+ * so its values can still be copied.
+ */
+:where(:root) :where(input, textarea, [contenteditable="true"]) {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
