@@ -1,27 +1,39 @@
+// The folder tree's pure model (folders.md §1–§8). No React, no DOM, no drag
+// and drop library: the column, the drop targets and the Move dialog call
+// into this module, so every rule is unit-tested in Node.
+//
+// Lifted from spike C3 (tracks/spikes/C3.md, its `folderTree.ts`)
+// and extended with what the column needs beyond the spike:
+//
+// - indexFolders / flattenVisible: the API's flat list as the rows a
+//   virtualiser renders, with the ARIA fields, a display sort (FileBird Pro's
+//   name order) and a search filter that keeps ancestors visible;
+// - folderDropAvailability / resolveFolderMove / applyFolderMove: drops as
+//   the API's `{ parent, position }`, with the cycle rule;
+// - searchFolders, nestedCounts, descendantIds, folderPath, cleanFolderName:
+//   search, the two count modes, the delete confirm's numbers, the Move
+//   dialog's paths, and FileBird's name normalisation.
+
 import type {
   Folder,
   FolderUpdateRequest,
-} from '../../../../../../shared/library-api'
-
-// Spike C3: the folder tree's pure model (plan §3 "Folder tree: custom
-// flattened, virtualised ARIA tree"). No React, no DOM, no drag-and-drop
-// library: the component and the drop targets only call into this module, so
-// A3 can lift it unchanged and unit-test every rule in Node.
-//
-// - indexFolders: the flat `Folder[]` from the API as a parent → children map.
-// - flattenVisible: the rows a virtualiser renders, given the expanded set,
-//   with everything the ARIA tree needs (level, position in set, set size).
-// - folderDropAvailability: which drop operations a row offers for a dragged
-//   folder (feeds the hitbox), including the cycle rule.
-// - resolveFolderMove: a drop (operation on a row, or the empty tree area) as
-//   the API's `{ parent, position }`.
-// - applyFolderMove: the same move applied to the flat list (optimistic
-//   update, Undo snapshot comparisons, tests).
+} from '../../../../../shared/library-api'
 
 /** The top level's parent id, as in the API (`Folder.parent`). */
 export const ROOT_ID = 0
 
-/** The folder list as a tree. Children are in display order (`ord`, then `id`). */
+/** FileBird's longest folder name (server-api.md §7.11). */
+export const MAX_FOLDER_NAME_LENGTH = 200
+
+/** Sibling order: FileBird's manual `ord`, or Pro's name sort (A–Z / Z–A). */
+export const FOLDER_SORTS = ['manual', 'name-asc', 'name-desc'] as const
+export type FolderSort = (typeof FOLDER_SORTS)[number]
+
+/** Count files directly in a folder, or in its subfolders too. */
+export const COUNT_MODES = ['direct', 'nested'] as const
+export type CountMode = (typeof COUNT_MODES)[number]
+
+/** The folder list as a tree. Children are in manual order (`ord`, then `id`). */
 export interface FolderIndex {
   byId: ReadonlyMap<number, Folder>
   /** parent id → children in order; ROOT_ID holds the top level */
@@ -38,18 +50,24 @@ export interface FolderRow {
   level: number
   /** the parent the row is displayed under (ROOT_ID for the top level) */
   parent: number
-  /** aria-posinset: 1-based position among its siblings */
+  /** aria-posinset: 1-based position among its visible siblings */
   posInSet: number
-  /** aria-setsize: number of siblings, itself included */
+  /** aria-setsize: number of visible siblings, itself included */
   setSize: number
   hasChildren: boolean
-  /** expanded and has children (an empty folder is never "expanded") */
+  /** expanded and has (visible) children; an empty folder is never "expanded" */
   expanded: boolean
 }
 
 function byOrder(a: Folder, b: Folder): number {
   return a.ord - b.ord || a.id - b.id
 }
+
+/** Natural, case-insensitive name order ("Event 2" before "Event 10"). */
+export const compareNames: (a: string, b: string) => number = new Intl.Collator(
+  undefined,
+  { numeric: true, sensitivity: 'base' },
+).compare
 
 /**
  * Indexes the flat list. A folder whose parent is missing from the list (an
@@ -86,6 +104,31 @@ export function displayParent(index: FolderIndex, id: number): number {
   return index.byId.has(folder.parent) ? folder.parent : ROOT_ID
 }
 
+/** Siblings in display order: manual, or by name with Pro's sort. */
+export function sortSiblings(
+  siblings: readonly Folder[],
+  sort: FolderSort,
+): readonly Folder[] {
+  if (sort === 'manual') {
+    return siblings
+  }
+  const sorted = [...siblings].sort(
+    (a, b) => compareNames(a.name, b.name) || a.id - b.id,
+  )
+  return sort === 'name-desc' ? sorted.reverse() : sorted
+}
+
+export interface FlattenOptions {
+  /** Display order of siblings. Default `manual`. */
+  sort?: FolderSort
+  /**
+   * Only these folders are shown (a search: the matches and their
+   * ancestors), and every shown folder with shown children is expanded,
+   * whatever `expanded` says, so the saved expansion stays untouched.
+   */
+  only?: ReadonlySet<number> | null
+}
+
 /**
  * The visible rows, depth first, given which folders are expanded. Iterative,
  * so a deep chain can't overflow the stack, and guarded against a corrupt
@@ -94,7 +137,14 @@ export function displayParent(index: FolderIndex, id: number): number {
 export function flattenVisible(
   index: FolderIndex,
   expanded: ReadonlySet<number>,
+  options: FlattenOptions = {},
 ): FolderRow[] {
+  const { sort = 'manual', only = null } = options
+  const childrenOf = (id: number): readonly Folder[] => {
+    const all = index.children.get(id) ?? []
+    const shown = only ? all.filter((folder) => only.has(folder.id)) : all
+    return sortSiblings(shown, sort)
+  }
   const rows: FolderRow[] = []
   const seen = new Set<number>()
   // A stack of sibling lists with a cursor, instead of recursion.
@@ -104,8 +154,8 @@ export function flattenVisible(
     level: number
     parent: number
   }> = []
-  const top = index.children.get(ROOT_ID)
-  if (top) {
+  const top = childrenOf(ROOT_ID)
+  if (top.length > 0) {
     stack.push({ siblings: top, next: 0, level: 1, parent: ROOT_ID })
   }
   while (stack.length > 0) {
@@ -120,9 +170,9 @@ export function flattenVisible(
       continue
     }
     seen.add(folder.id)
-    const children = index.children.get(folder.id) ?? []
+    const children = childrenOf(folder.id)
     const hasChildren = children.length > 0
-    const isExpanded = hasChildren && expanded.has(folder.id)
+    const isExpanded = hasChildren && (only !== null || expanded.has(folder.id))
     rows.push({
       id: folder.id,
       folder,
@@ -171,7 +221,170 @@ export function isSelfOrDescendant(
   return id === rootId || ancestorsOf(index, id).includes(rootId)
 }
 
-// ---- Drop rules ---------------------------------------------------------------
+/** Every folder inside `id`'s subtree (not `id` itself), depth first. */
+export function descendantIds(index: FolderIndex, id: number): number[] {
+  const ids: number[] = []
+  const seen = new Set<number>([id])
+  const stack = [...(index.children.get(id) ?? [])].reverse()
+  while (stack.length > 0) {
+    const folder = stack.pop() as Folder
+    if (seen.has(folder.id)) {
+      continue
+    }
+    seen.add(folder.id)
+    ids.push(folder.id)
+    const children = index.children.get(folder.id) ?? []
+    for (let i = children.length - 1; i >= 0; i--) {
+      stack.push(children[i] as Folder)
+    }
+  }
+  return ids
+}
+
+/** Files directly in the folder and in every subfolder. */
+export function subtreeFileCount(index: FolderIndex, id: number): number {
+  let total = index.byId.get(id)?.count ?? 0
+  for (const descendant of descendantIds(index, id)) {
+    total += index.byId.get(descendant)?.count ?? 0
+  }
+  return total
+}
+
+/**
+ * Every folder's count including its subfolders ("Count files in subfolders
+ * too"). One pass bottom-up, so 5k folders cost one walk.
+ */
+export function nestedCounts(index: FolderIndex): Map<number, number> {
+  const totals = new Map<number, number>()
+  // Children before parents: a post-order walk from the top level.
+  const order: number[] = []
+  const seen = new Set<number>()
+  const stack: Array<{ id: number; done: boolean }> = (
+    index.children.get(ROOT_ID) ?? []
+  ).map((folder) => ({ id: folder.id, done: false }))
+  while (stack.length > 0) {
+    const frame = stack.pop() as { id: number; done: boolean }
+    if (frame.done) {
+      order.push(frame.id)
+      continue
+    }
+    if (seen.has(frame.id)) {
+      continue
+    }
+    seen.add(frame.id)
+    stack.push({ id: frame.id, done: true })
+    for (const child of index.children.get(frame.id) ?? []) {
+      stack.push({ id: child.id, done: false })
+    }
+  }
+  for (const id of order) {
+    let total = index.byId.get(id)?.count ?? 0
+    for (const child of index.children.get(id) ?? []) {
+      total += totals.get(child.id) ?? 0
+    }
+    totals.set(id, total)
+  }
+  return totals
+}
+
+/** The names of a folder's ancestors, top first ("2025 · Blog"). */
+export function folderPath(index: FolderIndex, id: number): string[] {
+  return ancestorsOf(index, id)
+    .reverse()
+    .map((ancestor) => index.byId.get(ancestor)?.name ?? '')
+}
+
+// ---- Search ---------------------------------------------------------------------
+
+export interface FolderSearch {
+  /** folders whose name contains the query */
+  matches: ReadonlySet<number>
+  /** the matches plus all their ancestors: what the tree shows */
+  visible: ReadonlySet<number>
+}
+
+/** The trimmed, lowercased search text, or '' for none. */
+export function searchNeedle(query: string): string {
+  return query.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+/**
+ * Client-side, case-insensitive substring search (folders.md §8). Matching
+ * folders and all their ancestors stay visible.
+ */
+export function searchFolders(
+  index: FolderIndex,
+  query: string,
+): FolderSearch | null {
+  const needle = searchNeedle(query)
+  if (needle === '') {
+    return null
+  }
+  const matches = new Set<number>()
+  const visible = new Set<number>()
+  for (const folder of index.byId.values()) {
+    if (!folder.name.toLowerCase().includes(needle)) {
+      continue
+    }
+    matches.add(folder.id)
+    visible.add(folder.id)
+    for (const ancestor of ancestorsOf(index, folder.id)) {
+      visible.add(ancestor)
+    }
+  }
+  return { matches, visible }
+}
+
+/** Splits a name around the first match, for `<mark>`. */
+export function highlightParts(
+  name: string,
+  query: string,
+): { before: string; match: string; after: string } | null {
+  const needle = searchNeedle(query)
+  if (needle === '') {
+    return null
+  }
+  const start = name.toLowerCase().indexOf(needle)
+  if (start === -1) {
+    return null
+  }
+  const end = start + needle.length
+  return {
+    before: name.slice(0, start),
+    match: name.slice(start, end),
+    after: name.slice(end),
+  }
+}
+
+// ---- Names ------------------------------------------------------------------------
+
+/**
+ * A name as FileBird stores it: inner whitespace collapsed, trimmed, at most
+ * 200 characters. Empty means "no name" (cancel).
+ */
+export function cleanFolderName(value: string): string {
+  return value
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, MAX_FOLDER_NAME_LENGTH)
+    .trim()
+}
+
+/** Whether any folder already has this name (case-insensitive). */
+export function hasFolderNamed(index: FolderIndex, name: string): boolean {
+  const wanted = cleanFolderName(name).toLowerCase()
+  if (wanted === '') {
+    return false
+  }
+  for (const folder of index.byId.values()) {
+    if (folder.name.toLowerCase() === wanted) {
+      return true
+    }
+  }
+  return false
+}
+
+// ---- Drop rules -------------------------------------------------------------------
 
 /**
  * The three things a drop on a row can mean. Same names as the hitbox
@@ -284,6 +497,26 @@ function siblingsWithout(
 }
 
 /**
+ * Where a folder is now, in the API's terms: its parent and its index among
+ * that parent's children in manual order, counted without itself. That is
+ * exactly the `{ parent, position }` that moves it back (Undo,
+ * server-api.md §7.11).
+ */
+export function currentPlacement(
+  index: FolderIndex,
+  id: number,
+): FolderMove | null {
+  if (!index.byId.has(id)) {
+    return null
+  }
+  const parent = displayParent(index, id)
+  const position = (index.children.get(parent) ?? []).findIndex(
+    (folder) => folder.id === id,
+  )
+  return { parent, position: Math.max(0, position) }
+}
+
+/**
  * A drop as the API's `{ parent, position }`. `position` is the 0-based index
  * among the new parent's children counted without the moved folder (the
  * contract of `FolderUpdateRequest`). "Inside" appends as the last child.
@@ -333,12 +566,11 @@ export function resolveFolderMove(
       }
     }
   }
-  const currentParent = displayParent(index, draggedId)
-  const currentPosition = (index.children.get(currentParent) ?? []).findIndex(
-    (folder) => folder.id === draggedId,
-  )
+  const current = currentPlacement(index, draggedId)
   const noop =
-    move.parent === currentParent && move.position === currentPosition
+    current !== null &&
+    move.parent === current.parent &&
+    move.position === current.position
   return { ok: true, move, noop }
 }
 

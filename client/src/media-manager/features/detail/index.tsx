@@ -1,10 +1,10 @@
-// The `detail` feature: detail mode's stage, stepping and zoom (interaction-
-// spec §5). Built in M2 as the vertical slice; track A2 extends it in wave A
-// (filmstrip, media players, pan, More menu). The shell imports these
-// exports directly: keep their names.
+// The `detail` feature: detail mode (interaction-spec §5): the top bar, the
+// stage per media type with zoom, pan and touch gestures, and the filmstrip.
+// The shell imports these exports directly: keep their names.
 //
 // Core implements the commands (detail.open/close/step, zoom) in
-// app/runtime.ts; detail registers the stage with centerApi.
+// app/runtime.ts; detail registers the stage with centerApi, and adds
+// detail.play-toggle (Space) itself (commands.ts).
 //
 // The overlay is a lazy chunk (plan §9's initial-chunk budget), fetched as
 // soon as the browser is idle after start-up, so it is normally there before
@@ -13,6 +13,7 @@
 
 import { lazy, Suspense, useEffect } from 'react'
 import { useUrlState } from '../../core/url/useUrlState'
+import { registerDetailCommands } from './commands'
 
 const loadOverlay = () => import('./DetailOverlay')
 
@@ -48,4 +49,6 @@ export function DetailOverlay() {
   )
 }
 
-export function register(): void {}
+export function register(): void {
+  registerDetailCommands()
+}

@@ -2,61 +2,40 @@
 // `?item=` (Enter, double-click, or a deep link). The grid stays mounted and
 // inert underneath, so scroll position and selection survive the round trip.
 //
-// The stage shows the item fitted with 40 px side and 16 px vertical
-// padding. The picture the grid already loaded shows at once and upgrades
-// to the sub-size that fits the stage; the neighbours' pictures preload.
-// The stage's media element is the morph's target (spike C2), sized to its
-// fitted box so the hero never stretches into the letterbox.
+// It is the top bar (DetailBar), the stage (Stage, StageMedia, Player) and
+// the filmstrip (Filmstrip), all walking the same collection as the grid.
+// Core implements opening, leaving, stepping and zoom (app/runtime.ts);
+// this lazy chunk renders them and handles the edge cases:
 //
-// Wave A (track A2) adds the filmstrip, pan, the More menu, video/audio
-// players and PDF pages; this is the M2 slice.
+// - an item outside the current view (a deep link the filters hide, or an
+//   item that left the view while shown): the bar says "Not in this view";
+//   stepping goes on from the place it had (core's detail.step), and where
+//   there is no such place the step buttons hide;
+// - the item on stage is removed while open (deleted, trashed, removed from
+//   or moved out of the folder on view, restored from the Trash view;
+//   removal.ts): the item that took
+//   its place shows, and detail returns to the grid when nothing is left
+//   (system.md §4 "After any removal"); a deep link to a missing item shows
+//   "Item not found".
 
-import { ActionIcon, Tooltip } from '@mantine/core'
-import {
-  type CSSProperties,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
-import type {
-  LibraryItemFull,
-  LibraryItemTile,
-} from '../../../../../shared/library-api'
-import { centerApi, registerCenter } from '../../core/collection/centerApi'
+import { useEffect, useRef } from 'react'
 import { useCollection, useItem } from '../../core/collection/hooks'
-import { pictureFor } from '../../core/collection/renditions'
-import { neighbourOf } from '../../core/collection/rows'
-import { runCommand } from '../../core/commands/registry'
-import { libraryApi } from '../../core/data/api'
-import { useCore } from '../../core/state'
-import { announce } from '../../core/ui/announce'
 import {
-  ArchiveIcon,
-  AudioIcon,
-  BackIcon,
-  DownloadIcon,
-  FileIcon,
-  NextIcon,
-  PdfIcon,
-  PreviousIcon,
-  ZoomInIcon,
-} from '../../core/ui/icons'
-import { noSelectProps } from '../../core/ui/noSelect'
-import { useUrlState } from '../../core/url/useUrlState'
+  type CollectionRows,
+  neighbourOf,
+  queryKeyOf,
+} from '../../core/collection/rows'
+import { runCommand } from '../../core/commands/registry'
+import { useCommand } from '../../core/commands/useCommand'
+import { announce } from '../../core/ui/announce'
+import { urlStore, useUrlState } from '../../core/url/useUrlState'
 import classes from './Detail.module.css'
-import { fitInto, zoomedSize } from './fit'
-
-/** Stage padding (interaction-spec §5): 40 px at the sides, 16 px top and bottom. */
-const PAD_X = 40
-const PAD_Y = 16
-
-type AnyItem = LibraryItemTile | LibraryItemFull
-
-function pixelRatio(): number {
-  return window.devicePixelRatio || 1
-}
+import { DetailBar } from './DetailBar'
+import { Filmstrip } from './Filmstrip'
+import { successorIn, wasRemoved } from './removal'
+import { Stage } from './Stage'
+import type { AnyItem } from './StageMedia'
+import type { StepTarget } from './useStageGestures'
 
 export function DetailOverlay() {
   const id = useUrlState((state) => state.item)
@@ -66,16 +45,95 @@ export function DetailOverlay() {
   return <Detail id={id} />
 }
 
+/**
+ * What a step button or swipe reaches. In the view: the neighbour, or the
+ * end (D34). Outside it: whatever core's detail.step can do from the place
+ * the item had, or nothing.
+ */
+function stepTarget(
+  index: number,
+  neighbour: number | null,
+  available: boolean,
+): StepTarget {
+  if (index >= 0) {
+    return neighbour !== null ? 'item' : 'edge'
+  }
+  return available ? 'item' : 'none'
+}
+
+interface SeenAt {
+  id: number
+  index: number
+  query: string
+  /** The rows it was seen in, to find who followed it after a removal. */
+  rows: CollectionRows
+}
+
+/**
+ * When the item on stage is removed from the view (removal.ts), shows the
+ * item that took its place, or returns to the grid when the view is empty
+ * (system.md §4, folders.md §11).
+ */
+function useStepAwayFromRemoved(
+  id: number,
+  item: AnyItem | null,
+  missing: boolean,
+  collection: ReturnType<typeof useCollection>,
+): void {
+  const seen = useRef<SeenAt | null>(null)
+  const rows: CollectionRows = collection.rows
+  const index = rows.indexOf(id)
+  const query = queryKeyOf(collection.query)
+  useEffect(() => {
+    if (index >= 0) {
+      seen.current = { id, index, query, rows }
+    }
+  }, [id, index, query, rows])
+
+  const removed = wasRemoved(item, missing, collection.query.folder)
+  const settled = collection.status === 'success' && !collection.isPlaceholder
+  useEffect(() => {
+    if (!removed || !settled || rows.has(id)) {
+      return
+    }
+    const last = seen.current
+    if (!last || last.id !== id || last.query !== query) {
+      // Never seen in this view (a deep link): it stays, with "Not in this
+      // view" or "Item not found".
+      return
+    }
+    const next = successorIn(rows, last)
+    if (next === null) {
+      // Leaving runs the morph, which renders synchronously (flushSync):
+      // not from inside an effect.
+      queueMicrotask(() => runCommand('detail.close'))
+      return
+    }
+    urlStore().openItem(next)
+  }, [removed, settled, rows, id, query])
+}
+
 function Detail({ id }: { id: number }) {
   const collection = useCollection()
-  const tile = useItem(id, 'tile').item
-  const full = useItem(id, 'full').item
-  const item: AnyItem | null = full ?? tile
-  const index = collection.rows.indexOf(id)
-  const previous = neighbourOf(collection.rows, id, -1)
-  const next = neighbourOf(collection.rows, id, 1)
+  const tile = useItem(id, 'tile')
+  const fullResult = useItem(id, 'full')
+  const full = fullResult.item
+  const item: AnyItem | null = full ?? tile.item
+  const missing = item === null && (fullResult.missing || tile.missing)
+  const rows = collection.rows
+  const index = rows.indexOf(id)
+  const previous = neighbourOf(rows, id, -1)
+  const next = neighbourOf(rows, id, 1)
+  const stepBack = useCommand('detail.step', { direction: -1 })
+  const stepOn = useCommand('detail.step', { direction: 1 })
   const regionRef = useRef<HTMLElement>(null)
-  const title = item ? item.title || item.filename : 'Loading…'
+  const title = item
+    ? item.title || item.filename
+    : missing
+      ? 'Item not found'
+      : 'Loading…'
+
+  useStepAwayFromRemoved(id, item, missing, collection)
 
   // The grid under detail is inert, so keyboard focus moves into detail.
   useEffect(() => {
@@ -83,9 +141,10 @@ function Detail({ id }: { id: number }) {
   }, [])
 
   // One announcement per item shown (mode change and each step).
-  const announcement = item
-    ? `${title}${index >= 0 ? `, ${index + 1} of ${collection.total}` : ''}`
-    : null
+  const announcement =
+    item || missing
+      ? `${title}${index >= 0 ? `, ${index + 1} of ${collection.total}` : ''}`
+      : null
   useEffect(() => {
     if (announcement) {
       announce(announcement)
@@ -100,326 +159,27 @@ function Detail({ id }: { id: number }) {
       tabIndex={-1}
       data-mm-detail=''
     >
-      <header className={classes.bar} {...noSelectProps}>
-        <Tooltip label='Back to grid (Esc)' openDelay={400}>
-          <ActionIcon
-            variant='subtle'
-            color='gray'
-            size='lg'
-            aria-label='Back to grid'
-            onClick={() => runCommand('detail.close')}
-          >
-            <BackIcon size={20} />
-          </ActionIcon>
-        </Tooltip>
-        <h2 className={classes.title} title={title}>
-          {title}
-        </h2>
-        {index >= 0 && (
-          <span className={classes.index}>
-            {index + 1} / {collection.total}
-          </span>
-        )}
-        <span className={classes.spacer} />
-        <ZoomButton item={item} />
-        <Tooltip label='Download' openDelay={400}>
-          <ActionIcon
-            component='a'
-            href={libraryApi.downloadUrl(id)}
-            variant='subtle'
-            color='gray'
-            size='lg'
-            aria-label='Download'
-          >
-            <DownloadIcon size={20} />
-          </ActionIcon>
-        </Tooltip>
-      </header>
+      <DetailBar
+        id={id}
+        item={item}
+        full={full}
+        title={title}
+        index={index}
+        total={collection.total}
+      />
       <Stage
         id={id}
         item={item}
+        missing={missing}
+        title={title}
         previous={previous}
         next={next}
-        title={title}
-        inView={index >= 0}
+        targets={{
+          previous: stepTarget(index, previous, stepBack.enabled),
+          next: stepTarget(index, next, stepOn.enabled),
+        }}
       />
+      <Filmstrip collection={collection} currentId={id} />
     </section>
-  )
-}
-
-function canZoom(item: AnyItem | null): boolean {
-  return item?.kind === 'image' || item?.kind === 'svg'
-}
-
-function ZoomButton({ item }: { item: AnyItem | null }) {
-  const zoom = useCore((state) => state.zoom)
-  if (!canZoom(item)) {
-    return null
-  }
-  const zoomed = zoom !== 'fit'
-  return (
-    <Tooltip label={zoomed ? 'Fit (Z)' : '100 % (Z)'} openDelay={400}>
-      <ActionIcon
-        variant={zoomed ? 'light' : 'subtle'}
-        color='gray'
-        size='lg'
-        aria-label='Zoom'
-        aria-pressed={zoomed}
-        onClick={() => runCommand('detail.zoom-toggle')}
-      >
-        <ZoomInIcon size={20} />
-      </ActionIcon>
-    </Tooltip>
-  )
-}
-
-/** The stage's inner box (padding excluded), kept current by a ResizeObserver. */
-function useStageBox(ref: React.RefObject<HTMLElement | null>) {
-  const [box, setBox] = useState({ width: 0, height: 0 })
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (!element) return
-    const measure = () =>
-      setBox({
-        width: Math.max(0, element.clientWidth - 2 * PAD_X),
-        height: Math.max(0, element.clientHeight - 2 * PAD_Y),
-      })
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [ref])
-  return box
-}
-
-/** Preloads a picture into the browser cache. */
-function preload(url: string | null): void {
-  if (url) {
-    const image = new Image()
-    image.decoding = 'async'
-    image.src = url
-  }
-}
-
-function Stage({
-  id,
-  item,
-  previous,
-  next,
-  title,
-  inView,
-}: {
-  id: number
-  item: AnyItem | null
-  previous: number | null
-  next: number | null
-  title: string
-  inView: boolean
-}) {
-  const stageRef = useRef<HTMLDivElement>(null)
-  const mediaRef = useRef<HTMLElement | null>(null)
-  const box = useStageBox(stageRef)
-  const zoom = useCore((state) => state.zoom)
-  const [nudge, setNudge] = useState<1 | -1 | null>(null)
-
-  // A layout effect: the morph asks for the stage element right after the
-  // flushSync that opened detail, before passive effects would have run.
-  useLayoutEffect(
-    () =>
-      registerCenter({
-        stageElement: () => mediaRef.current,
-        nudgeStage: (direction) => {
-          setNudge(null)
-          requestAnimationFrame(() => setNudge(direction))
-        },
-      }),
-    [],
-  )
-
-  // Preload the neighbours at the stage size, so stepping is instant.
-  const previousItem = useItem(previous, 'tile').item
-  const nextItem = useItem(next, 'tile').item
-  useEffect(() => {
-    for (const neighbour of [previousItem, nextItem]) {
-      if (!neighbour || box.width === 0) continue
-      const fitted = fitInto(neighbour, box.width, box.height)
-      preload(pictureFor(neighbour, fitted.width, fitted.height, pixelRatio()))
-    }
-  }, [previousItem, nextItem, box.width, box.height])
-
-  const zoomed = zoom !== 'fit' && canZoom(item)
-
-  return (
-    <div
-      ref={stageRef}
-      className={classes.stage}
-      data-zoomed={zoomed ? '' : undefined}
-      {...noSelectProps}
-      data-nudge={nudge ?? undefined}
-      onAnimationEnd={() => setNudge(null)}
-    >
-      {item && box.width > 0 && (
-        <StageMedia
-          key={id}
-          item={item}
-          box={box}
-          zoom={zoomed ? (zoom as number) : null}
-          title={title}
-          mediaRef={mediaRef}
-        />
-      )}
-      {/* At an end of the collection the button hides. An item that left
-          the view (index -1) still steps from its old place (detail.step). */}
-      <StepButton direction={-1} disabled={previous === null && inView} />
-      <StepButton direction={1} disabled={next === null && inView} />
-    </div>
-  )
-}
-
-function StepButton({
-  direction,
-  disabled,
-}: {
-  direction: 1 | -1
-  disabled: boolean
-}) {
-  const label = direction === 1 ? 'Next item' : 'Previous item'
-  return (
-    <ActionIcon
-      className={`${classes.nav} ${direction === 1 ? classes.next : classes.previous}`}
-      variant='default'
-      size='xl'
-      aria-label={label}
-      aria-disabled={disabled || undefined}
-      data-at-end={disabled ? '' : undefined}
-      tabIndex={disabled ? -1 : undefined}
-      onClick={() => {
-        if (!disabled) {
-          runCommand('detail.step', { direction })
-        }
-      }}
-    >
-      {direction === 1 ? <NextIcon size={22} /> : <PreviousIcon size={22} />}
-    </ActionIcon>
-  )
-}
-
-const CARD_ICONS = {
-  audio: AudioIcon,
-  document: PdfIcon,
-  archive: ArchiveIcon,
-  other: FileIcon,
-} as const
-
-/**
- * The picture the grid most likely shows for this item already: its tile's
- * loaded image, so the stage has something sharp-enough at once.
- */
-function tilePicture(id: number): string | null {
-  const image = centerApi.tileElement(id)?.querySelector('img')
-  return image?.complete && image.currentSrc ? image.currentSrc : null
-}
-
-function StageMedia({
-  item,
-  box,
-  zoom,
-  title,
-  mediaRef,
-}: {
-  item: AnyItem
-  box: { width: number; height: number }
-  zoom: number | null
-  title: string
-  mediaRef: React.MutableRefObject<HTMLElement | null>
-}) {
-  const fitted = useMemo(
-    () => fitInto(item, box.width, box.height),
-    [item, box.width, box.height],
-  )
-  const size = zoom === null ? fitted : zoomedSize(item, zoom)
-  const wanted = pictureFor(item, size.width, size.height, pixelRatio())
-  const [shown, setShown] = useState(() => tilePicture(item.id) ?? wanted)
-
-  // Upgrade to the sub-size that fits, once it has loaded (no flash).
-  useEffect(() => {
-    if (!wanted || wanted === shown) return
-    let cancelled = false
-    const image = new Image()
-    image.decoding = 'async'
-    image.onload = () => {
-      if (!cancelled) setShown(wanted)
-    }
-    image.src = wanted
-    return () => {
-      cancelled = true
-    }
-  }, [wanted, shown])
-
-  const style: CSSProperties = { width: size.width, height: size.height }
-  const setRef = (element: HTMLElement | null) => {
-    mediaRef.current = element
-  }
-
-  if (item.kind === 'video') {
-    return (
-      // biome-ignore lint/a11y/useMediaCaption: WordPress media carry no caption tracks
-      <video
-        ref={setRef}
-        className={classes.media}
-        style={style}
-        src={item.url}
-        poster={shown ?? undefined}
-        controls
-        preload='metadata'
-        aria-label={title}
-      />
-    )
-  }
-  if ((item.kind === 'image' || item.kind === 'svg') && shown) {
-    return (
-      <img
-        ref={setRef}
-        className={classes.media}
-        style={style}
-        src={shown}
-        alt={item.alt || title}
-        draggable={false}
-        data-checker={item.kind === 'svg' ? '' : undefined}
-      />
-    )
-  }
-  if (item.kind === 'document' && shown) {
-    return (
-      <a
-        ref={setRef}
-        href={item.url}
-        target='_blank'
-        rel='noopener noreferrer'
-        aria-label={`Open ${title}`}
-      >
-        <img
-          className={classes.media}
-          style={style}
-          src={shown}
-          alt=''
-          draggable={false}
-        />
-      </a>
-    )
-  }
-  const Icon =
-    CARD_ICONS[item.kind as keyof typeof CARD_ICONS] ?? CARD_ICONS.other
-  return (
-    <div ref={setRef} className={classes.card}>
-      <Icon size={56} stroke={1} aria-hidden />
-      <span className={classes.cardTitle}>{title}</span>
-      {item.kind === 'audio' ? (
-        // biome-ignore lint/a11y/useMediaCaption: WordPress media carry no caption tracks
-        <audio src={item.url} controls preload='none' aria-label={title} />
-      ) : (
-        <a href={libraryApi.downloadUrl(item.id)}>Download</a>
-      )}
-    </div>
   )
 }

@@ -38,8 +38,10 @@ export default defineConfig({
         // imports a dependency the cache doesn't have yet makes Vite
         // re-optimise and reload mid-run, which fails that test file. The
         // runner keeps node_modules (and the cache) in a volume, so CI would
-        // hit it too.
-        optimizeDeps: { force: true },
+        // hit it too. react-dom/client is only discovered late (through
+        // testing-library), which reloaded a test mid-run in most full runs:
+        // pre-bundle it up front.
+        optimizeDeps: { force: true, include: ['react-dom/client'] },
         test: {
           name: 'browser',
           include: ['src/**/*.browser.spec.{ts,tsx}'],

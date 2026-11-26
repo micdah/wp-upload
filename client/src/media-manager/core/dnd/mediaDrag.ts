@@ -14,6 +14,7 @@ import {
 } from '@atlaskit/pragmatic-drag-and-drop/adapter/element-adapter'
 import { disableNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview'
 import { type RefObject, useEffect, useState } from 'react'
+import { useStore } from 'zustand'
 import { createStore } from 'zustand/vanilla'
 import { coreStore } from '../state'
 import { targetIds } from '../state/selection'
@@ -68,6 +69,25 @@ export interface MediaDragState {
 export const mediaDragStore = createStore<MediaDragState>(() => ({
   active: null,
 }))
+
+const draggedSets = new WeakMap<readonly number[], ReadonlySet<number>>()
+
+/** The dragged ids as a set, built once per drag (many tiles ask per move). */
+function draggedSet(ids: readonly number[]): ReadonlySet<number> {
+  let set = draggedSets.get(ids)
+  if (!set) {
+    set = new Set(ids)
+    draggedSets.set(ids, set)
+  }
+  return set
+}
+
+/** Whether item `id` is part of the media drag in progress (to dim it). */
+export function useIsMediaDragged(id: number): boolean {
+  return useStore(mediaDragStore, (state) =>
+    state.active ? draggedSet(state.active.ids).has(id) : false,
+  )
+}
 
 /** A drop target says what dropping here would do (null when the pointer leaves). */
 export function setMediaDropTarget(target: MediaDropTarget | null): void {

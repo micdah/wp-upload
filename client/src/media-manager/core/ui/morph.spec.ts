@@ -114,4 +114,34 @@ describe('morph', () => {
     })
     await expect(morphWith(env, () => {}, {})).resolves.toBeUndefined()
   })
+
+  it('handles the rejected ready of a transition a newer one skipped', async () => {
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown) => unhandled.push(reason)
+    process.on('unhandledRejection', onUnhandled)
+    try {
+      const { env } = setup({})
+      const from = fakeElement()
+      const to = fakeElement()
+      env.startViewTransition = (update) => {
+        // As Chromium does for a skipped transition: the update still runs,
+        // `finished` fulfils and `ready` rejects with an AbortError.
+        const skipped = new DOMException('Transition was skipped', 'AbortError')
+        return {
+          ready: Promise.reject(skipped),
+          finished: update(),
+        }
+      }
+      await expect(
+        morphWith(env, () => {}, { from: () => from, to: () => to }),
+      ).resolves.toBeUndefined()
+      // Let Node report unhandled rejections from this turn.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(unhandled).toEqual([])
+      expect(nameOf(from)).toBe('')
+      expect(nameOf(to)).toBe('')
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
+  })
 })

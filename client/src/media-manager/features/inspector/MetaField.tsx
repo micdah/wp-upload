@@ -1,6 +1,9 @@
-// One autosaving text field of the Info panel (inspector.md §3): Title or
-// Alt text of one item. No Save button: blur, Enter and Ctrl/Cmd+Enter
-// commit; Esc reverts, and a second Esc returns to the item's tile.
+// One autosaving text field of the Info panel (inspector.md §3–§4): Title,
+// Alt text, Caption or Description of one item. No Save button: blur and
+// Ctrl/Cmd+Enter commit; in Title and Alt text Enter saves and moves to the
+// next item (Save & next), Shift+Enter to the previous one. Caption and
+// Description are multi-line, so Enter is a line break there. Esc reverts,
+// and a second Esc returns to the item's tile.
 //
 // The text lives in the feature store (keyed by item and field), not in the
 // component, so it survives re-renders; the component is keyed by item, and
@@ -11,12 +14,15 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   type ChangeEvent,
   type KeyboardEvent,
+  type ReactNode,
   useEffect,
   useId,
   useRef,
+  useState,
 } from 'react'
 import { centerApi } from '../../core/collection/centerApi'
 import { AlertIcon, CheckIcon } from '../../core/ui/icons'
+import { urlStore } from '../../core/url/useUrlState'
 import { displayValue, statusOf } from './autosave'
 import { bridgeStore, type FieldName, useBridge } from './bridge'
 import {
@@ -27,6 +33,7 @@ import {
   revertField,
 } from './controller'
 import classes from './Inspector.module.css'
+import { rememberPosition, saveAndStep } from './saveNext'
 import { fieldKey, inspectorStore, useInspector } from './store'
 
 export interface MetaFieldProps {
@@ -46,12 +53,28 @@ export interface MetaFieldProps {
   flagMissing?: boolean
   /** In detail mode a second Esc just leaves the field (no tile to return to). */
   detailMode: boolean
+  /** Shown under the field (the alt pass's strip); gets the focus state. */
+  below?: (focused: boolean) => ReactNode
 }
 
-/** Alt text and titles are one line: pasted line breaks become spaces. */
+/** Title and alt text are one line; caption and description are not. */
+export function isSingleLine(field: FieldName): boolean {
+  return field === 'title' || field === 'alt'
+}
+
+/** Pasted line breaks in a one-line field become spaces. */
 function singleLine(value: string): string {
   return value.replace(/\s*[\r\n]+\s*/g, ' ')
 }
+
+const ROWS: Record<Exclude<FieldName, 'title'>, number> = {
+  alt: 2,
+  caption: 2,
+  description: 3,
+}
+
+/** How long the end-of-collection nudge plays. */
+const NUDGE_MS = 320
 
 export function MetaField({
   id,
@@ -61,6 +84,7 @@ export function MetaField({
   refused,
   flagMissing = false,
   detailMode,
+  below,
 }: MetaFieldProps) {
   const queryClient = useQueryClient()
   const key = fieldKey(id, field)
@@ -69,6 +93,8 @@ export function MetaField({
   const inputId = useId()
   const hintId = useId()
   const label = FIELD_LABELS[field]
+  const [focused, setFocused] = useState(false)
+  const [nudging, setNudging] = useState(false)
 
   // On screen while mounted; leaving with unsaved typing commits it to `id`.
   useEffect(() => {
@@ -79,7 +105,7 @@ export function MetaField({
     }
   }, [queryClient, key, id, field])
 
-  // `A` (inspector.focus-alt) asks for this field once it is on screen.
+  // `A` and Save & next ask for this field once it is on screen.
   const focusRequest = useBridge((state) => state.focusRequest)
   useEffect(() => {
     if (focusRequest?.id !== id || focusRequest.field !== field) {
@@ -94,6 +120,14 @@ export function MetaField({
     const end = input.value.length
     input.setSelectionRange(end, end)
   }, [focusRequest, id, field])
+
+  useEffect(() => {
+    if (!nudging) {
+      return
+    }
+    const timer = setTimeout(() => setNudging(false), NUDGE_MS)
+    return () => clearTimeout(timer)
+  }, [nudging])
 
   const value = displayValue(entry, current)
   const readOnly = locked || (refused && entry?.draft == null)
@@ -111,8 +145,17 @@ export function MetaField({
   const commit = () => {
     void commitField(queryClient, id, field)
   }
-  // A read-only field has no draft to send (Retry stays available).
-  const onBlur = readOnly ? undefined : commit
+  const onBlur = () => {
+    setFocused(false)
+    // A read-only field has no draft to send (Retry stays available).
+    if (!readOnly) {
+      commit()
+    }
+  }
+  const onFocus = () => {
+    setFocused(true)
+    rememberPosition(id)
+  }
 
   const onChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -120,7 +163,18 @@ export function MetaField({
     if (readOnly) {
       return
     }
-    editField(id, field, singleLine(event.currentTarget.value), current)
+    const raw = event.currentTarget.value
+    editField(id, field, isSingleLine(field) ? singleLine(raw) : raw, current)
+  }
+
+  /** Save & next / previous; at an end the field nudges. */
+  const step = (direction: 1 | -1) => {
+    if (readOnly) {
+      return
+    }
+    if (saveAndStep(queryClient, id, field, direction) === 'edge') {
+      setNudging(true)
+    }
   }
 
   const onKeyDown = (
@@ -129,16 +183,27 @@ export function MetaField({
     if (event.nativeEvent.isComposing) {
       return
     }
-    if (event.key === 'Enter') {
-      // Commit and stay (Save & next arrives with wave A). Never a newline.
-      event.preventDefault()
-      if (!readOnly) {
-        commit()
+    const mod = event.ctrlKey || event.metaKey
+    if (event.key === 'Enter' && !event.altKey) {
+      if (mod) {
+        // Commit and stay; with the Missing alt filter on, alt text moves
+        // on too (the item would vanish under the cursor, §4).
+        event.preventDefault()
+        if (field === 'alt' && urlStore().get().alt === 'missing') {
+          step(1)
+        } else if (!readOnly) {
+          commit()
+        }
+        return
+      }
+      if (isSingleLine(field)) {
+        // Never a newline in a one-line field.
+        event.preventDefault()
+        step(event.shiftKey ? -1 : 1)
       }
       return
     }
-    const plain =
-      !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey
+    const plain = !mod && !event.shiftKey && !event.altKey
     if (event.key !== 'Escape' || !plain) {
       return
     }
@@ -165,6 +230,7 @@ export function MetaField({
     readOnly,
     onChange,
     onBlur,
+    onFocus,
     onKeyDown,
     'aria-describedby': describedBy,
     // Mantine sets aria-invalid from it; the edge comes from data-state.
@@ -172,6 +238,9 @@ export function MetaField({
     'data-mm-field': field,
     classNames: { input: classes.input },
     'data-state': state,
+    'data-nudge': nudging || undefined,
+    // Enter moves on in one-line fields; say so to assistive tech.
+    enterKeyHint: isSingleLine(field) ? ('next' as const) : undefined,
   }
 
   return (
@@ -188,10 +257,10 @@ export function MetaField({
         )}
         <FieldStatus status={status} onRetry={commit} label={label} />
       </div>
-      {field === 'alt' ? (
-        <Textarea {...common} rows={2} />
-      ) : (
+      {field === 'title' ? (
         <TextInput {...common} />
+      ) : (
+        <Textarea {...common} rows={ROWS[field]} />
       )}
       {status === 'error' ? (
         <p id={hintId} className={classes.hint} data-tone='danger'>
@@ -206,18 +275,22 @@ export function MetaField({
           </p>
         )
       )}
+      {below?.(focused)}
     </div>
   )
 }
 
-function FieldStatus({
+export function FieldStatus({
   status,
   onRetry,
   label,
+  progress,
 }: {
   status: ReturnType<typeof statusOf>
   onRetry: () => void
   label: string
+  /** A batch commit's progress ("Saving… 200 / 1,000"). */
+  progress?: { done: number; total: number } | null
 }) {
   if (status === null) {
     return null
@@ -248,9 +321,13 @@ function FieldStatus({
       </span>
     )
   }
+  const counted =
+    status === 'saving' && progress && progress.total > 100
+      ? ` ${progress.done.toLocaleString('en')} / ${progress.total.toLocaleString('en')}`
+      : ''
   return (
     <span className={classes.status} data-status={status}>
-      {status === 'saving' ? 'Saving…' : 'Unsaved'}
+      {status === 'saving' ? `Saving…${counted}` : 'Unsaved'}
     </span>
   )
 }

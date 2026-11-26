@@ -6,6 +6,7 @@ import {
   type Entry,
   edit,
   expireSaved,
+  hasPendingText,
   hasUnsavedText,
   revert,
   saveFailed,
@@ -176,5 +177,16 @@ describe('autosave state machine', () => {
   it('only a Saved entry expires', () => {
     const entry = typed('New')
     expect(expireSaved(entry)).toBe(entry)
+  })
+
+  it('counts typing done during a save as pending (the M2 gap)', () => {
+    const { entry } = sending('New')
+    expect(hasPendingText(entry)).toBe(false)
+    const typedOn = edit(entry, 'Newer', CURRENT)
+    expect(hasUnsavedText(typedOn)).toBe(false)
+    expect(hasPendingText(typedOn)).toBe(true)
+    expect(hasPendingText(typed('New'))).toBe(true)
+    expect(hasPendingText(saveSucceeded(entry, 'New'))).toBe(false)
+    expect(hasPendingText(undefined)).toBe(false)
   })
 })

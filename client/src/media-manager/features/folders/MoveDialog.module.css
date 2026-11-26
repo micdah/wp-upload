@@ -1,0 +1,184 @@
+/* The Move to… dialog (folders.md §7, §9), from the prototype's
+   `.move-dialog*` rules in css/features/folders.css. Tokens only. Lazy chunk.
+   Nothing here is `user-select: none`: options are clicked, and on iPad that
+   would stop a trackpad click from handing the page the keyboard. */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  max-height: min(600px, calc(100dvh - 64px));
+}
+
+.header {
+  gap: var(--space-2);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--fs-16);
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.subtitle {
+  margin: 0 0 var(--space-3);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.list {
+  flex: 1;
+  min-height: 120px;
+  max-height: 340px;
+  margin-top: var(--space-2);
+  padding: var(--space-1);
+  overflow-y: auto;
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-2) var(--space-1)
+    calc(var(--space-2) + var(--depth, 0) * var(--space-4));
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.option > svg {
+  flex: none;
+}
+
+.option:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+/* The active option: what Enter moves into. */
+.option[aria-selected="true"] {
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+  box-shadow: inset 2px 0 0 var(--select-ring);
+}
+
+.option[aria-disabled="true"] {
+  background: none;
+  color: var(--text-3);
+  cursor: default;
+}
+
+.option[data-kind="create"] {
+  color: var(--text-1);
+}
+
+.option[data-kind="create"][aria-selected="true"] {
+  color: var(--text-accent);
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-11);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --text-3 on the accent tint is below 4.5:1 in the dark scheme. */
+.option[aria-selected="true"] .path {
+  color: var(--text-2);
+}
+
+.tag {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.match {
+  border-radius: var(--radius-xs);
+  background: var(--accent-subtle);
+  color: inherit;
+  font-weight: var(--fw-semibold);
+}
+
+.group {
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-11);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+}
+
+.empty {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+  color: var(--text-3);
+  font-size: var(--fs-13);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-right: auto;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* Uncategorized has a muted icon, as in the tree. */
+.muted {
+  color: var(--text-3);
+}
+
+/* Pro colours tint the icon: the outline plus a faint fill. */
+.colored {
+  color: var(--folder-color);
+  fill: color-mix(in srgb, var(--folder-color) 28%, transparent);
+}
+
+/* Forced colours drop the tint: outline the active option instead. */
+@media (forced-colors: active) {
+  .option[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}

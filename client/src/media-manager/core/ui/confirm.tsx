@@ -13,8 +13,12 @@
 // a chain of queued requests, that is the element focused when the first
 // one was asked.
 
-import { Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core'
-import { type ReactNode, useState, useSyncExternalStore } from 'react'
+import { lazy, type ReactNode, Suspense, useSyncExternalStore } from 'react'
+
+// The dialog (Mantine's Modal, which brings ScrollArea, focus trap and
+// scroll lock) is a lazy chunk: most sessions never confirm anything, and the
+// initial chunk has a budget (D31).
+const ConfirmDialog = lazy(() => import('./ConfirmDialog'))
 
 export interface ConfirmOptions {
   title: ReactNode
@@ -66,7 +70,7 @@ export function setConfirmFocusEnvironmentForTesting(
   focusEnvironment = env ?? browserFocus
 }
 
-interface Request {
+export interface ConfirmRequest {
   id: number
   options: ConfirmOptions
   resolve: (confirmed: boolean) => void
@@ -78,11 +82,11 @@ interface Request {
   opener: Focusable | null
 }
 
-let queue: readonly Request[] = []
+let queue: readonly ConfirmRequest[] = []
 let nextId = 1
 const listeners = new Set<() => void>()
 
-function setQueue(next: readonly Request[]): void {
+function setQueue(next: readonly ConfirmRequest[]): void {
   queue = next
   for (const listener of listeners) {
     listener()
@@ -99,7 +103,8 @@ export function confirm(options: ConfirmOptions): Promise<boolean> {
   })
 }
 
-function settle(id: number, confirmed: boolean): void {
+/** Answers a request (the dialog's buttons). */
+export function settleConfirm(id: number, confirmed: boolean): void {
   const request = queue.find((entry) => entry.id === id)
   if (!request) {
     return
@@ -129,7 +134,7 @@ function restoreFocus(opener: Focusable | null): void {
 export function answerPendingConfirm(confirmed: boolean): void {
   const current = queue[0]
   if (current) {
-    settle(current.id, confirmed)
+    settleConfirm(current.id, confirmed)
   }
 }
 
@@ -145,75 +150,6 @@ function subscribe(listener: () => void): () => void {
   }
 }
 
-function ConfirmDialog({ request }: { request: Request }) {
-  const { options } = request
-  const [typed, setTyped] = useState('')
-  const needsTyping = options.typeToConfirm !== undefined
-  const typedOk = !needsTyping || typed.trim() === options.typeToConfirm
-  const danger = options.tone === 'danger'
-  return (
-    <Modal
-      opened
-      onClose={() => settle(request.id, false)}
-      title={options.title}
-      centered
-      closeButtonProps={{ 'aria-label': 'Cancel' }}
-      data-mm-confirm=''
-    >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          if (typedOk) {
-            settle(request.id, true)
-          }
-        }}
-      >
-        <Stack gap='md'>
-          {options.body !== undefined &&
-            (typeof options.body === 'string' ? (
-              <Text size='sm'>{options.body}</Text>
-            ) : (
-              options.body
-            ))}
-          {needsTyping && (
-            <TextInput
-              label={
-                options.typeToConfirmLabel ?? (
-                  <>
-                    Type <strong>{options.typeToConfirm}</strong> to confirm
-                  </>
-                )
-              }
-              value={typed}
-              onChange={(event) => setTyped(event.currentTarget.value)}
-              autoComplete='off'
-              data-autofocus
-            />
-          )}
-          <Group justify='flex-end' gap='sm'>
-            <Button
-              type='button'
-              variant='default'
-              onClick={() => settle(request.id, false)}
-              data-autofocus={danger && !needsTyping ? true : undefined}
-            >
-              {options.cancelLabel ?? 'Cancel'}
-            </Button>
-            <Button
-              type='submit'
-              color={danger ? 'red' : undefined}
-              disabled={!typedOk}
-              data-autofocus={!danger && !needsTyping ? true : undefined}
-            >
-              {options.confirmLabel ?? 'Confirm'}
-            </Button>
-          </Group>
-        </Stack>
-      </form>
-    </Modal>
-  )
-}
-
 /** Renders the open confirm request. Mount once. */
 export function ConfirmHost() {
   const current = useSyncExternalStore(
@@ -221,5 +157,12 @@ export function ConfirmHost() {
     () => queue[0] ?? null,
     () => null,
   )
-  return current ? <ConfirmDialog key={current.id} request={current} /> : null
+  if (!current) {
+    return null
+  }
+  return (
+    <Suspense fallback={null}>
+      <ConfirmDialog key={current.id} request={current} />
+    </Suspense>
+  )
 }

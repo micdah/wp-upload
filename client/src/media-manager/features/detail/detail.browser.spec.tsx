@@ -64,7 +64,9 @@ function liveRegion(): string {
 }
 
 async function stage(): Promise<HTMLElement> {
-  return screen.findByRole('region', { name: 'Detail' })
+  // The overlay is a lazy chunk; Vitest transforms it on first use, which
+  // takes more than findBy's default second in a loaded full run.
+  return screen.findByRole('region', { name: 'Detail' }, { timeout: 5000 })
 }
 
 describe('detail mode', () => {

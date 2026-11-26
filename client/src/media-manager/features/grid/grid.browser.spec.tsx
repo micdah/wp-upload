@@ -166,7 +166,9 @@ describe('the grid', () => {
       search: '?view=library&q=nothing-matches-this',
       waitForGrid: false,
     })
-    expect(await screen.findByText('No media matches.')).toBeTruthy()
+    expect(
+      await screen.findByRole('heading', { name: 'No media matches' }),
+    ).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect((await screen.findAllByRole('gridcell')).length).toBeGreaterThan(0)
   })
@@ -232,8 +234,16 @@ describe('the grid keeps its place (spike C1 rules)', () => {
     mock.library.externalEdit(idOf(tiles()[0] as HTMLElement), {
       title: 'Changed elsewhere',
     })
-    pollRevNow()
-    await waitFor(() => expect(collectionRequests).toBeGreaterThan(before))
+    // A focus refetch joins a rev poll already in flight, which may have
+    // left before the edit (likely under load, in a full parallel run): poll
+    // again until one sees the new rev.
+    await waitFor(
+      () => {
+        pollRevNow()
+        expect(collectionRequests).toBeGreaterThan(before)
+      },
+      { timeout: 5000 },
+    )
     await waitFor(() => expect(scroller().scrollTop).toBeCloseTo(600, -1))
   })
 

@@ -1,0 +1,194 @@
+/* The filter bar, search and sort (prototype components.css `.filterbar`,
+   `.chip`, `.search`). Chips are borderless toggles, closer to a segmented
+   control than tags; the active one is accent-subtle with accent text. */
+
+.bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--filterbar-h);
+  min-width: 0;
+  padding: 0 var(--space-4);
+}
+
+/* The chips scroll sideways when the centre is narrow; "+ Filter" and the
+   summary stay in view (a menu whose button scrolls away would hide). */
+.chips {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+
+.chip:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.chip[aria-pressed="true"],
+.chip[data-active] {
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+}
+
+.chip:focus-visible,
+.sortButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.count {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip[aria-pressed="true"] .count {
+  color: inherit;
+}
+
+.remove {
+  margin-right: -4px;
+  opacity: 0.8;
+}
+
+.summary {
+  flex: none;
+  margin-left: auto;
+  padding-left: var(--space-3);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Chips while the folder's counts load: shapes, not stale numbers. */
+.skeletons {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.skeleton {
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+      90deg,
+      transparent,
+      var(--surface-hover),
+      transparent
+    )
+    var(--surface-tile);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/* The "+ Filter" menu: months can be many, so it scrolls. */
+.menu {
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+}
+
+.menuCount {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+[data-checked] .menuCount {
+  color: inherit;
+}
+
+/* Checked menu items (sort, filters) read as active. */
+.menu [data-checked],
+.sortMenu [data-checked] {
+  color: var(--text-accent);
+}
+
+.check {
+  visibility: hidden;
+}
+
+.check[data-shown] {
+  visibility: visible;
+}
+
+/* Search and sort in the toolbar. */
+.search {
+  width: clamp(160px, 24vw, 300px);
+}
+
+.searchInput {
+  font-size: var(--fs-13);
+  touch-action: manipulation;
+}
+
+.menuItem {
+  touch-action: manipulation;
+}
+
+.sortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.sortButton:hover,
+.sortButton[aria-expanded="true"] {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}

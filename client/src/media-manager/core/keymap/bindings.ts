@@ -33,6 +33,12 @@ interface BindingBase {
   group?: CommandGroup
   /** Leave it out of the `?` sheet (e.g. the second of two keys for one action). */
   hidden?: boolean
+  /**
+   * A folder key: the `?` sheet lists it only while FileBird is active
+   * (folders.md §9). Without FileBird the key still answers, with a toast
+   * saying folders need the plugin.
+   */
+  folders?: boolean
   /** Runs again while the key is held (arrows, zoom); otherwise repeats are ignored. */
   repeat?: boolean
 }
@@ -167,6 +173,18 @@ export function registerBindings(
 
 export function listBindings(): readonly RegisteredBinding[] {
   return registered
+}
+
+/**
+ * The bindings the `?` sheet lists: not hidden, and the folder keys only
+ * while FileBird is active (folders.md §9, A3 CR-5).
+ */
+export function sheetBindings(options: {
+  filebird: boolean
+}): RegisteredBinding[] {
+  return registered.filter(
+    (binding) => !binding.hidden && (options.filebird || !binding.folders),
+  )
 }
 
 export function bindingsFor(command: CommandName): RegisteredBinding[] {

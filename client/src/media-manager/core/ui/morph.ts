@@ -34,6 +34,11 @@ export interface MorphOptions {
 
 interface ViewTransitionLike {
   finished: Promise<void>
+  /**
+   * Rejects (AbortError) when the transition is skipped, e.g. because a
+   * newer one started before this one's animation was ready.
+   */
+  ready?: Promise<void>
 }
 
 /** What morph() needs from the browser; tests pass a fake. */
@@ -118,6 +123,11 @@ export async function morphWith(
       setName(target, MORPH_NAME)
     }
   })
+  // A skipped transition rejects `ready` ("Transition was skipped"). Nothing
+  // waits on it, so without this handler that rejection is unhandled (and
+  // fails e2e runs that collect page errors), e.g. when Esc starts the close
+  // morph while the open morph is still running. The DOM is already final.
+  transition.ready?.catch(() => {})
   try {
     await transition.finished
   } catch {

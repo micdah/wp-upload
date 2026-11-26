@@ -14,10 +14,17 @@ export interface Size {
   height: number
 }
 
-/** Width / height for the stage: documents are a portrait page. */
+/**
+ * Width / height for the stage: a document of unknown size is a portrait
+ * page, a video of unknown size 16:9.
+ */
 function aspectOf(shape: Shape): number {
-  if (shape.kind === 'document' && (!shape.width || !shape.height)) {
+  const unknown = !shape.width || !shape.height
+  if (shape.kind === 'document' && unknown) {
     return 3 / 4
+  }
+  if (shape.kind === 'video' && unknown) {
+    return 16 / 9
   }
   if (shape.width > 0 && shape.height > 0) {
     return shape.width / shape.height
@@ -57,4 +64,12 @@ export function zoomedSize(shape: Shape, zoom: number): Size {
   const width = shape.width > 0 ? shape.width : 1000
   const height = shape.height > 0 ? shape.height : width / aspectOf(shape)
   return { width: Math.round(width * zoom), height: Math.round(height * zoom) }
+}
+
+/**
+ * The scale a box shows the item at, relative to its own pixels (1 = 100 %).
+ * Unknown sizes count as shown at 100 %.
+ */
+export function scaleOf(shape: Shape, size: Size): number {
+  return shape.width > 0 ? size.width / shape.width : 1
 }

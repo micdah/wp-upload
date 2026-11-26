@@ -26,6 +26,7 @@ import { libraryApi } from './api'
 import { isAbortError } from './errors'
 import { applyFolderCounts } from './folderTree'
 import { applyRev } from './invalidate'
+import { beginItemWrite } from './itemWrites'
 import { applyItemSnapshots } from './results'
 
 export interface BulkProgress {
@@ -150,7 +151,18 @@ export async function bulkBatch(
         'items' in request
           ? { items: chunk }
           : { ...request, ids: chunk.map((change) => change.id) }
-      const response = await libraryApi.batch(body, { signal })
+      // Item reads overlapping this request keep the cache's values
+      // (itemWrites.ts); it ends before the results are applied.
+      const endWrite = beginItemWrite(
+        queryClient,
+        chunk.map((change) => change.id),
+      )
+      let response: Awaited<ReturnType<typeof libraryApi.batch>>
+      try {
+        response = await libraryApi.batch(body, { signal })
+      } finally {
+        endWrite()
+      }
       const succeeded = response.results.filter(
         (result): result is BatchItemSuccess => result.ok,
       )
@@ -226,16 +238,33 @@ export async function bulkAssign(
   const previous: FolderAssignResponse['previous'] = []
   const skipped: ItemFailure[] = []
   let moved = 0
+  // Every id is being written from the start (the caller moved them
+  // optimistically); each chunk's ids end when its response arrives, before
+  // applyRev refetches them, and the rest end with the run (itemWrites.ts).
+  const writes = new Map(
+    [...new Set(ids)].map((id) => [id, beginItemWrite(queryClient, [id])]),
+  )
+  const endWrites = (done: readonly number[]) => {
+    for (const id of done) {
+      writes.get(id)?.()
+      writes.delete(id)
+    }
+  }
   const outcome = await runChunked<number, never>({
     items: ids,
     size: LIMITS.assignIds,
     signal: options.signal,
     onProgress: options.onProgress,
     run: async (chunk, signal) => {
-      const response = await libraryApi.assignFolder(
-        { folder, ids: chunk },
-        { signal },
-      )
+      let response: Awaited<ReturnType<typeof libraryApi.assignFolder>>
+      try {
+        response = await libraryApi.assignFolder(
+          { folder, ids: chunk },
+          { signal },
+        )
+      } finally {
+        endWrites(chunk)
+      }
       previous.push(...response.previous)
       skipped.push(...response.skipped)
       moved += response.moved
@@ -248,6 +277,7 @@ export async function bulkAssign(
       return []
     },
   })
+  endWrites([...writes.keys()])
   return { ...outcome, previous, skipped, moved }
 }
 

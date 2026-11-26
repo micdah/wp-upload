@@ -219,8 +219,9 @@ function openModal(doc: Document): boolean {
 }
 
 /**
- * What Enter and Space activate natively. Grid tiles are `gridcell`s and the
- * folder tree sits under [data-mm-local-keys], so neither matches.
+ * What Enter and Space activate natively. Grid tiles are `gridcell`s and
+ * folder tree rows are `treeitem`s, so neither matches. (The tree claims its
+ * own keys with preventDefault(), not [data-mm-local-keys]; A3 handoff §3.)
  */
 export const CONTROL_SELECTOR = [
   'button',

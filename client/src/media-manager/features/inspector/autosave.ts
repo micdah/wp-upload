@@ -86,6 +86,14 @@ export function canRevert(entry: Entry): boolean {
   return hasUnsavedText(entry)
 }
 
+/**
+ * What the panel header's "Unsaved changes" counts: text no save holds yet,
+ * including typing done while a save runs (that save sends older text).
+ */
+export function hasPendingText(entry: Entry): boolean {
+  return canRevert(entry)
+}
+
 export type BeginResult =
   /** Send `value`; the entry is now `saving`. */
   | { kind: 'send'; entry: FieldEntry; value: string }

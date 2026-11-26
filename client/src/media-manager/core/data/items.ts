@@ -27,6 +27,7 @@ import {
 import { libraryApi } from './api'
 import { type CollectionSnapshot, idsInRange, withoutIds } from './collection'
 import type { LibraryError } from './errors'
+import { isStaleItemRead, itemReadClock } from './itemWrites'
 import { LIBRARY_ROOT, libraryKeys } from './keys'
 
 export const ITEM_CHUNK_SIZE = LIMITS.itemIds
@@ -133,6 +134,51 @@ export function seedItems(
   }
 }
 
+/**
+ * Splits a read's items into those to seed and what the read should hold.
+ * An item one of our writes overlapped (itemWrites.ts) isn't seeded, and the
+ * read holds the cached copy instead, so an answer from before the write
+ * can't put old values back over the saved ones.
+ */
+function keepNewerWrites<T extends LibraryItemTile | LibraryItemFull>(
+  queryClient: QueryClient,
+  view: ItemView,
+  items: readonly T[],
+  sentAt: number,
+): { fresh: T[]; all: T[] } {
+  const fresh: T[] = []
+  const all: T[] = []
+  for (const item of items) {
+    if (!isStaleItemRead(queryClient, item.id, sentAt)) {
+      fresh.push(item)
+      all.push(item)
+      continue
+    }
+    all.push(newerCopy(queryClient, view, item))
+  }
+  return { fresh, all }
+}
+
+/** The cached copy of `item` in its view, else the read with the cache's fields. */
+function newerCopy<T extends LibraryItemTile | LibraryItemFull>(
+  queryClient: QueryClient,
+  view: ItemView,
+  item: T,
+): T {
+  const same = queryClient.getQueryData<T | null>(
+    libraryKeys.item(view, item.id),
+  )
+  if (same) {
+    return same
+  }
+  const other = cachedItem(queryClient, item.id)
+  if (!other) {
+    return item
+  }
+  const shared = other.view === 'full' ? toTile(other) : other
+  return { ...item, ...shared, view: item.view } as T
+}
+
 function dropMissingFromCollections(
   queryClient: QueryClient,
   missing: readonly number[],
@@ -182,10 +228,16 @@ export function itemChunkQueryOptions<V extends ItemView>(
   return queryOptions({
     queryKey: libraryKeys.itemChunk(view, ids),
     queryFn: async ({ signal }): Promise<ItemChunk<V>> => {
+      const sentAt = itemReadClock(queryClient)
       const response = await libraryApi.items(ids, view, { signal })
-      const items = response.items as ItemOf<V>[]
-      seedItems(queryClient, view, items, response.missing)
-      return { rev: response.rev, ids, items, missing: response.missing }
+      const { fresh, all } = keepNewerWrites(
+        queryClient,
+        view,
+        response.items as ItemOf<V>[],
+        sentAt,
+      )
+      seedItems(queryClient, view, fresh, response.missing)
+      return { rev: response.rev, ids, items: all, missing: response.missing }
     },
     initialData: () => chunkFromCache(queryClient, view, ids)?.chunk,
     initialDataUpdatedAt: () =>
@@ -258,9 +310,16 @@ export function itemQueryOptions<V extends ItemView>(
   return queryOptions({
     queryKey: libraryKeys.item(view, id),
     queryFn: async ({ signal }): Promise<ItemOf<V> | null> => {
+      const sentAt = itemReadClock(queryClient)
       const response = await libraryApi.items([id], view, { signal })
-      seedItems(queryClient, view, response.items, response.missing)
-      return (response.items[0] as ItemOf<V> | undefined) ?? null
+      const { fresh, all } = keepNewerWrites(
+        queryClient,
+        view,
+        response.items as ItemOf<V>[],
+        sentAt,
+      )
+      seedItems(queryClient, view, fresh, response.missing)
+      return all[0] ?? null
     },
     staleTime: Number.POSITIVE_INFINITY,
   })

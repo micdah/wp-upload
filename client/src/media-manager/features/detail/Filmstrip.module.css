@@ -1,0 +1,240 @@
+/* The filmstrip (interaction-spec §5, prototype components.css `.filmstrip`,
+   design-system.md "Filmstrip"): the current cell has a neutral outline
+   outside the cell; selected cells keep the grid's neon ring and check;
+   both can show at once. */
+
+.filmstrip {
+  flex: none;
+  height: var(--filmstrip-h);
+  border-top: 1px solid var(--line-1);
+  background: var(--surface-filmstrip);
+  /* Chrome: no long-press callout; text selection is cancelled by the
+     selection guard (core/ui/noSelect.ts), not user-select (theme.css). */
+  -webkit-touch-callout: none;
+}
+
+.strip {
+  height: 100%;
+  padding: var(--space-2) 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  outline: none;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+
+.row {
+  position: relative;
+}
+
+.cell {
+  position: absolute;
+  top: 0;
+  overflow: visible;
+  border-radius: var(--radius-tile);
+  background: var(--surface-tile);
+  cursor: pointer;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  /* Draggable (to folders): undo the UA sheet's user-select: none on
+     draggable="true", which on iPadOS stops a trackpad click from handing the
+     page the keyboard. The strip is a data-mm-no-select region. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Cells being dragged onto a folder dim, like tiles. */
+.cell[data-mm-drag-source] {
+  opacity: 0.4;
+}
+
+.picture {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  color: var(--text-2);
+  opacity: var(--filmstrip-dim);
+  transition:
+    opacity var(--dur-1) var(--ease-out),
+    transform var(--dur-2) var(--ease-standard),
+    border-radius var(--dur-2) var(--ease-standard);
+}
+
+.picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.picture img[data-loaded] {
+  opacity: 1;
+}
+
+.picture[data-checker] {
+  background-image:
+    linear-gradient(45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-hover) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--surface-hover) 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+}
+
+.picture[data-checker] img {
+  padding: 12%;
+  object-fit: contain;
+}
+
+.cell:hover .picture,
+.cell[data-current] .picture {
+  opacity: 1;
+}
+
+/* Current: a neutral outline outside the cell. */
+.cell[data-current] {
+  outline: 2px solid var(--text-1);
+  outline-offset: 2px;
+}
+
+/* Selected: the picture shrinks inside a neon ring, with a check. The ring
+   is drawn above the picture (::after), as in the grid. */
+.cell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: var(--film-ring, 0 0 0 0 transparent);
+  pointer-events: none;
+}
+
+.cell[aria-selected="true"] {
+  --film-ring: inset 0 0 0 2px var(--select-ring);
+  background: var(--select-tint);
+}
+
+.cell[aria-selected="true"] .picture {
+  transform: scale(0.86);
+  border-radius: var(--radius-tile-selected);
+}
+
+/* Keyboard focus: an inner focus ring, distinct from the outline and the
+   selection ring. */
+.cell:focus-visible {
+  --film-ring:
+    inset 0 0 0 2px var(--focus-ring), inset 0 0 0 3px rgb(0 0 0 / 0.5);
+}
+
+.cell[aria-selected="true"]:focus-visible {
+  --film-ring:
+    inset 0 0 0 2px var(--select-ring), inset 0 0 0 4px var(--surface-app),
+    inset 0 0 0 6px var(--focus-ring);
+}
+
+.check {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid rgb(255 255 255 / 0.85);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.2);
+  color: transparent;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.check svg {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.cell:hover .check,
+.cell[aria-selected="true"] .check {
+  opacity: 1;
+}
+
+.cell[aria-selected="true"] .check {
+  border-color: var(--select-ring);
+  background: var(--select-ring);
+  color: var(--text-on-select);
+}
+
+.badge {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 2;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.7);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.badge[data-warn] {
+  background: var(--warn-fill);
+  color: var(--text-on-warn);
+  font-family: var(--font-ui);
+}
+
+/* An upload in progress (core/uploads tile state): a bar along the bottom. */
+.upload {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 2;
+  height: 3px;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.uploadBar {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--dur-2) var(--ease-standard);
+}
+
+.upload[data-phase="processing"] .uploadBar {
+  animation: processing 1.4s linear infinite;
+}
+
+.upload[data-phase="error"] .uploadBar {
+  background: var(--danger);
+}
+
+@keyframes processing {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Phone (system.md §5): a 64 px strip. */
+:global([data-viewport="phone"]) .filmstrip {
+  height: 64px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload[data-phase="processing"] .uploadBar {
+    animation: none;
+  }
+}

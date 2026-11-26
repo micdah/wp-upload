@@ -62,7 +62,13 @@ export interface ToastBackend {
 }
 
 const mantineBackend: ToastBackend = {
-  show(notification) {
+  show(base) {
+    // Mantine's close button has no accessible name of its own (axe
+    // `button-name` whenever a toast is open).
+    const notification = {
+      ...base,
+      closeButtonProps: { 'aria-label': 'Dismiss' },
+    }
     // Mantine's show() ignores an id that is already there, so replacing a
     // toast (progress, a new Undo) goes through update(), which in turn
     // ignores an id that isn't there: one of the two takes effect.

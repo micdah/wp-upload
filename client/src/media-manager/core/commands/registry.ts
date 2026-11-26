@@ -15,6 +15,7 @@
 //   renders disabled and never runs.
 
 import type { InspectorTab } from '../state/store'
+import type { TileKey } from '../uploads/tileState'
 
 export type MoveDirection = 'left' | 'right' | 'up' | 'down' | 'first' | 'last'
 
@@ -34,6 +35,8 @@ export interface CoreCommandMap {
   'detail.step': { direction: 1 | -1 }
   'detail.zoom-toggle': undefined
   'detail.zoom-step': { direction: 1 | -1 }
+  /** Space in detail mode: play / pause the stage's video or audio. */
+  'detail.play-toggle': undefined
   'peek.toggle': undefined
   'grid.density-step': { direction: 1 | -1 }
   'grid.layout-toggle': undefined
@@ -44,6 +47,8 @@ export interface CoreCommandMap {
   // Edit
   'inspector.edit-image': undefined
   'inspector.focus-alt': undefined
+  /** The selection bar's Edit details: Info tab, first field focused. */
+  'inspector.edit-details': undefined
   // Folders
   'folders.create': undefined
   'folders.rename': undefined
@@ -51,6 +56,8 @@ export interface CoreCommandMap {
   'folders.context-menu': undefined
   // Files
   'upload.pick': undefined
+  /** Retry on a failed upload's tile; keyed like the tile upload state. */
+  'upload.retry': { key: TileKey }
   /** `Delete`: remove from the folder in a folder, otherwise delete. */
   'items.delete': { fromLibrary?: boolean } | undefined
   'items.download': undefined
@@ -126,6 +133,7 @@ const DECLARED: { [K in keyof CoreCommandMap]: CommandInfo } = {
   'detail.step': { label: 'Previous / next item', group: 'Navigate' },
   'detail.zoom-toggle': { label: 'Zoom: fit / 100 %', group: 'View' },
   'detail.zoom-step': { label: 'Zoom in / out', group: 'View' },
+  'detail.play-toggle': { label: 'Play / pause', group: 'View' },
   'peek.toggle': { label: 'Quick peek', group: 'View' },
   'grid.density-step': { label: 'Larger / smaller thumbnails', group: 'View' },
   'grid.layout-toggle': { label: 'Justified / square layout', group: 'View' },
@@ -134,11 +142,13 @@ const DECLARED: { [K in keyof CoreCommandMap]: CommandInfo } = {
   'inspector.open-tab': { label: 'Open inspector tab', group: 'Panels' },
   'inspector.edit-image': { label: 'Edit image', group: 'Edit' },
   'inspector.focus-alt': { label: 'Jump to alt text', group: 'Edit' },
+  'inspector.edit-details': { label: 'Edit details', group: 'Edit' },
   'folders.create': { label: 'New folder', group: 'Folders' },
   'folders.rename': { label: 'Rename folder', group: 'Folders' },
   'folders.move-to': { label: 'Move to folder…', group: 'Folders' },
   'folders.context-menu': { label: 'Folder menu', group: 'Folders' },
   'upload.pick': { label: 'Upload files', group: 'Files' },
+  'upload.retry': { label: 'Retry upload', group: 'Files' },
   'items.delete': { label: 'Delete', group: 'Files' },
   'items.download': { label: 'Download', group: 'Files' },
   'help.shortcuts': { label: 'Keyboard shortcuts', group: 'General' },

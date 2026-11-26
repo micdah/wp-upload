@@ -155,14 +155,14 @@ describe('the inspector in detail mode (D52)', () => {
     await user.click(tileOf(third))
     await user.keyboard('{/Shift}')
     expect(selectedIds()).toEqual(sorted([first, second, third]))
-    expect(await within(panel()).findByText('3 items selected')).toBeTruthy()
+    expect(await within(panel()).findByText('Editing 3 items')).toBeTruthy()
 
     await openDetailWithEnter(user)
     await expectInspectorShows(library, third)
     await user.keyboard('{ArrowRight}{ArrowRight}')
     expect(library.search()).toContain(`item=${fifth}`)
     await expectInspectorShows(library, fifth)
-    expect(within(panel()).queryByText('3 items selected')).toBeNull()
+    expect(within(panel()).queryByText('Editing 3 items')).toBeNull()
     // The selection is kept (the filmstrip shows its rings); focus moved.
     expect(selectedIds()).toEqual(sorted([first, second, third]))
     expect(coreStore.getState().focus).toBe(fifth)
@@ -181,7 +181,7 @@ describe('the inspector in detail mode (D52)', () => {
     await waitFor(() =>
       expect(screen.queryByRole('region', { name: 'Detail' })).toBeNull(),
     )
-    expect(await within(panel()).findByText('3 items selected')).toBeTruthy()
+    expect(await within(panel()).findByText('Editing 3 items')).toBeTruthy()
   })
 
   it('commits a draft to the item it was typed for when Next steps away', async () => {

@@ -1,0 +1,359 @@
+/* The Usage panel and the post picker (inspector.md §5), from the
+   prototype's features/inspector.css (usage parts) and components.css
+   (.section, .stat, .notice, .menu). Tokens only. Lazy panel chunk. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+}
+
+/* --- Rows: a post, page or site-level use ---------------------------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.rowIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  color: var(--text-2);
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowTitle {
+  overflow: hidden;
+  color: var(--text-1);
+  font-size: var(--fs-13);
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.rowTitle {
+  touch-action: manipulation;
+}
+
+a.rowTitle:hover {
+  text-decoration: underline;
+}
+
+a.rowTitle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-radius: var(--radius-xs);
+}
+
+.rowMeta {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* "Featured image": a delete would clear it, so it stands out. */
+.featured {
+  color: var(--warn);
+  font-weight: var(--fw-medium);
+}
+
+.rowAction {
+  flex: none;
+  color: var(--text-2);
+  touch-action: manipulation;
+}
+
+.more {
+  margin: 0;
+  padding-top: var(--space-1);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* --- Empty, notices, footnote ---------------------------------------- */
+
+.empty {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.emptyCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius-md);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.emptyIcon {
+  flex: none;
+  color: var(--text-3);
+}
+
+/* Amber notice: icon + text, not colour alone. */
+.warn {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--warn-subtle);
+  color: var(--text-1);
+  font-size: var(--fs-12);
+}
+
+.warnIcon {
+  flex: none;
+  color: var(--warn);
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--danger-subtle);
+  color: var(--text-1);
+  font-size: var(--fs-12);
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--fs-11);
+}
+
+.footnote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line-1);
+}
+
+/* --- Nothing selected: two counts ------------------------------------ */
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column-reverse;
+  padding: var(--space-3);
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-md);
+}
+
+.statValue {
+  margin: 0;
+  color: var(--text-1);
+  font-size: var(--fs-20);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+/* --- Attach controls ------------------------------------------------- */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.button {
+  touch-action: manipulation;
+}
+
+.button[aria-busy="true"] {
+  cursor: progress;
+}
+
+/* Ghost buttons (Detach): body text colour, so they read in both schemes. */
+.ghost {
+  color: var(--text-1);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.ghost:disabled {
+  color: var(--text-3);
+}
+
+/* The Info panel's "Attached to" row (File section). */
+.attachedRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  font-size: var(--fs-12);
+}
+
+.attachedValue {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-1);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachedValue a {
+  color: inherit;
+  touch-action: manipulation;
+}
+
+.attachedValue[data-empty] {
+  color: var(--text-2);
+}
+
+/* --- Post picker: the menu surface with a search field ---------------- */
+
+/* The dropdown is fixed under its button (PostPicker measures it), so no
+   ancestor's overflow clips it. */
+.pickerAnchor {
+  display: inline-flex;
+}
+
+.picker {
+  position: fixed;
+  z-index: var(--z-popover);
+  padding: var(--space-1);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-2);
+}
+
+.pickerBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.pickerLabel {
+  padding: 6px var(--space-2) 2px;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-11);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+}
+
+.search {
+  margin: var(--space-1) var(--space-1) var(--space-2);
+}
+
+.options {
+  max-height: 240px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-1);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.option[data-active] {
+  background: var(--surface-hover);
+}
+
+.optionIcon {
+  flex: none;
+  color: var(--text-2);
+}
+
+.optionText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.optionTitle {
+  overflow: hidden;
+  font-size: var(--fs-13);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionMeta {
+  color: var(--text-3);
+  font-size: var(--fs-11);
+}
+
+/* text-3 is too faint on the hover surface (AA). */
+.option[data-active] .optionMeta {
+  color: var(--text-2);
+}
+
+.pickerEmpty {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}

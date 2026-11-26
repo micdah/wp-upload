@@ -1,17 +1,19 @@
-// The `inspector` feature: the inspector rail and panel (inspector.md §1–§3).
-// M2 slice: the Info tab for 0 / 1 / N targets, with autosaving Title and
-// Alt text for one item. Edit image and Usage arrive with later waves; their
-// tabs open a panel that says so.
+// The `inspector` feature: the inspector rail and panel (inspector.md §1–§5,
+// §7–§9). Info for 0 / 1 / N targets (summary, one item's autosaving
+// fields and sections, batch editing), Save & next and the alt pass, the
+// Usage panel, and the Edit tab, which hosts the image editor's panel
+// (track B1 registers it with `registerEditPanel`; until then a stub).
 //
 // The shell renders InspectorPanel inside its inspector column (a flex
 // <aside>, 48 px wide when closed, 48 + 312 px when open) and calls
 // register() once at start-up.
 //
 // This entry is in the initial chunk, so it stays thin: the rail and the
-// `A` command. The panel (fields, autosave store, CSS) is a lazy chunk,
+// `A`, `E` and Edit details commands. The panel (fields, autosave store, CSS) is a lazy chunk,
 // fetched as soon as the inspector mounts; bridge.ts is what both share.
 
 import { ActionIcon, Tooltip } from '@mantine/core'
+import { type QueryClient, useQueryClient } from '@tanstack/react-query'
 import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 import type { MediaKind } from '../../../../../shared/library-api'
 import {
@@ -25,6 +27,8 @@ import {
   notifyCommandsChanged,
 } from '../../core/commands/registry'
 import { useCommand } from '../../core/commands/useCommand'
+import { cachedItem } from '../../core/data/items'
+import { can } from '../../core/perms'
 import {
   coreStore,
   isInspectorOpen,
@@ -36,7 +40,14 @@ import type { InspectorTab } from '../../core/state/store'
 import { CropIcon, InfoIcon, UsageIcon } from '../../core/ui/icons'
 import { noSelectProps } from '../../core/ui/noSelect'
 import { urlStore } from '../../core/url/useUrlState'
-import { bridgeStore, resetInspectorSession } from './bridge'
+import { bridgeStore, resetInspectorSession, useBridge } from './bridge'
+
+export {
+  type EditPanelComponent,
+  registerEditPanel,
+  setEditUnsaved,
+} from './bridge'
+
 import { isImageLike } from './format'
 import classes from './Rail.module.css'
 
@@ -58,6 +69,17 @@ const TABS: readonly {
 export function InspectorPanel() {
   const open = useCore(isInspectorOpen)
   const tab = useCore((state) => state.panels.inspectorTab)
+  // Edit details' availability reads the targets' cached permissions.
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    client = queryClient
+    notifyCommandsChanged()
+    return () => {
+      if (client === queryClient) {
+        client = null
+      }
+    }
+  }, [queryClient])
   // Fetch the panel even while collapsed, so opening it is instant.
   useEffect(() => {
     void loadPanel()
@@ -74,13 +96,32 @@ export function InspectorPanel() {
   )
 }
 
-/** The icon rail: it still talks when collapsed (the missing-alt dot). */
+/**
+ * The icon rail. It still talks when collapsed: a warn dot on Info while
+ * the item lacks alt text, the number of places that use it on Usage, and
+ * an accent dot on Edit while edits are unsaved.
+ */
 function Rail({ open, current }: { open: boolean; current: InspectorTab }) {
   const targets = useInspectorTargets()
   const single = targets.ids.length === 1 ? (targets.ids[0] ?? null) : null
   const { item } = useItem(single, 'tile')
+  const { item: full } = useItem(single, 'full')
+  const editUnsaved = useBridge((state) => state.editUnsaved)
   const altMissing =
     item !== null && isImageLike(item.kind) && item.alt.trim() === ''
+  const usageCount = full?.usageCount ?? 0
+  const badges: Record<InspectorTab, Badge | null> = {
+    info: altMissing ? { kind: 'warn', says: 'alt text missing' } : null,
+    edit: editUnsaved ? { kind: 'accent', says: 'unsaved edits' } : null,
+    usage:
+      usageCount > 0
+        ? {
+            kind: 'count',
+            count: usageCount,
+            says: `used in ${usageCount === 1 ? '1 place' : `${usageCount} places`}`,
+          }
+        : null,
+  }
   return (
     <nav
       className={classes.rail}
@@ -95,28 +136,32 @@ function Rail({ open, current }: { open: boolean; current: InspectorTab }) {
           label={label}
           icon={<Icon size={20} stroke={1.5} aria-hidden />}
           pressed={open && current === tab}
-          warn={tab === 'info' && altMissing}
+          badge={badges[tab]}
         />
       ))}
     </nav>
   )
 }
 
+type Badge =
+  | { kind: 'warn' | 'accent'; says: string }
+  | { kind: 'count'; count: number; says: string }
+
 function RailTab({
   tab,
   label,
   icon,
   pressed,
-  warn,
+  badge,
 }: {
   tab: InspectorTab
   label: string
   icon: ReactNode
   pressed: boolean
-  warn: boolean
+  badge: Badge | null
 }) {
   const command = useCommand('inspector.open-tab', { tab })
-  const name = warn ? `${label} (alt text missing)` : label
+  const name = badge ? `${label} (${badge.says})` : label
   return (
     <Tooltip
       label={name}
@@ -137,7 +182,20 @@ function RailTab({
         onClick={command.run}
       >
         {icon}
-        {warn && <span className={classes.dot} aria-hidden />}
+        {badge?.kind === 'count' ? (
+          // The number is drawn by CSS (attr): as text it would be part of
+          // the button's visible label, which the name must then contain
+          // word for word (axe label-content-name-mismatch).
+          <span
+            className={classes.count}
+            data-count={badge.count > 99 ? '99+' : String(badge.count)}
+            aria-hidden
+          />
+        ) : (
+          badge && (
+            <span className={classes.dot} data-tone={badge.kind} aria-hidden />
+          )
+        )}
       </ActionIcon>
     </Tooltip>
   )
@@ -204,6 +262,77 @@ function focusAlt(): void {
   bridgeStore.getState().requestFocus({ id, field: 'alt' })
 }
 
+// ---------------------------------------------------------------------------
+// Edit details (inspector.edit-details): the selection bar's button
+// ---------------------------------------------------------------------------
+
+/** The app's query client while the inspector is mounted (cached perms). */
+let client: QueryClient | null = null
+
+/**
+ * Edit details needs a target the user may edit (can('edit-meta')): not
+ * offline, the plugin's batch feature, and, where the cache knows the
+ * items, at least one with `perms.edit`. Unknown items count as editable;
+ * the server refuses per item what it must.
+ */
+function editDetailsAvailability(): Availability {
+  const targets = currentTargets()
+  if (targets.length === 0) {
+    return unavailable('no-target', 'Select media first')
+  }
+  const general = can('edit-meta')
+  if (!general.ok) {
+    return general
+  }
+  const known = client
+    ? targets.flatMap((id) => {
+        const item = client ? cachedItem(client, id) : null
+        return item ? [item] : []
+      })
+    : []
+  if (known.length < targets.length) {
+    return { ok: true }
+  }
+  let refusal: Availability | null = null
+  for (const item of known) {
+    const result = can('edit-meta', item)
+    if (result.ok) {
+      return result
+    }
+    refusal ??= result
+  }
+  return refusal ?? { ok: true }
+}
+
+/**
+ * Opens the inspector on Info (the compact sheet below 900 px) and focuses
+ * the first field: the batch panel's Title for several targets, the item's
+ * Title for one (interaction-spec §2, inspector.md §1).
+ */
+function editDetails(): void {
+  const targets = currentTargets()
+  if (targets.length === 0) {
+    return
+  }
+  const state = coreStore.getState()
+  if (!(isInspectorOpen(state) && state.panels.inspectorTab === 'info')) {
+    state.selectInspectorTab('info')
+  }
+  bridgeStore.getState().requestFocus({
+    id: targets.length === 1 ? (targets[0] as number) : null,
+    field: 'title',
+  })
+}
+
+/**
+ * `E`: opens the Edit tab, or collapses the inspector when it shows. The
+ * editor (B1) opens its canvas when the Edit panel shows one editable
+ * image; until then the tab says what editing covers.
+ */
+function toggleEditTab(): void {
+  coreStore.getState().selectInspectorTab('edit')
+}
+
 let registered = false
 
 export function register(): void {
@@ -214,6 +343,11 @@ export function register(): void {
   implementCommand('inspector.focus-alt', {
     available: focusAltAvailability,
     run: focusAlt,
+  })
+  implementCommand('inspector.edit-image', { run: toggleEditTab })
+  implementCommand('inspector.edit-details', {
+    available: editDetailsAvailability,
+    run: editDetails,
   })
   // `A` depends on the kind of the item the panel shows.
   bridgeStore.subscribe((state, previous) => {

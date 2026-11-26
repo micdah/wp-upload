@@ -275,6 +275,11 @@ and mirrors with the picture. The full recipe is sent on save; the order is rota
 All keys are letters, named keys or Ctrl/Cmd+letter, so they work on US and Danish layouts. The bindings
 are registered with `registerBindings` and appear in the shortcut sheet (group "Edit").
 
+`E` (`inspector.edit-image`) and `A` (`inspector.focus-alt`) are reserved for the inspector in
+`DEFAULT_BINDINGS` and interaction-spec §8 (group "Edit"). The inspector implements `inspector.edit-image`
+(it opens or collapses the Edit tab); the image editor (B1) hooks in through `registerEditPanel` and
+reports unsaved edits with `setEditUnsaved`.
+
 ## 9. Edge cases
 
 - **Selection changes mid-edit**: the typed value is saved to the items it belonged to.

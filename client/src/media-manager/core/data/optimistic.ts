@@ -23,6 +23,7 @@ import type {
 } from '../../../../../shared/library-api'
 import { type CollectionSnapshot, withoutIds } from './collection'
 import { cachedItem, updateCachedItems } from './items'
+import { beginItemWrite } from './itemWrites'
 import { LIBRARY_ROOT, libraryKeys } from './keys'
 
 export type Rollback = () => void
@@ -295,6 +296,11 @@ export interface OptimisticOptions<T> {
   apply: () => Rollback
   /** the mutation itself */
   run: () => Promise<T>
+  /**
+   * The items whose fields the mutation writes. Item reads that overlap it
+   * then keep the cache's values (itemWrites.ts).
+   */
+  writes?: readonly number[]
 }
 
 /**
@@ -305,13 +311,24 @@ export async function optimistic<T>(
   queryClient: QueryClient,
   options: OptimisticOptions<T>,
 ): Promise<T> {
-  await Promise.all(
-    options.cancel.map((filters) => queryClient.cancelQueries(filters)),
-  )
+  // Recorded before the cancel, so a read that slips past it is caught too.
+  const endWrite = beginItemWrite(queryClient, options.writes ?? [])
+  try {
+    await Promise.all(
+      options.cancel.map((filters) => queryClient.cancelQueries(filters)),
+    )
+  } catch (error) {
+    endWrite()
+    throw error
+  }
   const rollback = options.apply()
   try {
-    return await options.run()
+    const result = await options.run()
+    endWrite()
+    return result
   } catch (error) {
+    // Ended first: the rollback's refetch must apply.
+    endWrite()
     rollback()
     throw error
   }

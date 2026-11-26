@@ -7,6 +7,7 @@ import {
   type RegisteredBinding,
   registerBindings,
   resetBindingsForTesting,
+  sheetBindings,
 } from './bindings'
 import { DEFAULT_BINDINGS } from './defaultBindings'
 import {
@@ -60,7 +61,7 @@ afterEach(() => {
 
 describe('layout rule', () => {
   it('the default keymap is the spec’s 39 bindings, all layout-safe and conflict-free', () => {
-    expect(DEFAULT_BINDINGS).toHaveLength(39)
+    expect(DEFAULT_BINDINGS).toHaveLength(40)
     for (const binding of DEFAULT_BINDINGS) {
       expect(layoutProblem(binding), binding.command).toBeNull()
     }
@@ -108,17 +109,43 @@ describe('layout rule', () => {
         { key: 'f', mode: 'grid', command: 'folders.create' },
       ]),
     ).toThrow(/conflicts with core's panels.toggle-folders/)
+    // L is grid-only in core, so detail mode may bind it.
     expect(() =>
       registerBindings('peek', [
-        { key: ' ', mode: 'detail', command: 'peek.toggle' },
+        { key: 'l', mode: 'detail', command: 'peek.toggle' },
       ]),
     ).not.toThrow()
+    // Space is the grid's peek and detail's play / pause.
+    expect(() =>
+      registerBindings('player', [
+        { key: ' ', mode: 'detail', command: 'peek.toggle' },
+      ]),
+    ).toThrow(/conflicts with core's detail.play-toggle/)
     expect(() =>
       registerBindings('x', [
         { key: 'q', mode: 'any', command: 'help.shortcuts' },
         { key: 'q', mode: 'grid', command: 'palette.open' },
       ]),
     ).toThrow(/conflicts/)
+  })
+
+  it('the ? sheet lists the folder keys only with FileBird (A3 CR-5)', () => {
+    const folderKeys = (bindings: readonly RegisteredBinding[]) =>
+      bindings
+        .filter((binding) => binding.group === 'Folders')
+        .map((binding) => binding.key)
+    expect(folderKeys(sheetBindings({ filebird: true }))).toEqual([
+      'n',
+      'r',
+      'm',
+      'ContextMenu',
+    ])
+    expect(folderKeys(sheetBindings({ filebird: false }))).toEqual([])
+    // Hidden bindings never show; the keys themselves stay registered.
+    expect(
+      sheetBindings({ filebird: true }).some((binding) => binding.hidden),
+    ).toBe(false)
+    expect(listBindings().some((binding) => binding.key === 'n')).toBe(true)
   })
 
   it('formats shortcuts for Mac and others', () => {

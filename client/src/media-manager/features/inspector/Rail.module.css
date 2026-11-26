@@ -34,7 +34,8 @@
   color: var(--text-accent);
 }
 
-/* Missing alt text: a warn dot in the tab's corner. */
+/* Missing alt text: a warn dot in the tab's corner; unsaved edits: an
+   accent dot. */
 .dot {
   position: absolute;
   top: 5px;
@@ -44,4 +45,30 @@
   border-radius: 50%;
   background: var(--warn-fill);
   box-shadow: 0 0 0 2px var(--surface-panel);
+}
+
+.dot[data-tone="accent"] {
+  background: var(--accent);
+}
+
+/* Usage: how many places use the item. */
+.count {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: 0 0 0 2px var(--surface-panel);
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 15px;
+  text-align: center;
+}
+
+.count::after {
+  content: attr(data-count);
 }

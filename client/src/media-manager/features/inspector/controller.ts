@@ -36,15 +36,25 @@ import {
 export const FIELD_LABELS: Record<FieldName, string> = {
   title: 'Title',
   alt: 'Alt text',
+  caption: 'Caption',
+  description: 'Description',
 }
 
-/** The item's saved value of a field, as the cache holds it. */
-function currentValue(
+/**
+ * The item's saved value of a field, as the cache holds it. Caption and
+ * description exist on full items only; the panel shows those fields only
+ * once the full item is loaded.
+ */
+export function currentValue(
   queryClient: QueryClient,
   id: number,
   field: FieldName,
 ): string {
-  return cachedItem(queryClient, id)?.[field] ?? ''
+  const item = cachedItem(queryClient, id) as
+    | Partial<Record<FieldName, string>>
+    | null
+    | undefined
+  return item?.[field] ?? ''
 }
 
 function update(key: string, change: (entry: Entry) => Entry): void {
@@ -107,8 +117,38 @@ onPanelReset(() => {
     clearTimeout(timer)
   }
   savedTimers.clear()
-  inspectorStore.setState({ fields: {} })
+  inspectorStore.setState({ fields: {}, progress: {} })
 })
+
+type SavedListener = (
+  queryClient: QueryClient,
+  id: number,
+  field: FieldName,
+) => void
+
+const savedListeners = new Set<SavedListener>()
+
+/**
+ * Runs after each successful save of a field: one item's, or a batch's
+ * (called once, with its first changed id). The alt pass listens.
+ */
+export function onFieldSaved(listener: SavedListener): () => void {
+  savedListeners.add(listener)
+  return () => {
+    savedListeners.delete(listener)
+  }
+}
+
+/** Tells the listeners a field was saved (also used by batch.ts). */
+export function notifyFieldSaved(
+  queryClient: QueryClient,
+  id: number,
+  field: FieldName,
+): void {
+  for (const listener of [...savedListeners]) {
+    listener(queryClient, id, field)
+  }
+}
 
 /**
  * Commits a field's text to its item: blur, Enter, Ctrl/Cmd+Enter, Retry,
@@ -150,6 +190,7 @@ export async function commitField(
     }
     update(key, (entry) => saveSucceeded(entry, begin.value))
     announce(`${FIELD_LABELS[field]} saved`)
+    notifyFieldSaved(queryClient, id, field)
     if (fieldEntry(key)?.phase === 'saved') {
       scheduleSavedExpiry(key)
     }

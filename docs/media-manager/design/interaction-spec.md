@@ -136,6 +136,11 @@ app works under any sub-path:
     Open in wp-admin, Move to folder, Edit image, Delete).
 - **Stepping:** `←`/`→`, the stage buttons, or a filmstrip click. It always walks the **whole
   collection**, never only the selection. It replaces the URL entry.
+- **Deep link outside the view:** a `?item=` the current collection doesn't contain (filtered out, other
+  folder) opens with "Not in this view" in place of the index. The step buttons hide and `←`/`→` do
+  nothing, because there is no known place to step from; the filmstrip shows the view without a current
+  cell, and a click on it steps in. An item that *leaves* the view while shown still steps on from its old
+  place. A deep link to an item that doesn't exist shows "Item not found" with Back to grid.
 - **Filmstrip:**
   - A strip of the collection, dimmed except for the current item, which has a neutral outline and is
     kept centred.
@@ -147,6 +152,7 @@ app works under any sub-path:
 - **Media types:**
   - **Video:** poster, play button and player bar (play, time, scrubber, duration).
   - **Audio:** a card with the title, duration and player bar.
+  - `Space` plays and pauses the video or audio on stage, wherever focus is in detail mode.
   - **PDF:** the first-page preview as a paper sheet, plus "page 1 of N", Open PDF and Download.
   - **Archive:** a card with Download.
 - **Leave** with `Esc`, `G`, Back or the ← button. `Esc` closes the innermost layer first (an open field,
@@ -248,7 +254,7 @@ app works under any sub-path:
 - **Modals:** while focus is inside a modal (dialog, sheet, palette), app shortcuts pause and the modal
   handles its own keys.
 
-The complete map, generated from the running prototype (39 bindings):
+The complete map (40 bindings: the prototype's 39, plus `Space` in detail mode added in wave A):
 
 | Group | Key | Mode | Action |
 |---|---|---|---|
@@ -266,10 +272,11 @@ The complete map, generated from the running prototype (39 bindings):
 | View | `L` | grid | Justified / square layout |
 | View | `Z` | detail | Zoom: fit / 100 % |
 | View | `+` / `-` | detail | Zoom in / out |
+| View | `Space` | detail | Play / pause video or audio |
 | Panels | `F` | any | Toggle folder column |
 | Panels | `I` | any | Toggle inspector |
-| Edit | `E` | any | Edit image |
-| Edit | `A` | any | Jump to alt text |
+| Edit | `E` | any | Edit image (the inspector's Edit tab; reserved for the inspector) |
+| Edit | `A` | any | Jump to alt text (reserved for the inspector) |
 | Folders | `N` | grid | New folder |
 | Folders | `R` | grid | Rename current/focused folder |
 | Folders | `M` | any | Move selection to folder… |

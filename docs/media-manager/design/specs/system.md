@@ -273,6 +273,7 @@ All keys are layout-safe (`assertKeymapIsLayoutSafe`) and match `event.key`.
 | `?` | Shortcut sheet | any |
 | `Ctrl/Cmd+K` | Command palette | any |
 | `Ctrl/Cmd+Z` | Undo the newest undoable toast | any |
+| `Space` | Play / pause the video or audio on stage | detail |
 
 ## 7. Edge cases
 

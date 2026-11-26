@@ -9,5 +9,6 @@ export {
   type MediaDropTarget,
   mediaDragStore,
   setMediaDropTarget,
+  useIsMediaDragged,
   useMediaDraggable,
 } from './mediaDrag'

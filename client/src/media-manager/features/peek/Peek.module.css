@@ -1,0 +1,105 @@
+/* Quick peek (prototype components.css `.peek`): the focused item over a
+   scrim with a blur, and a caption pill. */
+
+.peek {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+  animation: peek-in var(--dur-3) var(--ease-out);
+}
+
+@keyframes peek-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  animation: peek-scale var(--dur-3) var(--ease-out);
+}
+
+@keyframes peek-scale {
+  from {
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .peek,
+  .figure {
+    animation-name: peek-in;
+  }
+}
+
+.media {
+  display: block;
+  border-radius: var(--radius-md);
+  background: var(--surface-tile);
+  box-shadow: var(--shadow-3);
+  object-fit: contain;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-3);
+  color: var(--text-2);
+  font-size: var(--fs-13);
+}
+
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  max-width: min(90%, 720px);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--surface-overlay);
+  color: var(--text-1);
+  font-size: var(--fs-12);
+  box-shadow: var(--shadow-2);
+}
+
+.name {
+  font-weight: var(--fw-semibold);
+}
+
+.facts {
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  font-variant-numeric: tabular-nums;
+}
+
+.hints {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: var(--fs-11);
+}
+
+.hints kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-xs);
+  background: var(--surface-raised);
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}

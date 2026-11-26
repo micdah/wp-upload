@@ -141,14 +141,14 @@ describe('the Info panel', () => {
   it('summarises the view when nothing is selected, and counts several items', async () => {
     start()
     renderInspector()
-    expect(await screen.findByText('Nothing selected')).toBeTruthy()
-    expect(await screen.findByText('93 items in view')).toBeTruthy()
+    expect(
+      await screen.findByText('Nothing selected · 93 items in view'),
+    ).toBeTruthy()
     act(() => {
       coreStore.getState().setSelection([1000, 1001])
     })
-    expect(await screen.findByText('2 items selected')).toBeTruthy()
+    expect(await screen.findByText('Editing 2 items')).toBeTruthy()
     expect(screen.getByText('2 selected')).toBeTruthy()
-    expect(screen.queryByLabelText('Title')).toBeNull()
   })
 
   it('shows one item: name with its extension, meta line, preview, Title and Alt text', async () => {
@@ -219,13 +219,18 @@ describe('the Info panel', () => {
     expect(screen.queryByLabelText('Alt text')).toBeNull()
   })
 
-  it('collapses on the active rail tab and says Edit and Usage come later', async () => {
+  it('collapses on the active rail tab', async () => {
     const user = userEvent.setup()
     start()
     renderInspector()
-    await screen.findByText('Nothing selected')
+    await screen.findByText('Nothing selected · 93 items in view')
+    await user.click(screen.getByRole('button', { name: 'Edit image' }))
+    expect(
+      await screen.findByText(
+        'Select an image to crop, rotate, flip or scale it.',
+      ),
+    ).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Usage' }))
-    expect(await screen.findByText(/isn’t shown yet/)).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Usage' }))
     expect(screen.queryByTestId('inspector-panel')).toBeNull()
     expect(
@@ -264,7 +269,7 @@ describe('autosave', () => {
     })
   })
 
-  it('Ctrl+Enter commits and keeps focus; Enter in Alt text commits without a newline', async () => {
+  it('Ctrl+Enter commits and keeps focus, also in Alt text, without a newline', async () => {
     const user = userEvent.setup()
     start()
     select(1001)
@@ -280,7 +285,7 @@ describe('autosave', () => {
     expect(document.activeElement).toBe(title)
 
     const alt = await altField()
-    await user.type(alt, 'A leaf{Enter}')
+    await user.type(alt, 'A leaf{Control>}{Enter}{/Control}')
     await waitFor(() => expect(mock.library.item(1001)?.alt).toBe('A leaf'))
     expect(alt.value).toBe('A leaf')
     expect(document.activeElement).toBe(alt)
@@ -360,7 +365,7 @@ describe('autosave', () => {
     select(1001)
     renderInspector()
     const title = await titleField()
-    await user.type(title, ' two{Enter}')
+    await user.type(title, ' two{Control>}{Enter}{/Control}')
     await waitFor(() => expect(fieldStatus('title')).toBe('Saving…'))
     await user.type(title, ' more')
     expect(title.value).toBe('detail-oisin-conolly-330 two more')
@@ -384,7 +389,7 @@ describe('autosave', () => {
     select(1001)
     renderInspector()
     const title = await titleField()
-    await user.type(title, ' two{Enter}')
+    await user.type(title, ' two{Control>}{Enter}{/Control}')
     await waitFor(() => expect(fieldStatus('title')).toBe('Saved'))
     act(() => title.blur())
     expect(fieldStatus('title')).toBe('Saved')
@@ -505,7 +510,7 @@ describe('autosave', () => {
     await user.type(alt, ' leaf')
     expect(alt.value).toBe('A green leaf')
 
-    await user.keyboard('{Enter}')
+    await user.keyboard('{Control>}{Enter}{/Control}')
     await waitFor(() => expect(fieldStatus('alt')).toMatch(/^Not saved/))
     expect(alt.value).toBe('A green leaf')
     expect(
@@ -571,10 +576,10 @@ describe('logout', () => {
     select(1001)
     const { queryClient } = renderInspector()
     const alt = await altField()
-    await user.type(alt, 'Gone{Enter}')
+    await user.type(alt, 'Gone{Control>}{Enter}{/Control}')
     await waitFor(() => expect(fieldStatus('alt')).toMatch(/^Not saved/))
     const title = await titleField()
-    await user.type(title, ' draft{Enter}')
+    await user.type(title, ' draft{Control>}{Enter}{/Control}')
     await waitFor(() => expect(fieldStatus('title')).toBe('Saving…'))
     await waitFor(() => expect(held).toHaveLength(1))
     expect(Object.keys(inspectorStore.getState().fields)).toHaveLength(2)
@@ -630,7 +635,7 @@ describe('`A`: jump to alt text', () => {
   it('is unavailable without exactly one image', async () => {
     start()
     renderInspector()
-    await screen.findByText('93 items in view')
+    await screen.findByText('Nothing selected · 93 items in view')
     expect(runCommand('inspector.focus-alt')).toBe(false)
     select(1088)
     expect(runCommand('inspector.focus-alt')).toBe(false)

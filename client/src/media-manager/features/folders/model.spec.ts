@@ -2,16 +2,27 @@ import { describe, expect, it } from 'vitest'
 import {
   ancestorsOf,
   applyFolderMove,
+  cleanFolderName,
+  currentPlacement,
+  descendantIds,
   flattenVisible,
   folderDropAvailability,
+  folderPath,
+  hasFolderNamed,
+  highlightParts,
   indexFolders,
   isSelfOrDescendant,
+  nestedCounts,
   resolveFolderMove,
-} from './folderTree'
-import { sampleFolders, seedFolders } from './seedFolders'
+  searchFolders,
+  sortSiblings,
+  subtreeFileCount,
+} from './model'
+import { sampleFolders, seedFolders } from './test/seedFolders'
 
-// Spike C3, pure model: flattening, the drop rules (nest vs reorder, cycle
-// block) and moves in the API's `{ parent, position }` shape.
+// The folder tree's pure model: flattening, the drop rules (nest vs
+// reorder, cycle block) and moves in the API's `{ parent, position }` shape
+// (lifted from spike C3), plus search, counts, sorting and names.
 
 const ALL_EXPANDED = new Set([1, 2, 3, 4, 5, 6, 7])
 
@@ -339,5 +350,154 @@ describe('resolveFolderMove and applyFolderMove', () => {
       ok: false,
       reason: 'missing',
     })
+  })
+})
+
+describe('display sort (FileBird Pro)', () => {
+  const folders = [
+    { id: 1, name: 'event 10', parent: 0, ord: 0, color: null, count: 0 },
+    { id: 2, name: 'Event 2', parent: 0, ord: 1, color: null, count: 0 },
+    { id: 3, name: 'archive', parent: 0, ord: 2, color: null, count: 0 },
+  ]
+
+  it('keeps the manual order by default', () => {
+    expect(sortSiblings(folders, 'manual').map((f) => f.id)).toEqual([1, 2, 3])
+  })
+
+  it('sorts naturally and case-insensitively by name, both ways', () => {
+    expect(sortSiblings(folders, 'name-asc').map((f) => f.id)).toEqual([
+      3, 2, 1,
+    ])
+    expect(sortSiblings(folders, 'name-desc').map((f) => f.id)).toEqual([
+      1, 2, 3,
+    ])
+  })
+
+  it('applies to every level of the flattened tree', () => {
+    const rows = flattenVisible(indexFolders(sampleFolders()), new Set([1]), {
+      sort: 'name-asc',
+    })
+    expect(rows.map((row) => row.folder.name)).toEqual([
+      'Archive',
+      'Brand',
+      'Colours',
+      'Logos',
+      'Events',
+    ])
+  })
+})
+
+describe('search', () => {
+  const index = indexFolders(sampleFolders())
+
+  it('matches case-insensitively and keeps every ancestor visible', () => {
+    const search = searchFolders(index, '  OLD ')
+    expect([...(search?.matches ?? [])]).toEqual([7])
+    expect([...(search?.visible ?? [])].sort()).toEqual([1, 4, 7])
+  })
+
+  it('is off for an empty query', () => {
+    expect(searchFolders(index, '   ')).toBeNull()
+  })
+
+  it('shows only the visible rows, expanded, without touching the saved set', () => {
+    const search = searchFolders(index, 'old')
+    const expanded = new Set<number>()
+    const rows = flattenVisible(index, expanded, { only: search?.visible })
+    expect(rows.map((row) => [row.id, row.level, row.expanded])).toEqual([
+      [1, 1, true],
+      [4, 2, true],
+      [7, 3, false],
+    ])
+    // Set sizes count the visible siblings only.
+    expect(rows.map((row) => row.setSize)).toEqual([1, 1, 1])
+    expect(expanded.size).toBe(0)
+  })
+
+  it('marks the first match in a name', () => {
+    expect(highlightParts('Press kit', 'xyz')).toBeNull()
+    expect(highlightParts('Press kit', 'ss k')).toEqual({
+      before: 'Pre',
+      match: 'ss k',
+      after: 'it',
+    })
+    expect(highlightParts('Logos', '')).toBeNull()
+  })
+})
+
+describe('counts and subtrees', () => {
+  const index = indexFolders(sampleFolders())
+
+  it('lists a subtree depth first, without the folder itself', () => {
+    expect(descendantIds(index, 1)).toEqual([4, 7, 5])
+    expect(descendantIds(index, 3)).toEqual([])
+  })
+
+  it('sums the files of a subtree (the delete confirm)', () => {
+    // counts equal ids in the sample: 1 + 4 + 7 + 5
+    expect(subtreeFileCount(index, 1)).toBe(17)
+    expect(subtreeFileCount(index, 7)).toBe(7)
+  })
+
+  it('computes nested counts for every folder in one pass', () => {
+    const totals = nestedCounts(index)
+    expect(totals.get(1)).toBe(17)
+    expect(totals.get(4)).toBe(11)
+    expect(totals.get(2)).toBe(8)
+    expect(totals.get(3)).toBe(3)
+    expect(totals.size).toBe(7)
+  })
+
+  it('handles 5k folders quickly', () => {
+    const big = indexFolders(seedFolders(5000))
+    const start = performance.now()
+    const totals = nestedCounts(big)
+    expect(performance.now() - start).toBeLessThan(100)
+    const top = big.children.get(0) ?? []
+    const sum = top.reduce(
+      (total, folder) => total + (totals.get(folder.id) ?? 0),
+      0,
+    )
+    const all = [...big.byId.values()].reduce((total, f) => total + f.count, 0)
+    expect(sum).toBe(all)
+  })
+
+  it('names the path of ancestors, top first', () => {
+    expect(folderPath(index, 7)).toEqual(['Brand', 'Logos'])
+    expect(folderPath(index, 1)).toEqual([])
+  })
+})
+
+describe('names', () => {
+  it('collapses whitespace, trims and caps at 200 characters', () => {
+    expect(cleanFolderName('  Press \n  kit  ')).toBe('Press kit')
+    expect(cleanFolderName('   ')).toBe('')
+    expect(cleanFolderName('a'.repeat(250))).toHaveLength(200)
+  })
+
+  it('finds an existing name anywhere, case-insensitively', () => {
+    const index = indexFolders(sampleFolders())
+    expect(hasFolderNamed(index, ' old ')).toBe(true)
+    expect(hasFolderNamed(index, 'New')).toBe(false)
+    expect(hasFolderNamed(index, '')).toBe(false)
+  })
+})
+
+describe('currentPlacement (the Undo of a move)', () => {
+  it('is the parent and the index among siblings without itself', () => {
+    const folders = sampleFolders()
+    const index = indexFolders(folders)
+    expect(currentPlacement(index, 5)).toEqual({ parent: 1, position: 1 })
+    expect(currentPlacement(index, 99)).toBeNull()
+    // Moving away and back with it restores the original order.
+    const away = applyFolderMove(folders, 5, { parent: 0, position: 0 })
+    const back = applyFolderMove(away, 5, { parent: 1, position: 1 })
+    const order = (list: typeof folders, parent: number) =>
+      list
+        .filter((folder) => folder.parent === parent)
+        .sort((a, b) => a.ord - b.ord)
+        .map((folder) => folder.id)
+    expect(order(back, 1)).toEqual([4, 5])
+    expect(order(back, 0)).toEqual([1, 2, 3])
   })
 })

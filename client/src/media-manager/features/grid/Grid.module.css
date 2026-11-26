@@ -47,12 +47,29 @@
   /* No double-tap zoom on tiles: two taps open detail (GridView). */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  /* Tiles are draggable (to folders), and browsers' UA sheets make
+     draggable="true" elements user-select: none, which on iPadOS stops a
+     trackpad click from handing the page the keyboard (M3-wave-A iPad
+     lessons). The grid is a data-mm-no-select region, so the selection
+     guard keeps text selections out anyway. */
+  -webkit-user-select: text;
+  user-select: text;
 }
 
+/* Tiles being dragged onto a folder dim in place. */
+.tile[data-mm-drag-source] {
+  opacity: 0.4;
+}
+
+/* The picture and the card take no pointer events: they are swapped when a
+   tile hydrates (placeholder → picture), and a click whose press landed on
+   the removed placeholder never reached the tile (Chromium drops it), so a
+   click on a "Loading" tile selected nothing. The tile itself is the target. */
 .media {
   position: absolute;
   inset: 0;
   overflow: hidden;
+  pointer-events: none;
   transition:
     transform var(--dur-2) var(--ease-standard),
     border-radius var(--dur-2) var(--ease-standard);
@@ -71,7 +88,8 @@
   opacity: 1;
 }
 
-/* Transparent pictures (SVG) sit on a neutral checkerboard, contained. */
+/* Transparent pictures sit on a neutral checkerboard: SVG contained, PNG
+   filling the tile like a photo. */
 .media[data-checker] {
   background-image:
     linear-gradient(45deg, var(--surface-hover) 25%, transparent 25%),
@@ -86,7 +104,7 @@
     -8px 0;
 }
 
-.media[data-checker] img {
+.media[data-checker="contain"] img {
   object-fit: contain;
   padding: 12%;
 }
@@ -95,6 +113,7 @@
 .card {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -155,6 +174,24 @@
 .grid[data-selecting] .check,
 .tile[aria-selected="true"] .check {
   opacity: 1;
+}
+
+/* A bigger target than the circle: a click on it toggles the tile. */
+.check::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+
+/* The check glyph, drawn with borders (no icon component per tile). */
+.check::after {
+  content: "";
+  width: 5px;
+  height: 9px;
+  margin-top: -2px;
+  border: solid currentColor;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
 }
 
 .tile[aria-selected="true"] .check {
@@ -227,9 +264,157 @@
     inset 0 0 0 6px var(--focus-ring);
 }
 
-/* The tile you return to from detail mode: a fading accent ring. */
-.tile[data-returning]::after {
+/* The tile you return to from detail mode, and the "just changed" flash
+   (flash.ts): a fading accent ring. */
+.tile[data-returning]::after,
+.flash {
   animation: return-highlight 900ms var(--ease-out);
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Badges, bottom right: Alt missing (warn), duration, PDF pages,
+   Processing (neutral), Failed (danger). */
+.badges {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  max-width: calc(100% - 12px);
+  pointer-events: none;
+}
+
+.badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: rgb(0 0 0 / 0.62);
+  color: #fff;
+  font-size: var(--fs-11);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.badge::after,
+.ring::after,
+.retry::after {
+  content: attr(data-text);
+}
+
+.badge[data-tone="warn"] {
+  background: var(--warn-fill);
+  color: var(--text-on-warn);
+}
+
+.badge[data-tone="danger"] {
+  background: var(--danger-fill);
+  color: var(--text-on-danger);
+}
+
+/* An upload in progress (system.md §1): dimmed while queued or uploading,
+   less so while processing; a failure gets the danger ring. */
+.tile[data-upload="queued"] .media,
+.tile[data-upload="uploading"] .media,
+.tile[data-upload="queued"] .card,
+.tile[data-upload="uploading"] .card {
+  opacity: 0.35;
+}
+
+.tile[data-upload="processing"] .media,
+.tile[data-upload="processing"] .card {
+  opacity: 0.7;
+}
+
+.tile[data-upload="error"] {
+  --tile-ring: inset 0 0 0 2px var(--danger);
+}
+
+/* Focus stays visible on a failed tile: the focus ring inside the danger one. */
+.tile[data-upload="error"]:focus-visible {
+  --tile-ring: inset 0 0 0 2px var(--danger), inset 0 0 0 4px var(--focus-ring);
+}
+
+/* Over the picture, under the check circle's clicks: only Retry takes
+   pointer events, so the circle still toggles while a tile uploads. */
+.upload {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.ring {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, rgb(0 0 0 / 0.55) 76%, transparent 78%),
+    conic-gradient(
+      var(--accent) calc(var(--progress, 0) * 360deg),
+      rgb(255 255 255 / 0.25) 0
+    );
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* Unknown progress (processing): a quarter arc that spins. */
+.ring[data-spinning] {
+  background:
+    radial-gradient(closest-side, rgb(0 0 0 / 0.55) 76%, transparent 78%),
+    conic-gradient(var(--accent) 90deg, rgb(255 255 255 / 0.25) 0);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+.retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-overlay);
+  color: var(--text-1);
+  font: inherit;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-medium);
+  box-shadow: var(--shadow-2);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.retry:hover {
+  background: var(--surface-raised);
+}
+
+.retry[aria-disabled] {
+  color: var(--text-3);
+  cursor: default;
 }
 
 @keyframes return-highlight {
@@ -294,5 +479,9 @@
   .media,
   .card {
     transition-duration: 1ms;
+  }
+
+  .ring[data-spinning] {
+    animation-duration: 3s;
   }
 }

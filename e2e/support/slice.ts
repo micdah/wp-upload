@@ -265,6 +265,8 @@ export function defineSliceTests(options: SliceOptions): void {
           const ids: number[] = []
           for (let index = 0; index < 5; index++) {
             const tile = tiles(page).nth(index)
+            // A tile is labelled "Loading" until its chunk has hydrated.
+            await expect(tile).not.toHaveAttribute('aria-label', 'Loading')
             ids.push(await itemOf(tile))
             names.push((await tile.getAttribute('aria-label')) ?? '')
           }

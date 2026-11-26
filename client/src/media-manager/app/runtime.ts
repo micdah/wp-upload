@@ -30,7 +30,7 @@ import { type CoreStore, coreStore, installCoreSync } from '../core/state'
 import { announce, plural } from '../core/ui/announce'
 import { morph } from '../core/ui/morph'
 import { installSelectionGuard } from '../core/ui/noSelect'
-import { canUndo, undoLast } from '../core/ui/toast'
+import { canUndo, toast, undoLast } from '../core/ui/toast'
 import { MAX_DENSITY } from '../core/url/codec'
 import { urlStore } from '../core/url/useUrlState'
 
@@ -46,12 +46,13 @@ function inDetail(): Availability {
     : OK
 }
 
-function hasFileBird(): Availability {
-  const filebird = coreStore.getState().bootstrap?.site?.filebird
-  return filebird?.active
-    ? OK
-    : unavailable('no-filebird', "FileBird isn't active")
+function hasFileBird(): boolean {
+  return Boolean(coreStore.getState().bootstrap?.site?.filebird?.active)
 }
+
+/** What F (and the other folder keys) say without FileBird (folders.md §9). */
+export const NO_FILEBIRD_MESSAGE =
+  'Folders need the FileBird plugin on your WordPress site.'
 
 /**
  * The collection on screen, or null while it isn't settled. With
@@ -317,9 +318,16 @@ export function registerCoreCommands(): void {
       })),
   })
 
+  // Without FileBird there is no column; F explains why instead of doing
+  // nothing (folders.md §9, A3 CR-7).
   implementCommand('panels.toggle-folders', {
-    available: hasFileBird,
-    run: () => store().toggleFolders(),
+    run: () => {
+      if (!hasFileBird()) {
+        toast({ message: NO_FILEBIRD_MESSAGE })
+        return
+      }
+      store().toggleFolders()
+    },
   })
   implementCommand('panels.toggle-inspector', {
     run: () => store().toggleInspector(),

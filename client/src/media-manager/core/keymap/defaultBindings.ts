@@ -39,6 +39,7 @@ export const DEFAULT_BINDINGS: readonly Binding[] = [
   { key: 'z', mode: 'detail', command: 'detail.zoom-toggle', group: 'View' },
   { key: '+', mode: 'detail', command: 'detail.zoom-step', args: { direction: 1 }, label: 'Zoom in', group: 'View', repeat: true },
   { key: '-', mode: 'detail', command: 'detail.zoom-step', args: { direction: -1 }, label: 'Zoom out', group: 'View', repeat: true },
+  { key: ' ', mode: 'detail', command: 'detail.play-toggle', label: 'Play / pause video or audio', group: 'View' },
   // Panels
   { key: 'f', mode: 'any', command: 'panels.toggle-folders', group: 'Panels' },
   { key: 'i', mode: 'any', command: 'panels.toggle-inspector', group: 'Panels' },
@@ -46,10 +47,10 @@ export const DEFAULT_BINDINGS: readonly Binding[] = [
   { key: 'e', mode: 'any', command: 'inspector.edit-image', group: 'Edit' },
   { key: 'a', mode: 'any', command: 'inspector.focus-alt', group: 'Edit' },
   // Folders
-  { key: 'n', mode: 'grid', command: 'folders.create', group: 'Folders' },
-  { key: 'r', mode: 'grid', command: 'folders.rename', label: 'Rename current/focused folder', group: 'Folders' },
-  { key: 'm', mode: 'any', command: 'folders.move-to', label: 'Move selection to folder…', group: 'Folders' },
-  { key: 'ContextMenu', mode: 'grid', command: 'folders.context-menu', group: 'Folders' },
+  { key: 'n', mode: 'grid', command: 'folders.create', group: 'Folders', folders: true },
+  { key: 'r', mode: 'grid', command: 'folders.rename', label: 'Rename current/focused folder', group: 'Folders', folders: true },
+  { key: 'm', mode: 'any', command: 'folders.move-to', label: 'Move selection to folder…', group: 'Folders', folders: true },
+  { key: 'ContextMenu', mode: 'grid', command: 'folders.context-menu', group: 'Folders', folders: true },
   // Files
   { key: 'u', mode: 'any', command: 'upload.pick', group: 'Files' },
   { key: 'Delete', mode: 'any', command: 'items.delete', label: 'Remove from folder (in a folder), otherwise delete', group: 'Files' },

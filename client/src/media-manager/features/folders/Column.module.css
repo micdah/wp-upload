@@ -1,0 +1,568 @@
+/*
+ * The folder column (folders.md §2, §6, §9): tokens only, matching the
+ * prototype's .folders / .tree__row / folders.css rules.
+ *
+ * iPad rule (M3-wave-A): nothing clickable or focusable here is
+ * `user-select: none`. The column is a `data-mm-no-select` region instead
+ * (core/ui/noSelect), and only decorative icons opt out of selection.
+ */
+
+/* The inner width stays fixed while the shell animates the column, so
+   nothing re-flows; the content fades as it slides shut. */
+.column {
+  display: flex;
+  flex-direction: column;
+  width: var(--folders-w);
+  height: 100%;
+  min-height: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  transition: opacity var(--dur-2) var(--ease-out);
+  -webkit-touch-callout: none;
+}
+
+:global([data-folders="closed"]) .column {
+  opacity: 0;
+  transition-timing-function: var(--ease-in);
+}
+
+@media (max-width: 899px) {
+  .column {
+    width: 100%;
+  }
+}
+
+/* --- Header ------------------------------------------------------------- */
+
+.header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: var(--filterbar-h, 40px);
+  padding: 0 var(--space-1) 0 var(--space-3);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-3);
+  font-family: var(--font-display);
+  font-size: var(--fs-11);
+  letter-spacing: var(--display-tracking);
+  text-transform: var(--display-transform);
+}
+
+.headerButton {
+  touch-action: manipulation;
+}
+
+.headerButton svg {
+  -webkit-user-select: none;
+}
+
+/* --- Search and notice ----------------------------------------------------- */
+
+.search {
+  flex: none;
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.notice {
+  flex: none;
+  margin: 0 var(--space-2) var(--space-2);
+  border: 1px solid var(--warn);
+  background: var(--warn-subtle);
+}
+
+.noticeTitle {
+  color: var(--text-1);
+}
+
+.noticeIcon {
+  color: var(--warn);
+}
+
+.noticeText {
+  margin: 0 0 var(--space-1);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+.noticeText:last-child {
+  margin-bottom: 0;
+}
+
+/* --- Tree ------------------------------------------------------------------- */
+
+.body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tree {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 var(--space-2);
+  outline: none;
+}
+
+.tree[data-fill] {
+  flex: 1 1 auto;
+  padding-bottom: var(--space-4);
+}
+
+/* A folder dropped on the empty tree area: to the top level. */
+.tree[data-drop-root] {
+  box-shadow: inset 0 0 0 1.5px var(--select-ring);
+  border-radius: var(--radius-sm);
+}
+
+.sizer {
+  position: relative;
+  width: 100%;
+}
+
+.separator {
+  position: absolute;
+  top: 8px;
+  left: var(--space-2);
+  right: var(--space-2);
+  height: 1px;
+  background: var(--line-1);
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0 var(--space-2) 0
+    calc(var(--space-2) + var(--indent, 16px) * var(--depth, 0));
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  cursor: default;
+  outline: none;
+  touch-action: manipulation;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+
+.row:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.row:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+
+.row[data-current] {
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+  font-weight: var(--fw-medium);
+  box-shadow: inset 2px 0 0 var(--select-ring);
+}
+
+.row[data-current]:focus-visible {
+  box-shadow:
+    inset 2px 0 0 var(--select-ring),
+    inset 0 0 0 2px var(--focus-ring);
+}
+
+.row[data-editing] {
+  background: var(--surface-hover);
+}
+
+.row[data-menu-open] {
+  background: var(--surface-active);
+  color: var(--text-1);
+}
+
+.row[data-pending] {
+  color: var(--text-3);
+}
+
+/* The folder being dragged dims in place. */
+.row[data-dragging] {
+  opacity: 0.45;
+}
+
+/* "Inside" drop target: the tint and a ring in the selection-ring colour,
+   which is ≥ 3:1 in both themes (folders.md §12 request 5). */
+.row[data-drop="combine"] {
+  background: var(--accent-subtle);
+  color: var(--text-1);
+  box-shadow: inset 0 0 0 1.5px var(--select-ring);
+}
+
+/* A refused target: no tint, a danger outline. */
+.row[data-drop-blocked] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+/* A row that was just created, renamed or moved glows once. */
+.row[data-flash] {
+  animation: folder-flash 1.2s var(--ease-out);
+}
+
+@keyframes folder-flash {
+  0%,
+  35% {
+    background: var(--accent-subtle);
+    box-shadow: inset 0 0 0 1.5px var(--accent-line);
+  }
+}
+
+/* Reorder indicator: a ring-coloured line at the row's depth. */
+.line {
+  position: absolute;
+  right: var(--space-2);
+  left: calc(var(--space-2) + var(--indent, 16px) * var(--depth, 0) + 18px);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--select-ring);
+  pointer-events: none;
+}
+
+.line[data-edge="before"] {
+  top: -1px;
+}
+
+.line[data-edge="after"] {
+  bottom: -1px;
+}
+
+.twisty {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: transform var(--dur-2) var(--ease-standard);
+}
+
+.twisty[data-expanded] {
+  transform: rotate(90deg);
+}
+
+.twisty[data-empty] {
+  visibility: hidden;
+}
+
+.icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+}
+
+/* A truncated folder name in full, under the row (no native title). */
+.nameTip {
+  position: fixed;
+  z-index: var(--z-popover, 300);
+  max-width: 360px;
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--tooltip-bg, var(--surface-overlay));
+  color: var(--tooltip-color, var(--text-1));
+  font-size: var(--fs-12);
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  box-shadow: var(--shadow-2);
+}
+
+.muted {
+  color: var(--text-3);
+}
+
+/* Pro colours tint the folder glyph's outline and fill it faintly. */
+.colored {
+  color: var(--folder-color);
+  fill: color-mix(in srgb, var(--folder-color) 28%, transparent);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match {
+  border-radius: 2px;
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+  font-weight: var(--fw-semibold);
+}
+
+.count {
+  flex: none;
+  min-width: 2ch;
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+  font-weight: var(--fw-regular);
+  text-align: right;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Inline create and rename: the name becomes an input in place. */
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--input-bd-focus, var(--accent));
+  border-radius: var(--radius-sm);
+  background: var(--surface-input);
+  color: var(--text-1);
+  font: inherit;
+  font-weight: var(--fw-regular);
+  outline: none;
+}
+
+.nameInput:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+/* --- Empty, loading ------------------------------------------------------- */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--space-3) var(--space-4);
+}
+
+.skeletonRow {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  animation: skeleton-pulse 1.4s linear infinite;
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* --- Menus ------------------------------------------------------------------ */
+
+.menuPoint {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.dangerItem {
+  color: var(--danger);
+}
+
+.radioSpacer {
+  display: inline-block;
+  width: 16px;
+}
+
+.colorMenu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.colorTitle {
+  color: var(--text-3);
+  font-size: var(--fs-12);
+}
+
+.colorNone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-1);
+  font: inherit;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+.colorNone:hover,
+.colorNone:focus-visible {
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.colorNone[aria-checked="true"] {
+  font-weight: var(--fw-semibold);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 28px);
+  gap: var(--space-2);
+}
+
+.swatch {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-pill);
+  background: var(--folder-color);
+  color: var(--gray-1000);
+  touch-action: manipulation;
+  transition: transform var(--dur-1) var(--ease-out);
+}
+
+.swatch:hover {
+  transform: scale(1.1);
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.swatch[aria-checked="true"] {
+  box-shadow:
+    0 0 0 2px var(--surface-overlay),
+    0 0 0 4px var(--text-1);
+}
+
+.swatch svg {
+  -webkit-user-select: none;
+}
+
+/* --- Drag ----------------------------------------------------------------- */
+
+/* The folder drag's in-page preview (the native one is disabled). */
+.preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-drop-overlay, 1000);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 280px;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-2);
+  color: var(--text-1);
+  font-family: var(--font-ui);
+  font-size: var(--fs-13);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.previewThumb {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-raised);
+  color: var(--text-2);
+}
+
+.previewText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.previewTitle {
+  overflow: hidden;
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewTarget {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: var(--fs-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview[data-valid="true"] .previewTarget {
+  color: var(--text-accent);
+}
+
+.preview[data-valid="false"] .previewTarget {
+  color: var(--danger);
+}
+
+/* Browsers' UA sheets make `draggable="true"` elements `user-select: none`.
+   On iPadOS that stops a trackpad click from handing the page the keyboard
+   (M3-wave-A iPad lessons), so the tiles this feature makes draggable, and
+   the folder rows, stay selectable as far as CSS goes; the selection guard
+   (data-mm-no-select) keeps text selections out of them. The grid's tiles
+   do the same in Grid.module.css. */
+.row {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .column,
+  .twisty,
+  .row {
+    transition-duration: 1ms;
+  }
+
+  .row[data-flash] {
+    animation: none;
+  }
+
+  .skeletonRow {
+    animation: none;
+  }
+
+  .swatch:hover {
+    transform: none;
+  }
+}

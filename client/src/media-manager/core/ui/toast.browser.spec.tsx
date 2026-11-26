@@ -30,6 +30,15 @@ describe('toast() with Mantine', () => {
     })
   })
 
+  it('names the close button (axe button-name)', async () => {
+    renderWithProviders(<Notifications />)
+    act(() => {
+      toast({ message: 'Saved', autoClose: false })
+    })
+    expect(await screen.findByText('Saved')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Dismiss' })).toBeTruthy()
+  })
+
   it('replaces an undo toast, and its Undo runs the new change', async () => {
     renderWithProviders(<Notifications />)
     const undone: string[] = []

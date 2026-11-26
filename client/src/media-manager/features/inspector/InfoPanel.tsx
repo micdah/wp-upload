@@ -1,86 +1,59 @@
-// The Info panel (inspector.md §2) for the M2 slice: a summary for nothing
-// selected, a count for several items (batch editing comes with wave A), and
-// for one item its name, meta line, preview and the autosaving Title and
-// Alt text fields.
+// The Info panel for one item (inspector.md §2 "One item"): preview (grid
+// mode only), name and meta line, the read-only notice, the autosaving
+// fields (Title, Alt text for image-like items, Caption, Description), the
+// alt pass's strip, then the File / Camera / Sizes sections and the
+// actions. Nothing selected is Summary.tsx; several items BatchPanel.tsx.
 
+import { UnstyledButton } from '@mantine/core'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import type {
   LibraryItemFull,
   LibraryItemTile,
   MediaKind,
 } from '../../../../../shared/library-api'
-import { useCollection, useItem } from '../../core/collection/hooks'
+import { useItem } from '../../core/collection/hooks'
 import { pictureFor } from '../../core/collection/renditions'
+import { runCommand } from '../../core/commands/registry'
 import { libraryKeys } from '../../core/data/keys'
 import { useCan } from '../../core/perms'
-import { plural } from '../../core/ui/announce'
 import {
   ArchiveIcon,
   AudioIcon,
   FileIcon,
   LockIcon,
   PdfIcon,
+  PlayIcon,
   VideoIcon,
 } from '../../core/ui/icons'
 import { bridgeStore } from './bridge'
 import { isImageLike, metaLine, splitFileName } from './format'
 import classes from './Inspector.module.css'
 import { MetaField } from './MetaField'
+import { AltPassStrip } from './Summary'
 
 /** The preview's CSS box: the 312 px panel minus its padding, at 16:10. */
 const PREVIEW_WIDTH = 280
 const PREVIEW_HEIGHT = 175
 
-export function NothingSelected() {
-  const { total, status } = useCollection()
-  return (
-    <div className={classes.summary}>
-      <h3 className={classes.heading}>Nothing selected</h3>
-      <p className={classes.sub}>
-        {status === 'pending' ? 'Loading…' : `${plural(total, 'item')} in view`}
-      </p>
-    </div>
-  )
-}
-
-export function SeveralSelected({
-  count,
-  hidden,
-}: {
-  count: number
-  hidden: number
-}) {
-  return (
-    <div className={classes.summary}>
-      <h3 className={classes.heading}>
-        {count.toLocaleString('en')} items selected
-      </h3>
-      {hidden > 0 && (
-        <p className={classes.sub}>
-          {hidden.toLocaleString('en')} of them hidden by the filters
-        </p>
-      )}
-      <p className={classes.notice}>
-        Editing several items at once arrives in a later version. Select one
-        item to edit its title and alt text.
-      </p>
-    </div>
-  )
-}
-
 type AnyItem = LibraryItemTile | LibraryItemFull
+
+/** What the panel renders below one item's fields (sections, actions). */
+export type ItemExtras = (item: LibraryItemFull) => ReactNode
 
 /**
  * One item. The full view loads (from cache when the panel showed it
- * before); until then the grid's tile, if cached, fills in the fields.
+ * before); until then the grid's tile, if cached, fills in Title and Alt
+ * text. Caption, Description and the sections wait for the full item.
  */
 export function SingleItem({
   id,
   detailMode,
+  extras,
 }: {
   id: number
   detailMode: boolean
+  extras?: ItemExtras
 }) {
   const queryClient = useQueryClient()
   const { item: full, status, missing } = useItem(id, 'full')
@@ -91,7 +64,7 @@ export function SingleItem({
     ) ??
     null
 
-  // Commands (`A`) read the shown item's kind.
+  // Commands (`A`, `E`) read the shown item's kind.
   useEffect(() => {
     if (item) {
       bridgeStore.getState().setShown({ id, kind: item.kind })
@@ -114,15 +87,17 @@ export function SingleItem({
       </div>
     )
   }
-  return <ItemDetails item={item} detailMode={detailMode} />
+  return <ItemDetails item={item} detailMode={detailMode} extras={extras} />
 }
 
 function ItemDetails({
   item,
   detailMode,
+  extras,
 }: {
   item: AnyItem
   detailMode: boolean
+  extras?: ItemExtras
 }) {
   const verdict = useCan('edit-meta', item)
   const { head, tail } = splitFileName(item.filename)
@@ -131,6 +106,14 @@ function ItemDetails({
     : item.perms.edit
       ? `${verdict.reason}.`
       : 'You can view but not edit media uploaded by others (Author role).'
+  const full = item.view === 'full' ? item : null
+  const fieldProps = {
+    id: item.id,
+    locked: !item.perms.edit,
+    refused: !verdict.ok,
+    detailMode,
+  }
+  const altMissing = item.alt.trim() === ''
   return (
     <div className={classes.single}>
       {!detailMode && <Preview item={item} />}
@@ -151,24 +134,34 @@ function ItemDetails({
           <span>{lockReason}</span>
         </p>
       )}
-      <MetaField
-        id={item.id}
-        field='title'
-        current={item.title}
-        locked={!item.perms.edit}
-        refused={!verdict.ok}
-        detailMode={detailMode}
-      />
+      <MetaField {...fieldProps} field='title' current={item.title} />
       {isImageLike(item.kind) && (
         <MetaField
-          id={item.id}
+          {...fieldProps}
           field='alt'
           current={item.alt}
-          locked={!item.perms.edit}
-          refused={!verdict.ok}
           flagMissing
-          detailMode={detailMode}
+          below={(focused) =>
+            fieldProps.locked ? null : (
+              <AltPassStrip
+                id={item.id}
+                focused={focused}
+                missing={altMissing}
+              />
+            )
+          }
         />
+      )}
+      {full && (
+        <>
+          <MetaField {...fieldProps} field='caption' current={full.caption} />
+          <MetaField
+            {...fieldProps}
+            field='description'
+            current={full.description}
+          />
+          {extras?.(full)}
+        </>
       )}
     </div>
   )
@@ -181,7 +174,11 @@ const KIND_ICONS: Partial<Record<MediaKind, typeof FileIcon>> = {
   archive: ArchiveIcon,
 }
 
-/** 16:10 on the stage colour, `contain`, so nothing shifts while it loads. */
+/**
+ * 16:10 on the stage colour, `contain`, so nothing shifts while it loads.
+ * "Open" (= Enter) shows on hover and focus; "Edited" marks images edited
+ * in place.
+ */
 function Preview({ item }: { item: AnyItem }) {
   const source = pictureFor(
     item,
@@ -189,13 +186,18 @@ function Preview({ item }: { item: AnyItem }) {
     PREVIEW_HEIGHT,
     window.devicePixelRatio || 1,
   )
-  if (source) {
-    return (
-      <div
-        className={classes.preview}
-        data-kind={item.kind}
-        data-testid='preview'
-      >
+  const Icon =
+    item.kind === 'document' && item.mime !== 'application/pdf'
+      ? FileIcon
+      : (KIND_ICONS[item.kind] ?? FileIcon)
+  const edited = item.view === 'full' && item.edited
+  return (
+    <div
+      className={classes.preview}
+      data-kind={item.kind}
+      data-testid='preview'
+    >
+      {source ? (
         <img
           className={classes.previewImage}
           src={source}
@@ -203,25 +205,26 @@ function Preview({ item }: { item: AnyItem }) {
           decoding='async'
           draggable={false}
         />
-      </div>
-    )
-  }
-  const Icon =
-    item.kind === 'document' && item.mime !== 'application/pdf'
-      ? FileIcon
-      : (KIND_ICONS[item.kind] ?? FileIcon)
-  return (
-    <div
-      className={classes.preview}
-      data-kind={item.kind}
-      data-testid='preview'
-    >
-      <Icon
-        size={40}
-        stroke={1.25}
-        aria-hidden
-        className={classes.previewIcon}
-      />
+      ) : (
+        <Icon
+          size={40}
+          stroke={1.25}
+          aria-hidden
+          className={classes.previewIcon}
+        />
+      )}
+      {item.kind === 'video' && source && (
+        <PlayIcon size={28} aria-hidden className={classes.previewPlay} />
+      )}
+      {edited && <span className={classes.editedBadge}>Edited</span>}
+      <UnstyledButton
+        className={classes.previewOpen}
+        onClick={() => {
+          void runCommand('detail.open', { id: item.id })
+        }}
+      >
+        Open
+      </UnstyledButton>
     </div>
   )
 }

@@ -28,7 +28,9 @@ import {
   useVirtualizer,
 } from '@tanstack/react-virtual'
 import {
+  lazy,
   type MouseEvent,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -44,9 +46,9 @@ import { alignedChunks, useItemChunks } from '../../core/data/items'
 import { libraryKeys } from '../../core/data/keys'
 import { coreStore, useCore } from '../../core/state'
 import { noSelectProps } from '../../core/ui/noSelect'
-import { hasActiveFilters } from '../../core/url/codec'
 import { urlStore, useUrlState } from '../../core/url/useUrlState'
 import { setGridController } from './controller'
+import { flashTiles } from './flash'
 import classes from './Grid.module.css'
 import {
   captureScrollAnchor,
@@ -60,7 +62,7 @@ import {
   scrollTopToReveal,
   withPinnedIndex,
 } from './justifiedLayout'
-import { Tile } from './Tile'
+import { CHECK_SELECTOR, Tile } from './Tile'
 
 /** Space around the grid inside the scroller, in px (prototype `.grid`). */
 const PADDING_X = 16
@@ -73,12 +75,36 @@ const RETURN_RING_MS = 900
 /** Two taps on one tile within this many ms open detail (touch). */
 const DOUBLE_TAP_MS = 350
 
+/** True when the click landed on a tile's check circle. */
+function onCheckCircle(event: MouseEvent): boolean {
+  return (
+    event.target instanceof Element &&
+    event.target.closest(CHECK_SELECTOR) !== null
+  )
+}
+
+/**
+ * Whether the tile's check circle is showing. With a mouse it shows on
+ * hover; on touch only on a selected tile or while 2 or more are selected.
+ */
+function checkShown(
+  event: MouseEvent,
+  store: { selection: ReadonlySet<number> },
+): boolean {
+  if (lastPointerType(event) !== 'touch') return true
+  const tile = event.currentTarget as HTMLElement
+  return (
+    tile.getAttribute('aria-selected') === 'true' || store.selection.size >= 2
+  )
+}
+
 /** The pointer type behind a click (clicks are PointerEvents in browsers). */
 function lastPointerType(event: MouseEvent): string {
   return (event.nativeEvent as Partial<PointerEvent>).pointerType ?? 'mouse'
 }
 
 export function GridView() {
+  usePrefetchGridParts()
   const collection = useCollection()
   if (collection.status === 'pending') {
     return <GridSkeleton />
@@ -133,38 +159,39 @@ function GridError() {
   )
 }
 
+/**
+ * The empty states are a lazy chunk (D31: they are rare, and their art and
+ * copy would weigh on the initial chunk). It is fetched when the browser is
+ * idle, like detail; until it is there the centre stays blank, which
+ * an empty grid is anyway.
+ */
+const loadEmptyStates = () => import('./EmptyStates')
+
+const LazyGridEmpty = lazy(() =>
+  loadEmptyStates().then((module) => ({ default: module.GridEmpty })),
+)
+
 function GridEmpty() {
-  const filtered = useUrlState(hasActiveFilters)
-  const folder = useUrlState((state) => state.folder)
-  if (filtered) {
-    return (
-      <div className={classes.empty}>
-        <p>No media matches.</p>
-        <Button
-          variant='default'
-          onClick={() =>
-            urlStore().navigate({
-              q: null,
-              type: null,
-              alt: null,
-              size: null,
-              orient: null,
-              month: null,
-            })
-          }
-        >
-          Clear filters
-        </Button>
-      </div>
-    )
-  }
   return (
-    <div className={classes.empty}>
-      <p>
-        {folder === 'all' ? 'Your library is empty.' : 'This folder is empty.'}
-      </p>
-    </div>
+    <Suspense fallback={null}>
+      <LazyGridEmpty />
+    </Suspense>
   )
+}
+
+/** Fetches the lazy parts of the grid when the browser has a moment. */
+function usePrefetchGridParts(): void {
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((run) => setTimeout(run, 250))
+    const handle = idle(() => {
+      void loadEmptyStates()
+    })
+    return () => {
+      if (window.cancelIdleCallback && typeof handle === 'number') {
+        window.cancelIdleCallback(handle)
+      }
+    }
+  }, [])
 }
 
 /**
@@ -216,16 +243,27 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
   const focus = useCore((state) => state.focus)
   const selectionSize = useCore((state) => state.selection.size)
   const selection = useCore((state) => state.selection)
+  // Tiles drag onto folders, so only while FileBird is there (A3).
+  const folderDrops = useCore((state) =>
+    Boolean(state.bootstrap?.site?.filebird?.active),
+  )
+
+  // The viewport's height, kept from the resize observer so the scroll
+  // handler doesn't read layout for it on every scroll event.
+  const viewportHeightRef = useRef(0)
 
   // The width the layout fills, from the scroller (no scrollbar: the gutter
   // is stable). Measured before paint, then on every resize.
   useLayoutEffect(() => {
     const element = scrollRef.current
     if (!element) return
-    setWidth(pixelBox(element).width)
-    const observer = new ResizeObserver(() => {
-      setWidth(pixelBox(element).width)
-    })
+    const measure = () => {
+      const box = pixelBox(element)
+      viewportHeightRef.current = box.height
+      setWidth(box.width)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
@@ -285,7 +323,7 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
     anchorRef.current = captureScrollAnchor(
       shownLayoutRef.current,
       element.scrollTop - PADDING_TOP,
-      element.clientHeight,
+      viewportHeightRef.current,
       focusIndexRef.current < 0 ? null : focusIndexRef.current,
     )
   }, [])
@@ -309,6 +347,12 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
     element.addEventListener('scroll', onScroll, { passive: true })
     return () => element.removeEventListener('scroll', onScroll)
   }, [updateAnchor, virtualizer])
+
+  // The anchor follows focus too (spike C1), so a density or layout change
+  // right after a click keeps the focused tile where it is.
+  useLayoutEffect(() => {
+    if (focusIndex >= 0) updateAnchor()
+  }, [focusIndex, updateAnchor])
 
   // C1 rule 3: tiles are re-created when a re-layout moves them to another
   // row; give focus back to the focused tile once it is rendered again.
@@ -432,6 +476,7 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
     () =>
       registerCenter({
         tileElement,
+        flashItems: flashTiles,
         heroElement: (id) => {
           const tile = tileElement(id)
           const scroller = scrollRef.current
@@ -516,6 +561,14 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
   const lastTapRef = useRef<{ id: number; at: number } | null>(null)
   const onPointerSelect = useCallback((id: number, event: MouseEvent) => {
     const store = coreStore.getState()
+    // The check circle toggles, like Ctrl/Cmd+click (interaction-spec §2),
+    // but only while it shows: on touch (no hover) that is with the tile
+    // selected or while several are. Shift+click is a range, wherever it lands.
+    if (!event.shiftKey && onCheckCircle(event) && checkShown(event, store)) {
+      lastTapRef.current = null
+      store.toggleSelected(id)
+      return
+    }
     if (lastPointerType(event) === 'touch') {
       const now = event.timeStamp
       const last = lastTapRef.current
@@ -534,8 +587,11 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
       store.selectOnly(id)
     }
   }, [])
-  const onOpen = useCallback((id: number) => {
-    runCommand('detail.open', { id })
+  const onOpen = useCallback((id: number, event: MouseEvent) => {
+    // Two quick clicks on the check circle toggle twice; they don't open.
+    if (!onCheckCircle(event) || event.shiftKey) {
+      runCommand('detail.open', { id })
+    }
   }, [])
   const onFocusTile = useCallback((id: number) => {
     if (coreStore.getState().focus !== id) {
@@ -599,6 +655,7 @@ function JustifiedGrid({ collection }: { collection: CollectionView }) {
                 onPointerSelect={onPointerSelect}
                 onOpen={onOpen}
                 onFocusTile={onFocusTile}
+                canDrag={folderDrops}
               />,
             )
           }

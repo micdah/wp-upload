@@ -1,23 +1,10 @@
 // The screens shown instead of the shell. Plan §0 "gaps the design docs
 // leave open": built from the design system's components, no new design.
+// The login screen is a lazy chunk of its own (auth/LoginScreen.tsx).
 
 import { Button, Text } from '@mantine/core'
-import type { Session } from '../../../lib/api'
 import { OfflineIcon, RetryIcon } from '../../core/ui/icons'
-import { LoginForm } from '../auth/LoginForm'
 import { StateScreen } from './StateScreen'
-
-export function LoginScreen({
-  onLoggedIn,
-}: {
-  onLoggedIn: (session: Session) => void
-}) {
-  return (
-    <StateScreen title='Log in'>
-      <LoginForm onLoggedIn={onLoggedIn} />
-    </StateScreen>
-  )
-}
 
 export function RetryButton({
   onRetry,

@@ -1,17 +1,51 @@
 // Login, session-expired and logout UI in the media manager's theme (plan
 // §4: F1 owns these; logout must not depend on the old Uploader).
 
-import { Modal, Text } from '@mantine/core'
 import { useQueryClient } from '@tanstack/react-query'
-import { createContext, type ReactNode, useContext, useEffect } from 'react'
+import {
+  createContext,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
 import type { Session } from '../../../lib/api'
 import { implementCommand } from '../../core/commands/registry'
 import { clearLibraryData } from '../../core/data/client'
 import { resetSession } from '../../core/state'
 import { LoadingHairline } from '../screens/StateScreen'
-import { LoginScreen, ServerUnreachableScreen } from '../screens/screens'
-import { LoginForm } from './LoginForm'
+import { ServerUnreachableScreen } from '../screens/screens'
 import { useAuthSession } from './useAuthSession'
+
+// The login form and the session dialogs (Mantine's Modal, PasswordInput,
+// Alert) are lazy chunks: a working session never needs them up front, and
+// the initial chunk has a budget (D31).
+const LoginScreen = lazy(() => import('./LoginScreen'))
+const loadSessionDialogs = () => import('./SessionDialogs')
+const SessionDialogs = lazy(loadSessionDialogs)
+
+/**
+ * Fetches the session dialogs' chunk when the browser has a moment, so the
+ * session-expired dialog doesn't depend on the network when it is needed.
+ */
+function usePrefetchSessionDialogs(enabled: boolean): void {
+  useEffect(() => {
+    if (!enabled) {
+      return
+    }
+    const idle = window.requestIdleCallback ?? ((run) => setTimeout(run, 1000))
+    const handle = idle(() => {
+      void loadSessionDialogs()
+    })
+    return () => {
+      if (window.cancelIdleCallback && typeof handle === 'number') {
+        window.cancelIdleCallback(handle)
+      }
+    }
+  }, [enabled])
+}
 
 export interface AuthContextValue {
   session: Session
@@ -38,6 +72,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
   })
   const authenticated = auth.auth.status === 'authenticated'
   const { logout } = auth
+  // Mounted from the first time a dialog opens, so Mantine can animate it
+  // closed again.
+  const dialogsWanted = auth.sessionLost || auth.logoutFailed
+  const [dialogsMounted, setDialogsMounted] = useState(false)
+  if (dialogsWanted && !dialogsMounted) {
+    setDialogsMounted(true)
+  }
+  usePrefetchSessionDialogs(authenticated)
 
   useEffect(() => {
     if (!authenticated) {
@@ -53,40 +95,26 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return <ServerUnreachableScreen onRetry={auth.recheck} />
   }
   if (auth.auth.status === 'anonymous') {
-    return <LoginScreen onLoggedIn={auth.loggedIn} />
+    return (
+      <Suspense fallback={<LoadingHairline label='Loading' />}>
+        <LoginScreen onLoggedIn={auth.loggedIn} />
+      </Suspense>
+    )
   }
 
   return (
     <AuthContext.Provider value={{ session: auth.auth.session, logout }}>
       {children}
-      {/* The session ran out while the app was open: log in again here,
-          keeping the app (and anything half-done) mounted underneath. */}
-      <Modal
-        opened={auth.sessionLost}
-        onClose={() => {}}
-        withCloseButton={false}
-        closeOnClickOutside={false}
-        closeOnEscape={false}
-        title='Your session has expired'
-        centered
-        data-mm-session-expired=''
-      >
-        <Text size='sm' mb='md'>
-          Log in again to continue where you left off.
-        </Text>
-        <LoginForm onLoggedIn={auth.loggedIn} />
-      </Modal>
-      <Modal
-        opened={auth.logoutFailed}
-        onClose={auth.dismissLogoutFailed}
-        title='Logging out failed'
-        centered
-      >
-        <Text size='sm'>
-          The server did not confirm the logout, so you are still logged in. Try
-          again once the connection is back.
-        </Text>
-      </Modal>
+      {dialogsMounted && (
+        <Suspense fallback={null}>
+          <SessionDialogs
+            sessionLost={auth.sessionLost}
+            logoutFailed={auth.logoutFailed}
+            onLoggedIn={auth.loggedIn}
+            onDismissLogoutFailed={auth.dismissLogoutFailed}
+          />
+        </Suspense>
+      )}
     </AuthContext.Provider>
   )
 }

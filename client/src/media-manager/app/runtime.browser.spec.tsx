@@ -3,10 +3,11 @@ import { act, screen, waitFor } from '@testing-library/react'
 import { HttpResponse, http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useTrackCurrentCollection } from '../core/collection/hooks'
+import { runCommand } from '../core/commands/registry'
 import { useCommand } from '../core/commands/useCommand'
 import { DEFAULT_COLLECTION_QUERY } from '../core/data/params'
 import { coreStore } from '../core/state'
-import { toast } from '../core/ui/toast'
+import { setToastBackendForTesting, toast } from '../core/ui/toast'
 import { createUrlStore } from '../core/url/history'
 import { createMemoryHistory } from '../core/url/memoryHistory'
 import { setUrlStoreForTesting, urlStore } from '../core/url/useUrlState'
@@ -162,5 +163,28 @@ describe('undo.last (C-17)', () => {
     expect(screen.getByTestId('undo').textContent).toBe('on')
     act(() => close())
     expect(screen.getByTestId('undo').textContent).toBe('nothing-to-undo')
+  })
+})
+
+describe('panels.toggle-folders without FileBird (folders.md §9, A3 CR-7)', () => {
+  it('explains in a toast instead of doing nothing', () => {
+    const shown: string[] = []
+    setToastBackendForTesting({
+      show: (notification) => {
+        shown.push(String(notification.message))
+      },
+      hide: () => {},
+    })
+    try {
+      coreStore.getState().setBootstrap(null)
+      const panelsBefore = coreStore.getState().panels
+      expect(runCommand('panels.toggle-folders')).toBe(true)
+      expect(shown).toEqual([
+        'Folders need the FileBird plugin on your WordPress site.',
+      ])
+      expect(coreStore.getState().panels).toEqual(panelsBefore)
+    } finally {
+      setToastBackendForTesting(null)
+    }
   })
 })

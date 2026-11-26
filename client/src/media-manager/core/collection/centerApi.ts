@@ -1,6 +1,6 @@
 // centerApi: how code outside the grid and detail reaches into them, without
-// importing them. The grid registers revealItem, tileElement, heroElement and
-// focusTile; detail registers stageElement and nudgeStage. The morph
+// importing them. The grid registers revealItem, tileElement, heroElement,
+// focusTile and flashItems; detail registers stageElement and nudgeStage. The morph
 // (core/ui/morph) and commands use it: e.g. leaving detail first reveals the
 // tile you return to, which a virtualised grid may not have rendered (spike
 // C2).
@@ -38,6 +38,11 @@ export interface CenterApi {
    * ends of the collection (D34).
    */
   nudgeStage(direction: 1 | -1): void
+  /**
+   * Flashes these items' tiles once ("just changed"), e.g. after a move, a
+   * batch edit or an Undo. Tiles that aren't rendered are skipped.
+   */
+  flashItems(ids: readonly number[]): void
 }
 
 type Part = Partial<CenterApi>
@@ -86,5 +91,8 @@ export const centerApi: CenterApi = {
   },
   nudgeStage(direction) {
     find('nudgeStage')?.(direction)
+  },
+  flashItems(ids) {
+    find('flashItems')?.(ids)
   },
 }

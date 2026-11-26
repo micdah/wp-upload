@@ -1,0 +1,77 @@
+/* The selection bar (prototype components.css `.selection-bar`). */
+
+/* The selection bar covers the whole toolbar (its positioned ancestor) and
+   hides what is underneath: visibility also takes those controls out of the
+   tab order and the accessibility tree. */
+.selectionBar {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline: var(--space-2) var(--space-3);
+  background: var(--surface-panel);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+header:has(.selectionBar) > :not(:has(.selectionBar)),
+.selectionBar ~ * {
+  visibility: hidden;
+}
+
+.barClear {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.barClear:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+.barClear:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.barCount {
+  margin-right: var(--space-2);
+  white-space: nowrap;
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+}
+
+.barNumber {
+  color: var(--text-accent);
+  font-weight: var(--fw-semibold);
+}
+
+.barHidden {
+  color: var(--text-2);
+}
+
+.barAction {
+  touch-action: manipulation;
+}
+
+.barAction[data-danger] {
+  color: var(--danger);
+}
+
+.barAction[data-disabled] {
+  color: var(--text-3);
+  cursor: default;
+}
+
+.barSpacer {
+  flex: 1;
+}

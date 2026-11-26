@@ -12,6 +12,7 @@ export {
   type RegisteredBinding,
   registerBindings,
   resetBindingsForTesting,
+  sheetBindings,
   subscribeBindings,
 } from './bindings'
 export { DEFAULT_BINDINGS } from './defaultBindings'

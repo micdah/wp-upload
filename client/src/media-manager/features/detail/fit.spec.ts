@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fitInto, zoomedSize } from './fit'
+import { fitInto, scaleOf, zoomedSize } from './fit'
 
 describe('fitInto', () => {
   it('fits a landscape image to the width and a portrait one to the height', () => {
@@ -39,6 +39,13 @@ describe('fitInto', () => {
     })
   })
 
+  it('shows a video of unknown size as 16:9', () => {
+    expect(fitInto({ kind: 'video', width: 0, height: 0 }, 800, 800)).toEqual({
+      width: 800,
+      height: 450,
+    })
+  })
+
   it('is empty without room', () => {
     expect(fitInto({ kind: 'image', width: 10, height: 10 }, 0, 100)).toEqual({
       width: 0,
@@ -59,5 +66,22 @@ describe('zoomedSize', () => {
       width: 600,
       height: 400,
     })
+  })
+})
+
+describe('scaleOf', () => {
+  it('is the shown width over the item’s own', () => {
+    expect(
+      scaleOf(
+        { kind: 'image', width: 3000, height: 2000 },
+        { width: 900, height: 600 },
+      ),
+    ).toBeCloseTo(0.3)
+    expect(
+      scaleOf(
+        { kind: 'image', width: 0, height: 0 },
+        { width: 400, height: 400 },
+      ),
+    ).toBe(1)
   })
 })

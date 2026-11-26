@@ -1,6 +1,7 @@
 /* Detail mode (interaction-spec §5, prototype components.css `.detail`,
    `.stage`): an overlay over the centre only; the toolbar, folders and
-   inspector stay put. */
+   inspector stay put. The media per kind are in Media.module.css, the
+   filmstrip in Filmstrip.module.css. */
 
 .detail {
   position: absolute;
@@ -25,6 +26,11 @@
   -webkit-touch-callout: none;
 }
 
+.bar a,
+.bar button {
+  touch-action: manipulation;
+}
+
 .title {
   flex: 0 1 auto;
   min-width: 0;
@@ -45,55 +51,50 @@
   font-variant-numeric: tabular-nums;
 }
 
+.notInView {
+  flex: none;
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
 .spacer {
   flex: 1;
 }
 
-.media {
-  display: block;
-  max-width: none;
-  background: var(--surface-tile);
-  object-fit: contain;
+.zoomButton[data-disabled] {
+  background: transparent;
+  color: var(--text-3);
 }
 
-.media[data-checker] {
-  background-image:
-    linear-gradient(45deg, var(--surface-hover) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--surface-hover) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--surface-hover) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--surface-hover) 75%);
-  background-size: 16px 16px;
-  background-position:
-    0 0,
-    0 8px,
-    8px -8px,
-    -8px 0;
+.zoomLabel {
+  min-width: 36px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-variant-numeric: tabular-nums;
+  text-align: left;
 }
 
-.card {
+/* The frame holds the step buttons and never scrolls; the stage inside it
+   scrolls when zoomed. */
+.frame {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  width: min(420px, 80%);
-  aspect-ratio: 3 / 4;
-  max-height: 100%;
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--surface-tile);
-  color: var(--text-2);
-  text-align: center;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .stage {
   position: relative;
   display: grid;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   place-items: center;
   padding: var(--space-4) 40px;
   overflow: hidden;
+  /* Swipe, pinch and pan are the stage's own (useStageGestures.ts). */
+  touch-action: none;
   /* No text selection here either (the selection guard, theme.css); the
      picture keeps its long-press menu (save, copy). */
 }
@@ -101,17 +102,57 @@
 .stage[data-zoomed] {
   place-items: start;
   overflow: auto;
+  cursor: grab;
 }
 
-.stage[data-zoomed] > .media {
+.stage[data-panning] {
+  cursor: grabbing;
+}
+
+.slot {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.stage[data-zoomed] > .slot {
+  width: auto;
+  height: auto;
   margin: auto;
 }
 
-.stage[data-nudge="1"] > :first-child {
+/* After a swipe, the new item slides in from the side the finger came
+   from. --dur-2 is 1 ms under reduced motion, so it just appears. */
+.slot[data-enter="next"] {
+  animation: enter-from-right var(--dur-2) var(--ease-out);
+}
+
+.slot[data-enter="previous"] {
+  animation: enter-from-left var(--dur-2) var(--ease-out);
+}
+
+@keyframes enter-from-right {
+  from {
+    opacity: 0.4;
+    transform: translateX(48px);
+  }
+}
+
+@keyframes enter-from-left {
+  from {
+    opacity: 0.4;
+    transform: translateX(-48px);
+  }
+}
+
+.frame[data-nudge="1"] .slot {
   animation: nudge-next 260ms var(--ease-out);
 }
 
-.stage[data-nudge="-1"] > :first-child {
+.frame[data-nudge="-1"] .slot {
   animation: nudge-previous 260ms var(--ease-out);
 }
 
@@ -127,14 +168,6 @@
   }
 }
 
-.cardTitle {
-  max-width: 100%;
-  overflow: hidden;
-  color: var(--text-1);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .nav {
   position: absolute;
   top: 50%;
@@ -143,6 +176,7 @@
   opacity: 0;
   transition: opacity var(--dur-1) var(--ease-out);
   -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 /* The step buttons' icons: on the iPad a quick double-click is a UIKit
@@ -156,7 +190,14 @@
   user-select: none;
 }
 
-.stage:hover .nav,
+/* Decorative icons in the bar's buttons only (iPad lesson). */
+.bar button svg,
+.bar a svg {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.frame:hover .nav,
 .nav:focus-visible {
   opacity: 1;
 }
@@ -180,8 +221,32 @@
   right: var(--space-1);
 }
 
+/* Phone (system.md §5): detail is full screen with swipe; no arrows and no
+   zoom button. */
+:global([data-viewport="phone"]) .nav,
+:global([data-viewport="phone"]) .zoomButton {
+  display: none;
+}
+
+:global([data-viewport="phone"]) .stage {
+  padding: var(--space-2);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .stage[data-nudge] > :first-child {
+  .frame[data-nudge] .slot {
     animation: none;
   }
+}
+
+/* The More menu: shortcuts on the right, and why an action is off. */
+.shortcut {
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-11);
+}
+
+.reason {
+  display: block;
+  color: var(--text-2);
+  font-size: var(--fs-11);
 }
