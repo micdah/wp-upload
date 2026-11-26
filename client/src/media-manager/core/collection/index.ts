@@ -10,9 +10,18 @@ export {
   useTrackCurrentCollection,
 } from './hooks'
 export {
+  pickSource,
+  pictureFor,
+  type RenditionItem,
+  smallestPictureFor,
+  withVersion,
+} from './renditions'
+export {
   type CollectionRows,
-  decodeRows,
+  type DetailPosition,
   EMPTY_ROWS,
   neighbourOf,
+  queryKeyOf,
+  rowsOf,
+  stepFrom,
 } from './rows'
-export { LibraryRequestError } from './source'

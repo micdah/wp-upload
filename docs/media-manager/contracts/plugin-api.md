@@ -646,7 +646,9 @@ way; `POST` exists for proxies that limit URL length).
 - Posts the user can't `read_post` (another user's private post, for an Author) appear as
   `title: "Private post"` with both URLs null.
 - Site-level uses: `postId: null`, `postType: "site"`, `postTypeLabel: "Site"`, title "Site logo" /
-  "Site icon", `editUrl` = the Site Editor or Customizer when the user has `edit_theme_options`.
+  "Site icon", `editUrl` = the Site Editor or Customizer when the user has `edit_theme_options`; and
+  Visual Portfolio's placeholder (D44, §8.2): title "Visual Portfolio placeholder image", `viewUrl` null,
+  `editUrl` = Visual Portfolio's settings when the user has `manage_options`.
 - `complete` = `index.usage.state` is `ready`. Unknown ids get `count: 0`.
 
 **Errors:** 400 `wpu_invalid_param`, `wpu_too_many_items`.
@@ -783,8 +785,15 @@ Replaces the item's file, keeping its id, file name and URL. **Owner:** P2 (spik
 **Semantics:**
 
 - Writes the new file to the item's existing path (same name), regenerates metadata and every sub-size,
-  deletes sub-size files that are no longer produced, clears the undo stack, updates the index row and
-  `post_modified`.
+  clears the undo stack, updates the index row and `post_modified`.
+- **Old sub-sizes are kept (D38).** A sub-size file the new image doesn't produce (another aspect ratio
+  gives other `-WxH` names; a smaller image drops sizes) stays on disk, so a post that embedded that exact
+  file keeps showing an image (the old picture). It is never listed in `sizes` or `srcset`, so nothing
+  offers it as a current size. It is recorded in `_wp_attachment_backup_sizes` under
+  `<size>-wpu-kept-<token>`, so WordPress deletes it with the item (also without this plugin), and it is
+  reused as a current size if a later replace or regenerate makes a size of that name again. A client's
+  Replace confirm can say: "Posts that embedded an old size keep showing the old image until the item is
+  deleted." Images only; other types (PDF previews included) drop the files they no longer produce.
 - Works for every kind (images, SVG, video, audio, documents), as long as the MIME type matches.
 - **`-scaled` images (spike X3):** the attached file always keeps its name: an oversized or rotated
   upload becomes the original and the attached file gets the processed copy; otherwise the upload is the
@@ -817,8 +826,13 @@ The FileBird folder tree with counts. **Owner:** P1. **Feature:** `folders`. **B
   `name` decoded (§1.2). `color` from the `fbv_folder_colors` option (lowercase `#rrggbb`; anything else
   → null), **only when `mode.pro` is true**; on Lite every `color` is null, because Pro features are
   hidden there (folders.md §1, implementation plan §0).
-- `count`: non-trashed attachments directly in the folder (FileBird's own count semantics).
-  `counts.all` = non-trashed attachments; `counts.uncategorized` = non-trashed attachments in no folder.
+- `count`: non-trashed attachments directly in the folder. `counts.all` = non-trashed attachments;
+  `counts.uncategorized` = non-trashed attachments in no folder.
+- **Counts follow the collection's visibility rule (D41, §5.2):** only the items the current user would
+  see in `/collection` count, so `count` equals `/collection?folder=<id>`'s `total`, `counts.all` equals
+  `/collection`'s, and `counts.uncategorized` equals `/collection?folder=0`'s. For Editors and
+  Administrators that is every attachment the collection lists (status `inherit` or `private`); for an
+  Author it leaves out other users' private items and items attached to a post the Author can't read.
 - `mode.pro` = `filebird.pro`; `mode.perUser` = `filebird.perUser`; `mode.readOnly` = `perUser`;
   `mode.colorsWritable` = `pro` and the `folder-colors` feature.
 - **Per-user mode:** the tree is the folders with `created_by` = the current user, resolved at request
@@ -1116,7 +1130,7 @@ Indexes: `PRIMARY KEY (attachment_id, source_id, context)`, `KEY source (source_
 |---|---|---|
 | `source_id` | `BIGINT UNSIGNED NOT NULL` | Primary key; 0 = the site-level slots |
 | `scanned_gmt` | `DATETIME NOT NULL` | When the post was scanned (pending detection uses `modified_gmt`) |
-| `row_version` | `SMALLINT UNSIGNED NOT NULL` | Parser version; a lower value is rescanned |
+| `row_version` | `SMALLINT UNSIGNED NOT NULL` | Parser version; a lower value is rescanned (3: D40's id-less `[gallery]`, D44's placeholder). A plugin update with a newer parser, and posts left for the maintenance step (`row_version` 0), make the index `building` until they are rescanned, so `complete` stays false meanwhile |
 | `modified_gmt` | `DATETIME NULL` | The post's `post_modified_gmt` when it was scanned; the post is pending when it differs (so a future-dated post doesn't stay pending) |
 
 **Indexable posts:** every post type with `show_ui` except `attachment`, `revision`, `nav_menu_item`,
@@ -1131,8 +1145,9 @@ patterns and templates use media too.)
 | `featured` | `_thumbnail_id` meta |
 | `image-block`, `gallery-block`, `file-block`, `cover-block`, `media-text`, `video-block`, `audio-block` | The block's attachment id attribute(s) (`id`, `ids`, `mediaId`, gallery inner image blocks) in `post_content`, via `parse_blocks()` |
 | `content` | `wp-image-<id>` classes, or an upload URL that resolves to the attachment (`attachment_url_to_postid()` on the original or a sub-size URL), outside the blocks above |
-| `shortcode-gallery` | `[gallery ids="…"]` |
+| `shortcode-gallery` | `[gallery ids="…"]` (or `include`); a `[gallery]` without either shows the images attached to a post (D40): its `id` attribute, else the post that contains it, minus `exclude` (core's query: image attachments with status `inherit` and that `post_parent`). Attaching, detaching, trashing or restoring an image, and uploading one attached to a post, rescan the posts whose `[gallery]` shows it, once per request whatever the number of items: the first 50 at once, the rest by the maintenance step, and the index is `building` until then |
 | `site-logo`, `site-icon` | `site_logo` and `site_icon` options (`source_id` 0) |
+| `visual-portfolio` (site level) | Visual Portfolio's "no image" placeholder attachment (`vp_general['no_image']`, D44), shown wherever a gallery item has no image: `source_id` 0, only while Visual Portfolio is active. Its ref is `{postId: null, postType: "site", postTypeLabel: "Site", title: "Visual Portfolio placeholder image", viewUrl: null}`, with `editUrl` = Visual Portfolio's settings page for users with `manage_options` |
 | `visual-portfolio` | Visual Portfolio galleries (D22, feature `usage-visual-portfolio`, only while that plugin is active; spike X10 confirms the storage): (1) the `images` attribute of a `visual-portfolio/block` and `imagesQuery.images` of its loop-gallery blocks, in the post that contains them; (2) a saved layout (`vp_lists` post) whose `vp_images` meta or layout content lists the attachment, reported on the layout itself; (3) a post that embeds a saved layout through the `visual-portfolio/saved` block (`id` attribute) or the `[visual_portfolio id=N]` shortcode, reported on that post with the layout's images. Image entries are `{id, …}` objects; entries without an id (external `imgUrl`) are ignored |
 
 Uses in theme files, custom CSS or other plugins' settings aren't detected (inspector.md §5's

@@ -16,5 +16,5 @@ export {
   type StartUploadOptions,
   startUpload,
   type UploadProgress,
-  UploadRequestError,
+  uploadError,
 } from './transport'

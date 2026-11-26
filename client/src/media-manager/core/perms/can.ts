@@ -72,7 +72,16 @@ export interface PermItem {
 export interface PermContext {
   bootstrap: Bootstrap | null
   online: boolean
+  /**
+   * Why it is offline (the connectivity reason), when not online. Only
+   * `wp_auth_failed` changes the wording: WordPress answers, but rejects the
+   * app password, so every mutation fails until that is fixed.
+   */
+  offlineReason?: string | null
 }
+
+/** The connectivity reason while WordPress rejects the app password. */
+export const WP_AUTH_FAILED = 'wp_auth_failed'
 
 const OK: CanResult = Object.freeze({ ok: true })
 
@@ -216,7 +225,12 @@ export function evaluate(
     return deny('not-ready', 'Still loading')
   }
   if (!context.online) {
-    return deny('offline', 'WordPress is unreachable right now')
+    return deny(
+      'offline',
+      context.offlineReason === WP_AUTH_FAILED
+        ? 'WordPress rejected the app password'
+        : 'WordPress is unreachable right now',
+    )
   }
   const feature = FEATURE_OF[action]
   if (feature && pluginLacks(bootstrap, feature)) {

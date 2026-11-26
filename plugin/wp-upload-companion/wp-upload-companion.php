@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       wp-upload companion
  * Description:       REST API for the wp-upload media manager: collection queries, folders over FileBird, batch metadata, trash, where-used and in-place image editing.
- * Version:           1.0.0-dev.4
+ * Version:           1.0.0-dev.5
  * Requires at least: 7.0
  * Requires PHP:      8.1
  * License:           MIT
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Release version (semver). Bumped by the orchestrator whenever shipped
 // plugin source changes; plugin/scripts/check-version-bump.mjs enforces it.
-const WPU_VERSION = '1.0.0-dev.4';
+const WPU_VERSION = '1.0.0-dev.5';
 
 // Contract level (major.minor) of the wp-upload/v1 API
 // (docs/media-manager/contracts/plugin-api.md §2).
@@ -65,5 +65,17 @@ add_action(
 			return;
 		}
 		\WpUpload\Companion\Plugin::boot();
+	}
+);
+
+// The uninstall callback is also recorded on activation, as WordPress advises:
+// the activation request includes this file after `plugins_loaded`, so boot()
+// doesn't run there, and a plugin activated and then deleted without a wp-admin
+// or WP-CLI load in between (core's REST API: `/wp/v2/plugins`) would otherwise
+// be deleted without dropping its tables and options (§9.4).
+register_activation_hook(
+	__FILE__,
+	static function (): void {
+		register_uninstall_hook( __FILE__, array( \WpUpload\Companion\Plugin::class, 'uninstall' ) );
 	}
 );

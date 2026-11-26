@@ -1,12 +1,12 @@
 import { act } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { renderWithProviders } from '../../renderWithProviders'
 import {
   computeJustifiedLayout,
   DENSITIES,
   GRID_GAP,
   rowOfItem,
-} from './justifiedLayout'
+} from '../../../features/grid/justifiedLayout'
+import { renderWithProviders } from '../../renderWithProviders'
 import { syntheticCollectionRows } from './syntheticCollection'
 import { VirtualJustifiedGrid } from './VirtualJustifiedGrid'
 

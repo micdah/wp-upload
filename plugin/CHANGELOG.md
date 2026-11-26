@@ -10,6 +10,15 @@ Release headings read `## 1.0.0 (2026-12-01)` (or `## 1.0.0 - 2026-12-01`), with
 
 ## Unreleased
 
+- 1.0.0-dev.5: decisions from the M1 review (M2).
+- Replacing an image with one of another aspect ratio keeps the old sub-size files, so posts that
+  embedded them keep an image; they are deleted with the item.
+- A `[gallery]` without ids counts the post's attached images as used, and stays current when images
+  are attached, detached, trashed or restored.
+- Visual Portfolio's "no image" placeholder is reported as used by Visual Portfolio.
+- Folder counts for Authors count only the items they can see.
+- The uninstall clean-up is registered on activation, so deleting the plugin right after activating
+  it (for example through the REST API) still removes its tables and options.
 - 1.0.0-dev.4: fixes from the M1 review.
 - `sizesPending` counts only sizes the attached file itself is large enough for, so an edited
   `-scaled` image no longer stays "Processing".

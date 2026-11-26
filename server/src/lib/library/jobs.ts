@@ -30,8 +30,10 @@ import type { MultipartBody } from './pluginClient.ts'
 // long image operations run as in-memory background jobs that the client
 // polls with `jobs` and `upload/jobs`. A job waits in `queued` for a slot of
 // the server's WordPress concurrency budget, which it shares with the legacy
-// upload page (acquireSlot/releaseSlot in uploadJobs.ts). Finished jobs stay
-// readable for LIMITS.finishedJobTtlMs; a restart forgets every job.
+// upload page (acquireSlot/releaseSlot in uploadJobs.ts). Most jobs hold that
+// slot until they finish; a long job of many small steps (regenerate) takes it
+// per step instead, so uploads interleave (D48). Finished jobs stay readable
+// for LIMITS.finishedJobTtlMs; a restart forgets every job.
 //
 // Also here: the streamed multipart bodies the upload and replace jobs send.
 
@@ -47,12 +49,30 @@ export interface JobContext {
   setProgress(progress: JobProgress): void
   /** an upload has sent every byte and WordPress is making sub-sizes */
   setProcessing(): void
+  /**
+   * Runs one unit of work (one WordPress call) while holding a slot of the
+   * concurrency budget. In a `slots: 'per-step'` job, each step waits for a
+   * slot and releases it when done, also when it throws, so whatever queued
+   * for a slot meanwhile (acquireSlot is first come, first served) runs
+   * before the job's next step. In any other job it just runs `work`: the job
+   * already holds its slot.
+   */
+  step<T>(work: () => Promise<T>): Promise<T>
 }
 
 type ImageKind = ImageJob['kind']
 
+/**
+ * How a job uses the concurrency budget: one slot from start to finish
+ * (`per-job`, the default), or one slot per `context.step` and none in
+ * between (`per-step`). A `per-step` job is `queued` until its first step
+ * gets a slot, then `running` until it finishes, also while it waits for the
+ * next step's slot.
+ */
+export type SlotUse = 'per-job' | 'per-step'
+
 /** What to run, by job kind. `run` resolves with the job's `result`. */
-export type JobSpec =
+export type JobSpec = { slots?: SlotUse } & (
   | {
       kind: 'upload'
       filename: string
@@ -68,6 +88,7 @@ export type JobSpec =
       itemIds: number[]
       run: (context: JobContext) => Promise<RegenerateJobResult>
     }
+)
 
 interface JobRecord {
   /** the public view, updated in place */
@@ -108,8 +129,9 @@ function newJob(spec: JobSpec, id: string): Job {
 
 /**
  * Registers a job and starts it in the background. Returns its id at once;
- * the job waits for a concurrency slot, then runs `spec.run`. `cleanup` runs
- * once the job settles (or is cancelled while queued).
+ * the job waits for a concurrency slot, then runs `spec.run` (a `per-step`
+ * job calls `spec.run` at once and waits for a slot in each step). `cleanup`
+ * runs once the job settles (or is cancelled while queued).
  */
 export function startJob(
   spec: JobSpec,
@@ -122,7 +144,11 @@ export function startJob(
     cleanup,
   }
   jobs.set(id, record)
-  const run = runJob(record, spec.run as (c: JobContext) => Promise<unknown>)
+  const run = runJob(
+    record,
+    spec.run as (c: JobContext) => Promise<unknown>,
+    spec.slots ?? 'per-job',
+  )
   running.add(run)
   void run.finally(() => running.delete(run))
   return id
@@ -132,18 +158,25 @@ function touch(record: JobRecord): void {
   record.job.updatedAt = isoNow()
 }
 
+function markRunning(record: JobRecord): void {
+  record.job.state = 'running'
+  touch(record)
+}
+
 async function runJob(
   record: JobRecord,
   run: (context: JobContext) => Promise<unknown>,
+  slots: SlotUse,
 ): Promise<void> {
   const { signal } = record.controller
-  await acquireSlot()
+  const holdsSlot = slots === 'per-job'
+  if (holdsSlot) await acquireSlot()
   try {
-    // Cancelled while it waited for a slot: never start.
-    if (signal.aborted) return
-
-    record.job.state = 'running'
-    touch(record)
+    if (holdsSlot) {
+      // Cancelled while it waited for a slot: never start.
+      if (signal.aborted) return
+      markRunning(record)
+    }
     const result = await run({
       signal,
       setProgress(progress) {
@@ -154,6 +187,7 @@ async function runJob(
         record.job.state = 'processing'
         touch(record)
       },
+      step: holdsSlot ? (work) => work() : (work) => runStep(record, work),
     })
     ;(record.job as { result: unknown }).result = result
     record.job.state = 'succeeded'
@@ -163,9 +197,29 @@ async function runJob(
     record.job.error = signal.aborted ? toLibraryError(err).body : jobError(err)
   } finally {
     touch(record)
-    releaseSlot()
+    if (holdsSlot) releaseSlot()
     runCleanup(record)
     forgetLater(record)
+  }
+}
+
+/**
+ * One step of a `per-step` job: waits for a slot (behind everything already
+ * waiting), runs `work` and releases the slot again, whatever happens. The
+ * first step moves the job from `queued` to `running`, where it stays.
+ */
+async function runStep<T>(
+  record: JobRecord,
+  work: () => Promise<T>,
+): Promise<T> {
+  await acquireSlot()
+  try {
+    // Cancelled while it waited for this slot: don't start the step.
+    record.controller.signal.throwIfAborted()
+    if (record.job.state === 'queued') markRunning(record)
+    return await work()
+  } finally {
+    releaseSlot()
   }
 }
 

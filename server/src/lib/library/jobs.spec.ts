@@ -3,15 +3,20 @@ import os from 'node:os'
 import path from 'node:path'
 import request from 'supertest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fullItems } from '../../../../shared/fixtures/index.ts'
+import { fullItems, tileItems } from '../../../../shared/fixtures/index.ts'
 import { JobSchema } from '../../../../shared/library-api.schema.ts'
 import {
   type ImageJobResult,
   LIMITS,
   type LibraryItemFull,
+  type LibraryItemTile,
 } from '../../../../shared/library-api.ts'
 import { env } from '../../config/env.ts'
-import { acquireSlot, releaseSlot } from '../uploadJobs.ts'
+import {
+  acquireSlot,
+  getActiveUploadCount,
+  releaseSlot,
+} from '../uploadJobs.ts'
 import { LibraryError } from './errors.ts'
 import {
   cancelUploadJob,
@@ -46,6 +51,8 @@ afterEach(async () => {
 })
 
 const item = fullItems.find((entry) => entry.id === 1000) as LibraryItemFull
+
+const tile = tileItems[0] as LibraryItemTile
 
 function imageResult(): ImageJobResult {
   return { item, sizesRegenerated: 6, urlChanged: false }
@@ -218,6 +225,198 @@ describe('the job registry', () => {
 
   it('stamps times as ISO 8601 with whole seconds', () => {
     expect(isoNow()).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/)
+  })
+})
+
+/** Lets every pending promise callback and I/O callback run. */
+function tick(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve))
+}
+
+describe('per-step jobs (slots: per-step)', () => {
+  /**
+   * A regenerate-like job of `count` steps, each held open until the test
+   * resolves `steps[i]`. `log` records each step as it starts.
+   */
+  function steppedJob(count: number, log: string[]) {
+    const steps = Array.from({ length: count }, () => deferred<void>())
+    const id = startJob({
+      kind: 'regenerate',
+      itemIds: steps.map((_, index) => index + 1),
+      slots: 'per-step',
+      run: async (context) => {
+        for (const [index, gate] of steps.entries()) {
+          await context.step(async () => {
+            log.push(`step ${index + 1}`)
+            await gate.promise
+          })
+        }
+        return { results: [] }
+      },
+    })
+    return { id, steps }
+  }
+
+  it('is queued until its first step has a slot, then running throughout', async () => {
+    env.uploadConcurrency = 1
+    await acquireSlot() // e.g. a legacy upload holds the only slot
+    const log: string[] = []
+    const { id, steps } = steppedJob(2, log)
+    await tick()
+    expect(lookupJob(id).state).toBe('queued')
+    expect(log).toEqual([])
+
+    releaseSlot()
+    await vi.waitFor(() => expect(log).toEqual(['step 1']))
+    expect(lookupJob(id).state).toBe('running')
+
+    // Someone else queues for the slot; step 1 finishing hands it over.
+    let otherHasSlot = false
+    const other = acquireSlot().then(() => {
+      otherHasSlot = true
+    })
+    steps[0]?.resolve()
+    await other
+    expect(otherHasSlot).toBe(true)
+    await tick()
+    // Waiting for its next slot, the job stays running.
+    expect(log).toEqual(['step 1'])
+    expect(lookupJob(id).state).toBe('running')
+
+    releaseSlot()
+    await vi.waitFor(() => expect(log).toEqual(['step 1', 'step 2']))
+    steps[1]?.resolve()
+    await jobsSettled()
+    expect(lookupJob(id).state).toBe('succeeded')
+    expect(getActiveUploadCount()).toBe(0)
+  })
+
+  it('lets an upload queued meanwhile in before its next step', async () => {
+    env.uploadConcurrency = 1
+    const log: string[] = []
+    const { steps } = steppedJob(3, log)
+    await vi.waitFor(() => expect(log).toEqual(['step 1']))
+
+    const upload = startJob({
+      kind: 'upload',
+      filename: 'a.jpg',
+      run: async () => {
+        log.push('upload')
+        return { item: tile, folder: null }
+      },
+    })
+    await tick()
+    expect(lookupJob(upload).state).toBe('queued')
+
+    for (const step of steps) step.resolve()
+    await jobsSettled()
+    expect(log).toEqual(['step 1', 'upload', 'step 2', 'step 3'])
+    expect(getActiveUploadCount()).toBe(0)
+  })
+
+  it('releases the slot when a step throws, and when the job fails', async () => {
+    env.uploadConcurrency = 1
+    const caught: string[] = []
+    const id = startJob({
+      kind: 'regenerate',
+      itemIds: [1, 2],
+      slots: 'per-step',
+      run: async (context) => {
+        try {
+          await context.step(async () => {
+            throw new Error('one item failed')
+          })
+        } catch (err) {
+          caught.push((err as Error).message)
+        }
+        // The slot came back: the next step gets it at once.
+        expect(getActiveUploadCount()).toBe(0)
+        await context.step(async () => {
+          throw new LibraryError(502, 'wp_unreachable', 'gone')
+        })
+        return { results: [] }
+      },
+    })
+    await jobsSettled()
+    expect(caught).toEqual(['one item failed'])
+    expect(lookupJob(id)).toMatchObject({
+      state: 'failed',
+      error: { code: 'wp_unreachable' },
+    })
+    expect(getActiveUploadCount()).toBe(0)
+  })
+
+  it('aborts a cancelled upload’s step and frees its slot', async () => {
+    let signal: AbortSignal | undefined
+    const id = startJob({
+      kind: 'upload',
+      filename: 'a.jpg',
+      slots: 'per-step',
+      run: (context) =>
+        context.step(
+          () =>
+            new Promise((_resolve, reject) => {
+              signal = context.signal
+              context.signal.addEventListener('abort', () =>
+                reject(new Error('aborted')),
+              )
+            }),
+        ),
+    })
+    await vi.waitFor(() => expect(signal).toBeDefined())
+    expect(getActiveUploadCount()).toBe(1)
+    expect(cancelUploadJob(id)).toBe(true)
+    await jobsSettled()
+    expect(getActiveUploadCount()).toBe(0)
+  })
+
+  it('never starts a step cancelled while it waited for its slot', async () => {
+    env.uploadConcurrency = 1
+    await acquireSlot()
+    const work = vi.fn(async () => {
+      throw new Error('must not run')
+    })
+    const id = startJob({
+      kind: 'upload',
+      filename: 'a.jpg',
+      slots: 'per-step',
+      run: (context) => context.step(work),
+    })
+    await tick()
+    expect(cancelUploadJob(id)).toBe(true)
+
+    releaseSlot()
+    await jobsSettled()
+    expect(work).not.toHaveBeenCalled()
+    expect(getActiveUploadCount()).toBe(0)
+  })
+
+  it('leaves other jobs on one slot for the whole run', async () => {
+    env.uploadConcurrency = 1
+    const log: string[] = []
+    const gate = deferred<void>()
+    startJob({
+      kind: 'edit',
+      itemId: 1000,
+      run: async (context) => {
+        await context.step(async () => {
+          log.push('step 1')
+          await gate.promise
+        })
+        await context.step(async () => {
+          log.push('step 2')
+        })
+        return imageResult()
+      },
+    })
+    await vi.waitFor(() => expect(log).toEqual(['step 1']))
+    const other = acquireSlot().then(() => log.push('other'))
+    gate.resolve()
+    await other
+    expect(log).toEqual(['step 1', 'step 2', 'other'])
+    releaseSlot()
+    await jobsSettled()
+    expect(getActiveUploadCount()).toBe(0)
   })
 })
 

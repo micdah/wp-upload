@@ -5,7 +5,8 @@
 // It times requests to WordPress over the stack's TLS proxy, as the app makes them:
 // - with the companion plugin (wp-upload/v1 with the `collection` feature): /collection,
 //   /facets and the Uncategorized query (folder=0), checked against the budget
-//   (p95 <= 300 ms at 50k); a run over budget fails;
+//   (p95 <= 300 ms at 50k); a run over budget fails, except in report-only mode
+//   (WPU_PERF_REPORT_ONLY=true, the `[perf]` CI job, D46), which records it and exits 0;
 // - always, as a baseline: core REST /wp/v2/media (a page of 100, and a search) and FileBird's
 //   folder tree with its own count queries (filebird/v1/get-folders). The baseline never
 //   fails the suite.
@@ -20,11 +21,16 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { gzipSync } from 'node:zlib'
+import {
+  BUDGET_P95_MS,
+  budgetFailures,
+  exitCodeFor,
+  reportOnlyFrom,
+} from './budget.mjs'
 
 const RUNS = Number(process.env.WPU_PERF_RUNS ?? 20)
 const WARMUP_RUNS = 2
-const BUDGET_P95_MS = 300
-const BUDGET_COLLECTION_GZIP_BYTES = 250_000
+const REPORT_ONLY = reportOnlyFrom(process.env)
 const MAINTENANCE_TIMEOUT_MS = 15 * 60 * 1000
 const IN_PROCESS_FILE = 'filebird-in-process.json'
 
@@ -168,6 +174,9 @@ function markdownReport(results, inProcess, plugin, folderId, failures) {
     '# perf (large seed)',
     '',
     `${RUNS} timed runs per request after ${WARMUP_RUNS} warm-up runs, sequential, through the test proxy (TLS).`,
+    REPORT_ONLY
+      ? 'Report-only run (D46): the budget is recorded, not enforced.'
+      : 'The budget is enforced: a run over it fails.',
     `Companion plugin: ${plugin ? `version ${plugin.version}, api ${plugin.api}` : 'not available (baseline only)'}. Folder used: ${folderId ?? 'none'}.`,
     '',
     '| Request | Route | p50 ms | p95 ms | max ms | gzip bytes | X-WP-Total | Budget |',
@@ -200,7 +209,7 @@ function markdownReport(results, inProcess, plugin, folderId, failures) {
   if (failures.length) {
     lines.push(
       '',
-      '**Over budget:**',
+      REPORT_ONLY ? '**Over budget (report-only):**' : '**Over budget:**',
       ...failures.map((failure) => `- ${failure}`),
     )
   }
@@ -295,25 +304,11 @@ async function main() {
     )
   }
 
-  for (const result of results) {
-    if (result.budgeted && result.p95 > BUDGET_P95_MS) {
-      failures.push(
-        `${result.name}: p95 ${result.p95} ms > ${BUDGET_P95_MS} ms`,
-      )
-    }
-  }
-  const collection = results.find(
-    (result) => result.route === '/wp-upload/v1/collection',
-  )
-  if (collection && collection.gzipBytes > BUDGET_COLLECTION_GZIP_BYTES) {
-    failures.push(
-      `collection payload ${collection.gzipBytes} B gzip > ${BUDGET_COLLECTION_GZIP_BYTES} B`,
-    )
-  }
+  failures.push(...budgetFailures(results))
 
   writeFileSync(
     path.join(resultsDir, 'perf.json'),
-    `${JSON.stringify({ runs: RUNS, plugin, folderId, results, inProcess, failures }, null, 2)}\n`,
+    `${JSON.stringify({ runs: RUNS, reportOnly: REPORT_ONLY, plugin, folderId, results, inProcess, failures }, null, 2)}\n`,
   )
   writeFileSync(
     path.join(resultsDir, 'perf.md'),
@@ -321,9 +316,12 @@ async function main() {
   )
   console.log(`\nReport: ${path.join(resultsDir, 'perf.md')}`)
   if (failures.length) {
-    console.error(`Over budget:\n- ${failures.join('\n- ')}`)
-    process.exitCode = 1
+    const label = REPORT_ONLY
+      ? 'Over budget (report-only, not failing)'
+      : 'Over budget'
+    console.error(`${label}:\n- ${failures.join('\n- ')}`)
   }
+  process.exitCode = exitCodeFor(failures, REPORT_ONLY)
 }
 
 await main()

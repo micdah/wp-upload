@@ -1,0 +1,44 @@
+/* The inspector's icon rail (inspector.md §1): 48 px, left of the panel.
+   In the initial chunk, so it stays small; the panel's CSS is lazy. */
+
+.rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: var(--rail-w);
+  padding: var(--space-2) 0;
+}
+
+.rail[data-open] {
+  border-right: 1px solid var(--line-1);
+}
+
+.tab {
+  position: relative;
+  color: var(--text-2);
+}
+
+.tab:hover {
+  background: var(--surface-hover);
+  color: var(--text-1);
+}
+
+/* A navigation rail signals the active place (accent, not just pressed). */
+.tab[aria-pressed="true"] {
+  background: var(--accent-subtle);
+  color: var(--text-accent);
+}
+
+/* Missing alt text: a warn dot in the tab's corner. */
+.dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warn-fill);
+  box-shadow: 0 0 0 2px var(--surface-panel);
+}

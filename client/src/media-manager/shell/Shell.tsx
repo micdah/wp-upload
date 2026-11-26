@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { installRuntime } from '../app/runtime'
 import { useTrackCurrentCollection } from '../core/collection/hooks'
+import { useRevPolling } from '../core/data/rev'
 import { MediaDragPreview } from '../core/dnd/MediaDragPreview'
 import { useKeyLayer } from '../core/keymap/layers'
 import {
@@ -50,6 +51,9 @@ export function Shell() {
   useEffect(() => installRuntime(), [])
   // Publishes the collection for commands (select all, detail stepping).
   useTrackCurrentCollection()
+  // The one rev poll (15 s while visible; backs off while offline). A new
+  // rev invalidates what changed elsewhere (core/data/invalidate.ts).
+  useRevPolling()
 
   const viewport = useCore((state) => state.viewport)
   const compact = isCompactViewport(viewport)
@@ -85,9 +89,7 @@ export function Shell() {
       data-inspector={inspectorOpen ? 'open' : 'closed'}
       data-detail={detailOpen ? 'open' : 'closed'}
       data-resizing={resizing || undefined}
-      style={
-        { '--mm-folders-width': `${folderWidth}px` } as React.CSSProperties
-      }
+      style={{ '--folders-w': `${folderWidth}px` } as React.CSSProperties}
     >
       <Toolbar />
       <div className={classes.banners}>

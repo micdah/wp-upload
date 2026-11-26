@@ -19,6 +19,7 @@ import {
   variant,
   wpUrl,
 } from './support/p2.ts'
+import { wpEvalAvailable, wpEvalJson } from './support/variants.ts'
 
 // Uploads and image operations wait for WordPress to make every sub-size.
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 })
@@ -162,7 +163,11 @@ describe.skipIf(!ready)('GET|POST /usage', () => {
     if (site.length === 0) return // The seed sets a logo and an icon; another stack may not.
     for (const ref of site) {
       expect(ref).toMatchObject({ postId: null, postTypeLabel: 'Site' })
-      expect(['Site logo', 'Site icon']).toContain(ref.title)
+      expect([
+        'Site logo',
+        'Site icon',
+        'Visual Portfolio placeholder image',
+      ]).toContain(ref.title)
     }
     for (const item of usage.values()) {
       const firstPostRef = item.refs.findIndex(
@@ -349,6 +354,281 @@ describe.skipIf(!ready)('Visual Portfolio usage (D22)', () => {
     },
   )
 })
+
+describe.skipIf(!ready)('[gallery] without ids (D40)', () => {
+  let post: number
+  let other: number
+  const images: Json[] = []
+
+  /** Uploads a PNG attached to `parent` (core REST's `post` field). */
+  async function uploadAttached(name: string, parent: number): Promise<Json> {
+    const form = new FormData()
+    form.append(
+      'file',
+      new Blob([new Uint8Array(makePng(32, 32))], { type: 'image/png' }),
+      name,
+    )
+    form.append('post', String(parent))
+    const reply = await rest('POST', '/wp/v2/media', { form })
+    expect(reply.status).toBe(201)
+    return reply.json
+  }
+
+  const galleryOf = async (id: number, source: number) =>
+    contextsIn((await usageOf([id])).get(id), source)
+
+  beforeAll(async () => {
+    // A classic post (no blocks) with an id-less gallery, and a block post whose
+    // gallery shows the first post's attached images minus one.
+    const created = await rest('POST', '/wp/v2/posts', {
+      body: {
+        title: 'P2 attached gallery',
+        status: 'publish',
+        content: 'Our photos:\n\n[gallery columns="2"]',
+      },
+    })
+    expect(created.status).toBe(201)
+    post = created.json.id
+    images.push(await uploadAttached('p2-attached-0.png', post))
+    images.push(await uploadAttached('p2-attached-1.png', post))
+    const elsewhere = await rest('POST', '/wp/v2/posts', {
+      body: {
+        title: 'P2 gallery of another post',
+        status: 'draft',
+        content: `<!-- wp:shortcode -->\n[gallery id="${post}" exclude="${images[1].id}"]\n<!-- /wp:shortcode -->`,
+      },
+    })
+    expect(elsewhere.status).toBe(201)
+    other = elsewhere.json.id
+  })
+
+  it('counts the images attached to the post as shortcode-gallery, also from [gallery id=N]', async () => {
+    const [shown, excluded] = images
+    expect(await galleryOf(shown.id, post)).toEqual(['shortcode-gallery'])
+    expect(await galleryOf(excluded.id, post)).toEqual(['shortcode-gallery'])
+    expect(await galleryOf(shown.id, other)).toEqual(['shortcode-gallery'])
+    expect(await galleryOf(excluded.id, other)).toEqual([])
+  })
+
+  it('follows detach and attach through core REST and /media/batch', async () => {
+    const [shown] = images
+    const detached = await rest('POST', `/wp/v2/media/${shown.id}`, {
+      body: { post: 0 },
+    })
+    expect(detached.status).toBe(200)
+    expect(await galleryOf(shown.id, post)).toEqual([])
+    expect(await galleryOf(shown.id, other)).toEqual([])
+
+    const attached = await plugin('POST', '/media/batch', {
+      body: { items: [{ id: shown.id, set: { post } }] },
+    })
+    expect(attached.status).toBe(200)
+    expect(attached.json.results[0].ok).toBe(true)
+    expect(await galleryOf(shown.id, post)).toEqual(['shortcode-gallery'])
+    expect(await galleryOf(shown.id, other)).toEqual(['shortcode-gallery'])
+  })
+
+  it.skipIf(!wpEvalAvailable)(
+    'follows wp-admin’s Attach and Detach (wp_media_attach_action)',
+    async () => {
+      const [shown] = images
+      // What wp_media_attach_action() does: SQL, then the action per item.
+      const move = (parent: number, action: string, hookParent: number) =>
+        wpEvalJson(`
+          global $wpdb;
+          $wpdb->update( $wpdb->posts, array( 'post_parent' => ${parent} ), array( 'ID' => ${shown.id} ) );
+          do_action( 'wp_media_attach_action', '${action}', ${shown.id}, ${hookParent} );
+          clean_attachment_cache( ${shown.id} );
+          echo 'true';
+        `)
+      move(0, 'detach', post)
+      expect(await galleryOf(shown.id, post)).toEqual([])
+      move(post, 'attach', post)
+      expect(await galleryOf(shown.id, post)).toEqual(['shortcode-gallery'])
+    },
+  )
+
+  it.skipIf(!canSwitchVariants())(
+    'drops a trashed attached image from the gallery and brings it back on restore (trash=on)',
+    async () => {
+      const [shown] = images
+      variant('trash=on')
+      try {
+        const trashed = await plugin('POST', '/media/trash', {
+          body: { ids: [shown.id] },
+        })
+        expect(trashed.status).toBe(200)
+        expect(trashed.json.results[0].ok).toBe(true)
+        expect(await galleryOf(shown.id, post)).toEqual([])
+        expect(await galleryOf(shown.id, other)).toEqual([])
+
+        const restored = await plugin('POST', '/trash/restore', {
+          body: { ids: [shown.id] },
+        })
+        expect(restored.status).toBe(200)
+        expect(restored.json.results[0].ok).toBe(true)
+        expect(await galleryOf(shown.id, post)).toEqual(['shortcode-gallery'])
+        expect(await galleryOf(shown.id, other)).toEqual(['shortcode-gallery'])
+      } finally {
+        variant('trash=off')
+      }
+    },
+  )
+
+  it.skipIf(!wpEvalAvailable)(
+    'rescans once per request, and never for non-images (one gallery query for many events)',
+    async () => {
+      const [shown] = images
+      const result = wpEvalJson(`
+        use WpUpload\\Companion\\Index\\UsageIndex;
+        $queries = 0;
+        add_filter( 'query', function ( $sql ) use ( &$queries ) {
+          if ( false !== strpos( $sql, '[gallery' ) ) {
+            $queries++;
+          }
+          return $sql;
+        } );
+        $before = clone get_post( ${shown.id} );
+        $after  = clone $before;
+        $after->post_status = 'trash';
+        // Three changes in one request (as /media/trash with three ids would make).
+        for ( $i = 0; $i < 3; $i++ ) {
+          UsageIndex::on_attachment_updated( ${shown.id}, $after, $before );
+        }
+        UsageIndex::flush_gallery_parents();
+        $for_images = $queries;
+        $queries    = 0;
+        // The same change to a non-image: no [gallery] shows it.
+        $before->post_mime_type = 'application/pdf';
+        $after->post_mime_type  = 'application/pdf';
+        UsageIndex::on_attachment_updated( ${shown.id}, $after, $before );
+        UsageIndex::flush_gallery_parents();
+        echo wp_json_encode( array( $for_images, $queries ) );
+      `)
+      expect(result).toEqual([1, 0])
+      // Nothing really changed, so the rescans found the same usage.
+      expect(await galleryOf(shown.id, post)).toEqual(['shortcode-gallery'])
+    },
+  )
+  it('adds a new upload attached to the post at once', async () => {
+    const late = await uploadAttached('p2-attached-late.png', post)
+    expect(await galleryOf(late.id, post)).toEqual(['shortcode-gallery'])
+    await rest('DELETE', `/wp/v2/media/${late.id}?force=true`)
+  })
+})
+
+describe.skipIf(!ready || !wpEvalAvailable)(
+  'rescans after a parser upgrade or a deferred rescan (complete stays honest)',
+  () => {
+    const complete = async () =>
+      (await plugin('GET', '/usage?ids=1')).json.complete as boolean
+    const outdatedRows = () =>
+      Number(
+        wpEvalJson(
+          `global $wpdb; echo wp_json_encode( (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . $wpdb->prefix . 'wpu_usage_sources WHERE row_version < ' . WpUpload\\Companion\\Index\\UsageIndex::ROW_VERSION ) );`,
+        ),
+      )
+
+    it('is incomplete after an update with a new parser, until every post is rescanned', async () => {
+      expect(await driveMaintenance()).toBe(true)
+      expect(await complete()).toBe(true)
+      // What an index built by the previous release (parser 2) looks like.
+      wpEvalJson(`
+        $state = get_option( 'wpu_usage_index_state' );
+        $state['parser'] = 2;
+        update_option( 'wpu_usage_index_state', $state );
+        global $wpdb;
+        $wpdb->query( 'UPDATE ' . $wpdb->prefix . 'wpu_usage_sources SET row_version = 2' );
+        echo 'true';
+      `)
+      expect(await complete()).toBe(false)
+      expect(outdatedRows()).toBeGreaterThan(0)
+      expect(await driveMaintenance()).toBe(true)
+      expect(await complete()).toBe(true)
+      expect(outdatedRows()).toBe(0)
+    })
+
+    it('is incomplete while posts left for the maintenance step wait', async () => {
+      expect(await driveMaintenance()).toBe(true)
+      // A rescan that deferred a post (row_version 0), then the /info consistency check.
+      wpEvalJson(`
+        global $wpdb;
+        $wpdb->query( 'UPDATE ' . $wpdb->prefix . 'wpu_usage_sources SET row_version = 0 WHERE source_id > 0 ORDER BY source_id LIMIT 1' );
+        WpUpload\\Companion\\Index\\UsageIndex::check_consistency( false );
+        echo 'true';
+      `)
+      expect(await complete()).toBe(false)
+      expect(await driveMaintenance()).toBe(true)
+      expect(await complete()).toBe(true)
+      expect(outdatedRows()).toBe(0)
+    })
+  },
+)
+
+describe.skipIf(!ready || !wpEvalAvailable)(
+  'Visual Portfolio’s placeholder image (D44)',
+  () => {
+    let placeholder = 0
+
+    beforeAll(async () => {
+      placeholder = Number(
+        wpEvalJson(
+          "$general = get_option( 'vp_general' ); echo wp_json_encode( is_array( $general ) ? (int) ( $general['no_image'] ?? 0 ) : 0 );",
+        ),
+      )
+    })
+
+    it('is used by Visual Portfolio, as a site-level ref', async () => {
+      if (placeholder <= 0) return // No Visual Portfolio on this stack.
+      const item = (await usageOf([placeholder])).get(placeholder)
+      expect(item.count).toBe(1)
+      expect(item.refs[0]).toMatchObject({
+        postId: null,
+        postType: 'site',
+        postTypeLabel: 'Site',
+        title: 'Visual Portfolio placeholder image',
+        viewUrl: null,
+        contexts: ['visual-portfolio'],
+      })
+      // The app user is an Editor: no access to Visual Portfolio's settings.
+      expect(item.refs[0].editUrl).toBeNull()
+    })
+
+    it('follows the option, and Visual Portfolio being switched off and on', async () => {
+      if (placeholder <= 0) return
+      const other = await upload(
+        'p2-vp-placeholder.png',
+        makePng(16, 16),
+        'image/png',
+      )
+      const setPlaceholder = (id: number) =>
+        wpEvalJson(
+          `$general = get_option( 'vp_general' ); $general['no_image'] = ${id}; update_option( 'vp_general', $general ); echo 'true';`,
+        )
+      try {
+        setPlaceholder(other.id)
+        const swapped = await usageOf([placeholder, other.id])
+        expect(swapped.get(placeholder).count).toBe(0)
+        expect(contextsIn(swapped.get(other.id), null)).toEqual([
+          'visual-portfolio',
+        ])
+      } finally {
+        setPlaceholder(placeholder)
+      }
+      expect((await usageOf([placeholder])).get(placeholder).count).toBe(1)
+
+      if (!canSwitchVariants()) return
+      toggleVisualPortfolio(false)
+      try {
+        expect((await usageOf([placeholder])).get(placeholder).count).toBe(0)
+      } finally {
+        toggleVisualPortfolio(true)
+      }
+      expect(await driveMaintenance()).toBe(true)
+      expect((await usageOf([placeholder])).get(placeholder).count).toBe(1)
+    })
+  },
+)
 
 /** Track D's `vp=` variant (hides Visual Portfolio without deactivating it). */
 function toggleVisualPortfolio(on: boolean): void {

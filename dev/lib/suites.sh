@@ -133,9 +133,14 @@ suite_typecheck() {
   run_in_runner typecheck 'npm run typecheck --workspaces --if-present'
 }
 
-# The server tests read client/dist, so build first (as ci.yml does).
+# The server tests read client/dist, so build first (as ci.yml does). dev/run's own tests
+# (dev/tests/*.sh, dev/perf/*.test.mjs) run here too: they need no stack.
 suite_unit() {
   run_in_runner unit '
+    for dev_test in dev/tests/*.sh; do
+      bash "$dev_test"
+    done
+    node --test "dev/perf/*.test.mjs"
     npm run build
     npm run test -w server
     if node -e "process.exit(require(\"./client/package.json\").scripts?.test ? 0 : 1)"; then
@@ -263,15 +268,67 @@ suite_plugin_static() {
 
 # ---- plugin-contract -------------------------------------------------------------------------
 
-# The git ref of the oldest supported plugin release, or nothing before the first release.
+# The plugin API level the server requires (PLUGIN_API_REQUIRED in
+# server/src/routes/library/bootstrap.ts), printed as "<major> <minMinor>". Why read the
+# source: it is the one place the level is declared, so the oldest supported plugin follows
+# it without a second number to keep in step (D48(4)).
+server_required_plugin_api() {
+  local declaration major min_minor
+  declaration="$(grep -E 'PLUGIN_API_REQUIRED *= *\{' "$SERVER_PLUGIN_API_FILE" | head -n 1 || true)"
+  major="$(printf '%s' "$declaration" | sed -n 's/.*major: *\([0-9][0-9]*\).*/\1/p')"
+  min_minor="$(printf '%s' "$declaration" | sed -n 's/.*minMinor: *\([0-9][0-9]*\).*/\1/p')"
+  if [ -z "$major" ] || [ -z "$min_minor" ]; then
+    die "Could not read PLUGIN_API_REQUIRED = { major, minMinor } from ${SERVER_PLUGIN_API_FILE#"$REPO_ROOT"/}."
+  fi
+  printf '%s %s' "$major" "$min_minor"
+}
+
+# The contract level (WPU_API, "major.minor") of the plugin at a git ref, or nothing when that
+# ref has no readable entry file.
+plugin_api_at_ref() {
+  local ref="$1"
+  git -C "$REPO_ROOT" show "$ref:$PLUGIN_ENTRY_PATH" 2>/dev/null \
+    | sed -n "s/^const WPU_API *= *'\([0-9][0-9]*\.[0-9][0-9]*\)'.*/\1/p" \
+    | head -n 1
+}
+
+# True when a "major.minor" API level meets the server's required major and minMinor
+# (contract §2.4: the same major, and at least that minor).
+plugin_api_is_supported() {
+  local api="$1"
+  local required_major="$2"
+  local required_min_minor="$3"
+  local api_major="${api%%.*}"
+  local api_minor="${api#*.}"
+  if [ "$api_major" -ne "$required_major" ]; then
+    return 1
+  fi
+  [ "$api_minor" -ge "$required_min_minor" ]
+}
+
+# The git ref of the oldest supported plugin release: the oldest `plugin-v*` tag whose WPU_API
+# meets the server's PLUGIN_API_REQUIRED (D48(4)). Nothing before the first release, or when no
+# release meets it (then the current build is the oldest). WPU_PLUGIN_OLDEST_REF overrides it
+# with any git ref (for testing). Release tags are plain semver, so version order is enough.
 oldest_supported_plugin_ref() {
   if [ -n "${WPU_PLUGIN_OLDEST_REF:-}" ]; then
     printf '%s' "$WPU_PLUGIN_OLDEST_REF"
-  elif [ -n "$PLUGIN_OLDEST_SUPPORTED_TAG" ]; then
-    printf '%s' "$PLUGIN_OLDEST_SUPPORTED_TAG"
-  else
-    git -C "$REPO_ROOT" tag --list 'plugin-v*' --sort=version:refname | head -n 1
+    return 0
   fi
+  local required required_major required_min_minor tag api
+  required="$(server_required_plugin_api)"
+  required_major="${required% *}"
+  required_min_minor="${required#* }"
+  for tag in $(git -C "$REPO_ROOT" tag --list 'plugin-v*' --sort=version:refname); do
+    api="$(plugin_api_at_ref "$tag")"
+    if [ -z "$api" ]; then
+      continue
+    fi
+    if plugin_api_is_supported "$api" "$required_major" "$required_min_minor"; then
+      printf '%s' "$tag"
+      return 0
+    fi
+  done
 }
 
 # Builds the plugin as it was at a git ref, with that ref's own build script, into
@@ -361,7 +418,7 @@ suite_plugin_contract() {
   if [ -n "$oldest_ref" ]; then
     build_plugin_at_ref "$oldest_ref"
   else
-    log_info "No plugin-v* release tag yet: the oldest supported build is the current build."
+    log_info "No plugin-v* release meets the server's PLUGIN_API_REQUIRED yet: the oldest supported build is the current build."
     OLDEST_PLUGIN_DIST_DIR="$PLUGIN_DIST_DIR"
   fi
 
@@ -446,6 +503,8 @@ suite_e2e_live() {
 # over 20 runs, budget 300 ms) on the `large` seed, plus core REST and FileBird's own queries
 # as a baseline (dev/perf/measure.mjs). Seeds `large` first when there is no snapshot. The
 # current plugin build is installed, so it measures this worktree's code.
+# D46: a run over budget fails, unless WPU_PERF_REPORT_ONLY=true (the `[perf]` CI job: GitHub's
+# runners are slower than the reference machine), which records and reports it only.
 suite_perf() {
   if [ -f "$PLUGIN_BUILD_SCRIPT" ]; then
     build_plugin perf build
@@ -467,7 +526,10 @@ suite_perf() {
   log_step "perf: FileBird's own queries, in-process"
   wpcli eval-file /opt/wpu/perf/filebird-queries.php "${WPU_PERF_RUNS:-20}" \
     > "$results_dir/filebird-in-process.json"
-  RUNNER_EXTRA_ENV=(--env "WPU_PERF_RUNS=${WPU_PERF_RUNS:-20}")
+  RUNNER_EXTRA_ENV=(
+    --env "WPU_PERF_RUNS=${WPU_PERF_RUNS:-20}"
+    --env "WPU_PERF_REPORT_ONLY=${WPU_PERF_REPORT_ONLY:-false}"
+  )
   run_in_runner perf "node dev/perf/measure.mjs $(quoted_extra_args)"
   RUNNER_EXTRA_ENV=()
   collect_stack_logs

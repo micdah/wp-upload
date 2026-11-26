@@ -161,27 +161,37 @@ activate_companion_plugin_if_present() {
   fi
 }
 
-# Creates the app user (Editor) and the Author user (D26) with their app passwords, keeping
-# passwords that still work. One wp-cli call for both, because it also runs after every
-# snapshot restore.
-# Sets WPU_APP_PASSWORD and WPU_AUTHOR_APP_PASSWORD, and APP_PASSWORDS_CHANGED=true|false.
+# Creates the app user (Editor) and the Author user (D26) with their app passwords, and an app
+# password for the administrator (the dev mu-plugin's admin-only eval route), keeping passwords
+# that still work. One wp-cli call for all three, because it also runs after every snapshot
+# restore.
+# Sets WPU_APP_PASSWORD, WPU_AUTHOR_APP_PASSWORD and WPU_ADMIN_APP_PASSWORD, plus
+# APP_PASSWORDS_CHANGED=true|false (the app or Author password: the app and the dev server use
+# them) and ADMIN_APP_PASSWORD_CHANGED=true|false (only the contract tests read that one).
 ensure_app_users() {
-  local output app_password author_password
+  local output app_password author_password admin_password
   output="$(wpcli eval-file /opt/wpu/setup/users.php \
     "$APP_USER_LOGIN" "$WPU_APP_PASSWORD" \
-    "$AUTHOR_USER_LOGIN" "$WPU_AUTHOR_APP_PASSWORD" | tr -d '\r')"
+    "$AUTHOR_USER_LOGIN" "$WPU_AUTHOR_APP_PASSWORD" \
+    "$ADMIN_USER" "$WPU_ADMIN_APP_PASSWORD" | tr -d '\r')"
   app_password="$(printf '%s\n' "$output" | sed -n 1p)"
   author_password="$(printf '%s\n' "$output" | sed -n 2p)"
-  if [ -z "$app_password" ] || [ -z "$author_password" ]; then
-    die "Could not create the Application Passwords for $APP_USER_LOGIN and $AUTHOR_USER_LOGIN."
+  admin_password="$(printf '%s\n' "$output" | sed -n 3p)"
+  if [ -z "$app_password" ] || [ -z "$author_password" ] || [ -z "$admin_password" ]; then
+    die "Could not create the Application Passwords for $APP_USER_LOGIN, $AUTHOR_USER_LOGIN and $ADMIN_USER."
   fi
 
   APP_PASSWORDS_CHANGED=false
   if [ "$app_password" != "$WPU_APP_PASSWORD" ] || [ "$author_password" != "$WPU_AUTHOR_APP_PASSWORD" ]; then
     APP_PASSWORDS_CHANGED=true
   fi
+  ADMIN_APP_PASSWORD_CHANGED=false
+  if [ "$admin_password" != "$WPU_ADMIN_APP_PASSWORD" ]; then
+    ADMIN_APP_PASSWORD_CHANGED=true
+  fi
   export WPU_APP_PASSWORD="$app_password"
   export WPU_AUTHOR_APP_PASSWORD="$author_password"
+  export WPU_ADMIN_APP_PASSWORD="$admin_password"
 }
 
 # A restored snapshot holds the password hashes from when it was taken. Usually they match
@@ -190,6 +200,7 @@ ensure_app_users() {
 refresh_app_users_after_restore() {
   ensure_app_users
   if [ "$APP_PASSWORDS_CHANGED" != "true" ]; then
+    record_new_admin_app_password
     return 0
   fi
   log_info "The restored snapshot had other app passwords; recorded new ones."
@@ -199,6 +210,18 @@ refresh_app_users_after_restore() {
     log_warn "dev/.env.wp changed: restart 'npm run dev' to pick up the new app password."
   elif app_container_is_running; then
     compose --profile app up --detach --wait app
+  fi
+}
+
+# Only the administrator's app password changed (e.g. a snapshot taken before it existed):
+# record it for the contract tests. Nothing running uses it, so nothing is restarted.
+record_new_admin_app_password() {
+  if [ "$ADMIN_APP_PASSWORD_CHANGED" != "true" ]; then
+    return 0
+  fi
+  save_mode_state "$WPU_MODE"
+  if [ "$WPU_MODE" = "dev" ]; then
+    write_env_wp_file
   fi
 }
 

@@ -2,9 +2,12 @@
 // §4: F1 owns these; logout must not depend on the old Uploader).
 
 import { Modal, Text } from '@mantine/core'
+import { useQueryClient } from '@tanstack/react-query'
 import { createContext, type ReactNode, useContext, useEffect } from 'react'
 import type { Session } from '../../../lib/api'
 import { implementCommand } from '../../core/commands/registry'
+import { clearLibraryData } from '../../core/data/client'
+import { resetSession } from '../../core/state'
 import { LoadingHairline } from '../screens/StateScreen'
 import { LoginScreen, ServerUnreachableScreen } from '../screens/screens'
 import { LoginForm } from './LoginForm'
@@ -23,7 +26,16 @@ export function useAuth(): AuthContextValue | null {
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const auth = useAuthSession()
+  const queryClient = useQueryClient()
+  // A logout drops the library data and every session-scoped state
+  // (selection, feature drafts), so the next login never sees the previous
+  // user's (M2 glue 4).
+  const auth = useAuthSession({
+    onLoggedOut: () => {
+      resetSession()
+      clearLibraryData(queryClient)
+    },
+  })
   const authenticated = auth.auth.status === 'authenticated'
   const { logout } = auth
 

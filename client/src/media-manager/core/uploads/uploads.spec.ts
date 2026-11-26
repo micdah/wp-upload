@@ -1,16 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { jobUploadSucceeded } from '../../../../../shared/fixtures/jobs'
+import { LibraryError } from '../data/errors'
 import {
   getTileUploadState,
   rekeyTileUploadState,
   setTileUploadState,
 } from './tileState'
-import {
-  cancelUploadJob,
-  checkDuplicate,
-  fetchUploadJobs,
-  UploadRequestError,
-} from './transport'
+import { cancelUploadJob, checkDuplicate, fetchUploadJobs } from './transport'
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -78,7 +74,7 @@ describe('upload transport', () => {
     const error = await checkDuplicate('a.jpg').catch(
       (caught: unknown) => caught,
     )
-    expect(error).toBeInstanceOf(UploadRequestError)
+    expect(error).toBeInstanceOf(LibraryError)
     expect(error).toMatchObject({
       status: 502,
       code: 'wp_unreachable',

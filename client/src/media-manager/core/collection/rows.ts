@@ -1,59 +1,89 @@
-// The compact collection: `rows` is a flat [id, w, h, kind, id, w, h, kind, …]
-// list in collection order (server-api.md §7.3). Decoded once into typed
-// columns plus an id → index map, so the grid's layout and every "where is
-// this item" lookup stay O(1) at 50k items.
+// The compact collection, as views read it. The data layer (core/data, spike
+// C5) holds the rows once, as a `Uint32Array` with stride 4
+// (`[id, width, height, kindCode] × total`); this is a thin view over that
+// snapshot, not a second decode. Index lookups use the snapshot's lazily
+// built id → index map, and the `ids` array (what the selection rules take)
+// is built once per snapshot, on first read.
 
+import type { MediaKind } from '../../../../../shared/library-api'
 import {
-  MEDIA_KINDS,
-  type MediaKind,
-  ROW_STRIDE,
-} from '../../../../../shared/library-api'
+  type CollectionSnapshot,
+  positionOf,
+  rowHeight,
+  rowId,
+  rowKind,
+  rowWidth,
+} from '../data/collection'
 
 export interface CollectionRows {
+  /** The data layer's snapshot (the grid lays out `snapshot.rows` directly). */
+  readonly snapshot: CollectionSnapshot
   readonly length: number
-  /** Ids in collection order. */
+  /** Ids in collection order; built on first read, once per snapshot. */
   readonly ids: readonly number[]
-  readonly widths: Uint32Array
-  readonly heights: Uint32Array
-  /** Index into MEDIA_KINDS; unknown codes read as `other`. */
-  readonly kinds: Uint8Array
-  indexOf(id: number): number
+  idAt(index: number): number
+  widthAt(index: number): number
+  heightAt(index: number): number
+  /** Unknown codes (from a newer plugin) read as `other`. */
   kindAt(index: number): MediaKind
+  /** Index of `id`, or -1. */
+  indexOf(id: number): number
   has(id: number): boolean
 }
 
-const OTHER_CODE = MEDIA_KINDS.indexOf('other')
+const views = new WeakMap<CollectionSnapshot, CollectionRows>()
 
-export function decodeRows(rows: readonly number[]): CollectionRows {
-  const length = Math.floor(rows.length / ROW_STRIDE)
-  const ids = new Array<number>(length)
-  const widths = new Uint32Array(length)
-  const heights = new Uint32Array(length)
-  const kinds = new Uint8Array(length)
-  const index = new Map<number, number>()
-  for (let i = 0; i < length; i += 1) {
-    const base = i * ROW_STRIDE
-    const id = rows[base] as number
-    ids[i] = id
-    widths[i] = rows[base + 1] ?? 0
-    heights[i] = rows[base + 2] ?? 0
-    const kind = rows[base + 3] ?? OTHER_CODE
-    kinds[i] = kind >= 0 && kind < MEDIA_KINDS.length ? kind : OTHER_CODE
-    index.set(id, i)
+function allIdsOf(snapshot: CollectionSnapshot): number[] {
+  const ids = new Array<number>(snapshot.total)
+  for (let index = 0; index < snapshot.total; index += 1) {
+    ids[index] = rowId(snapshot, index)
   }
-  return {
-    length,
-    ids,
-    widths,
-    heights,
-    kinds,
-    indexOf: (id) => index.get(id) ?? -1,
-    kindAt: (i) => MEDIA_KINDS[kinds[i] ?? OTHER_CODE] ?? 'other',
-    has: (id) => index.has(id),
-  }
+  return ids
 }
 
-export const EMPTY_ROWS: CollectionRows = decodeRows([])
+/** The view of a snapshot; the same object for the same snapshot. */
+export function rowsOf(snapshot: CollectionSnapshot): CollectionRows {
+  let view = views.get(snapshot)
+  if (view) {
+    return view
+  }
+  let ids: number[] | null = null
+  view = {
+    snapshot,
+    length: snapshot.total,
+    get ids() {
+      ids ??= allIdsOf(snapshot)
+      return ids
+    },
+    idAt: (index) => rowId(snapshot, index),
+    widthAt: (index) => rowWidth(snapshot, index),
+    heightAt: (index) => rowHeight(snapshot, index),
+    kindAt: (index) => rowKind(snapshot, index),
+    indexOf: (id) => positionOf(snapshot, id),
+    has: (id) => positionOf(snapshot, id) !== -1,
+  }
+  views.set(snapshot, view)
+  return view
+}
+
+const EMPTY_SNAPSHOT: CollectionSnapshot = {
+  rev: '',
+  query: {
+    folder: 'all',
+    q: null,
+    type: null,
+    alt: null,
+    size: null,
+    orient: null,
+    month: null,
+    sort: 'date-desc',
+  },
+  total: 0,
+  rows: new Uint32Array(0),
+  indexComplete: true,
+}
+
+export const EMPTY_ROWS: CollectionRows = rowsOf(EMPTY_SNAPSHOT)
 
 /** The neighbour of `id` in collection order (detail stepping), or null at the ends. */
 export function neighbourOf(
@@ -65,5 +95,55 @@ export function neighbourOf(
   if (index === -1) {
     return null
   }
-  return rows.ids[index + direction] ?? null
+  const next = index + direction
+  if (next < 0 || next >= rows.length) {
+    return null
+  }
+  return rows.idAt(next)
+}
+
+/** Where detail last saw its item in a collection (for stepStart). */
+export interface DetailPosition {
+  id: number
+  index: number
+  /** The collection query it was seen in (queryKeyOf). */
+  query: string
+}
+
+/** A stable key for a collection query (the one the client asked for). */
+export function queryKeyOf(query: unknown): string {
+  return JSON.stringify(query)
+}
+
+/**
+ * Where detail stepping goes from `id` (D34: no wrap-around):
+ * - `{ next }`: the neighbour's id;
+ * - `{ edge: true }`: at an end of the collection;
+ * - `null`: nowhere, the item isn't in this collection and wasn't seen in it.
+ *
+ * An item that just left the view (e.g. `?alt=missing` and its alt text
+ * was saved) steps from where it was: the item now in its slot is next,
+ * the one before it previous. `last` is that remembered position; it
+ * counts only in the same query (`queryKey`, from queryKeyOf).
+ */
+export function stepFrom(
+  rows: CollectionRows,
+  id: number,
+  direction: 1 | -1,
+  last: DetailPosition | null,
+  queryKey: string,
+): { next: number } | { edge: true } | null {
+  const index = rows.indexOf(id)
+  let target: number
+  if (index >= 0) {
+    target = index + direction
+  } else if (last && last.id === id && last.query === queryKey) {
+    target = direction === 1 ? last.index : last.index - 1
+  } else {
+    return null
+  }
+  if (target < 0 || target >= rows.length) {
+    return { edge: true }
+  }
+  return { next: rows.idAt(target) }
 }

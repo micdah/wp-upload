@@ -10,29 +10,18 @@
 // while the session is lost. It is restored on every successful login and
 // whenever auth becomes authenticated, so a gate left `lost` by 401s that
 // arrived around a logout can't make the next session's requests wait
-// forever. A successful logout abandons it (waiting requests fail).
+// forever. A successful logout abandons it (waiting requests fail) and calls
+// `onLoggedOut`, where AuthGate drops the library data (clearLibraryData), so
+// the next user never sees the previous one's cache.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   fetchSession,
   logout as logoutRequest,
   type Session,
   setUnauthorizedListener,
 } from '../../../lib/api'
-import type { SessionGate } from '../../core/data/session'
-
-let gateModule: Promise<typeof import('../../core/data/session')> | null = null
-
-/**
- * Runs `use` with the data layer's session gate. The module is loaded on
- * demand because core/data isn't part of the initial media-manager chunk
- * until M2 wires it in (bundle budget, plan §9); once it is, the import
- * resolves at once. One shared promise keeps the calls in order.
- */
-function withSessionGate(use: (gate: SessionGate) => void): void {
-  gateModule ??= import('../../core/data/session')
-  void gateModule.then(({ sessionGate }) => use(sessionGate))
-}
+import { sessionGate } from '../../core/data/session'
 
 export type AuthState =
   | { status: 'checking' }
@@ -54,7 +43,14 @@ export interface AuthSession {
   dismissLogoutFailed(): void
 }
 
-export function useAuthSession(): AuthSession {
+export interface AuthSessionOptions {
+  /** After a confirmed logout, e.g. to drop the library data. */
+  onLoggedOut?: () => void
+}
+
+export function useAuthSession(options: AuthSessionOptions = {}): AuthSession {
+  const onLoggedOutRef = useRef(options.onLoggedOut)
+  onLoggedOutRef.current = options.onLoggedOut
   const [auth, setAuth] = useState<AuthState>({ status: 'checking' })
   const [sessionLost, setSessionLost] = useState(false)
   const [logoutFailed, setLogoutFailed] = useState(false)
@@ -83,7 +79,7 @@ export function useAuthSession(): AuthSession {
       return
     }
     // Also covers a session found by a re-check, not only a typed login.
-    withSessionGate((gate) => gate.restore())
+    sessionGate.restore()
     setUnauthorizedListener(() => setSessionLost(true))
     return () => setUnauthorizedListener(null)
   }, [isAuthenticated])
@@ -118,7 +114,7 @@ export function useAuthSession(): AuthSession {
     // Release the requests held while the session was lost (re-login in the
     // session-expired dialog keeps auth authenticated, so the effect above
     // doesn't run again).
-    withSessionGate((gate) => gate.restore())
+    sessionGate.restore()
     setSessionLost(false)
     setAuth({ status: 'authenticated', session })
   }, [])
@@ -127,7 +123,8 @@ export function useAuthSession(): AuthSession {
     setLogoutFailed(false)
     logoutRequest()
       .then(() => {
-        withSessionGate((gate) => gate.abandon())
+        sessionGate.abandon()
+        onLoggedOutRef.current?.()
         setSessionLost(false)
         setAuth({ status: 'anonymous' })
       })

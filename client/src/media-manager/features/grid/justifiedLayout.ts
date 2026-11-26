@@ -1,4 +1,4 @@
-import { MEDIA_KINDS, ROW_STRIDE } from '../../../../../../shared/library-api'
+import { MEDIA_KINDS, ROW_STRIDE } from '../../../../../shared/library-api'
 
 // The justified (Flickr-style) grid layout, ported from the design
 // prototype's `grid.js` (`justifiedRows`) and `data.js` (`aspectRatio`) as a
@@ -6,7 +6,9 @@ import { MEDIA_KINDS, ROW_STRIDE } from '../../../../../../shared/library-api'
 // lookup, the ↑/↓ neighbour rule, a pinned-row range for the virtualiser,
 // and scroll anchoring across re-layouts.
 //
-// Spike C1 (plan §10). Written so track A1 can lift it as-is.
+// Spike C1 (plan §10), lifted into the grid in M2. The `square` option is
+// the square layout (interaction-spec §2): every item counts as 1:1, and the
+// last row takes the full rows' cell size, so all cells match.
 //
 // Why typed arrays instead of row/tile objects: a 50k-item collection must
 // lay out in ≤ 50 ms (plan §9), and it re-lays out on every container resize
@@ -53,6 +55,8 @@ export interface JustifiedLayoutOptions {
   targetHeight: number
   /** Gap between tiles in a row and between rows, in px. */
   gap: number
+  /** Square cells (the square layout): every item lays out as 1:1. */
+  square?: boolean
 }
 
 /**
@@ -99,7 +103,12 @@ export interface JustifiedLayout {
  */
 export function computeJustifiedLayout(
   rows: ArrayLike<number>,
-  { containerWidth: requestedWidth, targetHeight, gap }: JustifiedLayoutOptions,
+  {
+    containerWidth: requestedWidth,
+    targetHeight,
+    gap,
+    square = false,
+  }: JustifiedLayoutOptions,
 ): JustifiedLayout {
   const count = Math.floor(rows.length / ROW_STRIDE)
   const containerWidth = Math.max(1, requestedWidth)
@@ -139,11 +148,13 @@ export function computeJustifiedLayout(
 
   for (let i = 0; i < count; i++) {
     const offset = i * ROW_STRIDE
-    const ratio = aspectRatio(
-      rows[offset + 1] ?? 0,
-      rows[offset + 2] ?? 0,
-      rows[offset + 3] ?? 0,
-    )
+    const ratio = square
+      ? 1
+      : aspectRatio(
+          rows[offset + 1] ?? 0,
+          rows[offset + 2] ?? 0,
+          rows[offset + 3] ?? 0,
+        )
     itemWidth[i] = ratio
     ratioSum += ratio
     const gaps = gap * (i - start)
@@ -154,7 +165,14 @@ export function computeJustifiedLayout(
       ratioSum = 0
     }
   }
-  if (start < count) closeRow(start, count, targetHeight, false)
+  if (start < count) {
+    // Square cells keep one size: the last row matches the full rows.
+    const lastHeight =
+      square && rowCount > 0
+        ? (rowHeightScratch[rowCount - 1] as number)
+        : targetHeight
+    closeRow(start, count, lastHeight, false)
+  }
 
   const rowStart = rowStartScratch.slice(0, rowCount + 1)
   rowStart[rowCount] = count

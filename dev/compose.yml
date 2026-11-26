@@ -92,6 +92,9 @@ services:
     profiles: [tools]
     user: "${WPU_UID:?run this stack through dev/run}:${WPU_GID:?run this stack through dev/run}"
     entrypoint: ["sh", "/opt/make-dev-ca.sh"]
+    environment:
+      # A specific bind address also goes into the proxy certificate (LAN access by IP).
+      WPU_BIND_ADDRESS: ${WPU_BIND_ADDRESS:-127.0.0.1}
     volumes:
       - ./lib/make-dev-ca.sh:/opt/make-dev-ca.sh:ro
       - ${WPU_STATE_DIR:?run this stack through dev/run}/ca:/ca

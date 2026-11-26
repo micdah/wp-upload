@@ -7,14 +7,22 @@
 // or select primitives, or the component re-renders on every store change.
 
 import { useStore } from 'zustand'
+import { onSessionReset } from './sessionReset'
 import { type CoreStore, createCoreStore } from './store'
 
 export type { SelectionState } from './selection'
 export * as selectionRules from './selection'
+export { onSessionReset, resetSession } from './sessionReset'
 export * from './store'
 export { installCoreSync } from './sync'
 
 export const coreStore = createCoreStore()
+
+// A logout clears the selection, focus and overlays (sessionReset.ts).
+onSessionReset(() => {
+  coreStore.getState().resetSelection()
+  coreStore.getState().closeOverlay()
+})
 
 export function useCore<T>(selector: (state: CoreStore) => T): T {
   return useStore(coreStore, selector)

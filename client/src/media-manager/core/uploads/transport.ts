@@ -4,7 +4,9 @@
 // and the duplicate check.
 //
 // Uploads use XMLHttpRequest because fetch() can't report upload progress.
-// A 401 triggers the app's session-expired dialog, like apiFetch.
+// A 401 triggers the app's session-expired dialog, like apiFetch. Failures
+// are the data layer's LibraryError, so one error path (kind, code, toast
+// text) covers uploads and every other library call.
 
 import type {
   ApiError,
@@ -14,25 +16,29 @@ import type {
 } from '../../../../../shared/library-api'
 import { LIMITS } from '../../../../../shared/library-api'
 import { apiFetch, notifyUnauthorized } from '../../../lib/api'
+import { CLIENT_ERROR_CODES, LibraryError } from '../data/errors'
 
 const BASE = 'api/library/upload'
 
-/** A failed upload request: the HTTP status and the server's ApiError. */
-export class UploadRequestError extends Error {
-  readonly status: number
-  readonly code: string
-  readonly details: Record<string, unknown> | undefined
-  constructor(
-    status: number,
-    body: Partial<ApiError> | null,
-    fallback: string,
-  ) {
-    super(body?.message ?? fallback)
-    this.name = 'UploadRequestError'
-    this.status = status
-    this.code = body?.code ?? (status === 0 ? 'network_error' : 'http_error')
-    this.details = body?.details
+/**
+ * A failed upload request as a LibraryError: the server's ApiError, or a
+ * client code when there is none (status 0: the server wasn't reached).
+ */
+export function uploadError(
+  status: number,
+  body: Partial<ApiError> | null,
+  fallback: string,
+): LibraryError {
+  const code =
+    body?.code ??
+    (status === 0
+      ? CLIENT_ERROR_CODES.network
+      : CLIENT_ERROR_CODES.invalidResponse)
+  const envelope: ApiError = { code, message: body?.message ?? fallback }
+  if (body?.details !== undefined) {
+    envelope.details = body.details
   }
+  return new LibraryError(status, envelope)
 }
 
 export interface UploadProgress {
@@ -98,7 +104,7 @@ export function startUpload(
           resolve(JSON.parse(xhr.responseText) as JobAccepted)
         } catch {
           reject(
-            new UploadRequestError(
+            uploadError(
               xhr.status,
               null,
               'The server sent an unreadable response.',
@@ -108,7 +114,7 @@ export function startUpload(
         return
       }
       reject(
-        new UploadRequestError(
+        uploadError(
           xhr.status,
           parseError(xhr),
           `Upload failed (HTTP ${xhr.status}).`,
@@ -118,7 +124,7 @@ export function startUpload(
     xhr.onerror = () => {
       detach()
       reject(
-        new UploadRequestError(
+        uploadError(
           0,
           null,
           'Could not reach the server. Check your connection.',
@@ -146,7 +152,7 @@ async function readJson<T>(response: Response, fallback: string): Promise<T> {
     } catch {
       // Non-JSON error page.
     }
-    throw new UploadRequestError(response.status, body, fallback)
+    throw uploadError(response.status, body, fallback)
   }
   return (await response.json()) as T
 }

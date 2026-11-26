@@ -1,19 +1,17 @@
 /* The shell layout (interaction-spec §6, prototype css/layout.css).
-   Surfaces, lines and z-indices come from the theme's tokens (track F3);
-   the fallbacks keep Mantine's defaults until it lands. */
+   Surfaces, lines, z-indices and the layout dimensions (--toolbar-h,
+   --rail-w, --folders-w, --inspector-panel-w) are the theme's tokens
+   (track F3). The shell sets --folders-w inline to the remembered width. */
 
 .app {
-  --mm-toolbar-h: 48px;
-  --mm-rail-w: 48px;
-  --mm-inspector-panel-w: 312px;
-  --mm-folders-current: var(--mm-folders-width, 280px);
-  --mm-inspector-current: calc(var(--mm-rail-w) + var(--mm-inspector-panel-w));
+  --mm-folders-current: var(--folders-w);
+  --mm-inspector-current: calc(var(--rail-w) + var(--inspector-panel-w));
 
   display: grid;
   grid-template-columns: var(--mm-folders-current) minmax(0, 1fr) var(
       --mm-inspector-current
     );
-  grid-template-rows: var(--mm-toolbar-h) auto minmax(0, 1fr);
+  grid-template-rows: var(--toolbar-h) auto minmax(0, 1fr);
   grid-template-areas:
     "toolbar toolbar toolbar"
     "banners banners banners"
@@ -32,7 +30,7 @@
 }
 
 .app[data-inspector="closed"] {
-  --mm-inspector-current: var(--mm-rail-w);
+  --mm-inspector-current: var(--rail-w);
 }
 
 .app[data-resizing] {
@@ -57,8 +55,10 @@
 .brand {
   flex: none;
   padding-inline: var(--mantine-spacing-xs);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-family: var(--font-brand);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .toolbarSlot:empty {
@@ -191,7 +191,7 @@
 
 .scrim {
   position: fixed;
-  inset: var(--mm-toolbar-h) 0 0;
+  inset: var(--toolbar-h) 0 0;
   z-index: calc(var(--z-drawer, 10) - 1);
   background: rgb(0 0 0 / 0.4);
 }
@@ -201,12 +201,12 @@
   .app,
   .app[data-folders="closed"],
   .app[data-inspector="closed"] {
-    grid-template-columns: 0 minmax(0, 1fr) var(--mm-rail-w);
+    grid-template-columns: 0 minmax(0, 1fr) var(--rail-w);
   }
 
   .folders {
     position: fixed;
-    top: var(--mm-toolbar-h);
+    top: var(--toolbar-h);
     bottom: 0;
     left: 0;
     width: min(320px, 85vw);
@@ -222,7 +222,7 @@
 
   .app[data-inspector="open"] .inspector {
     position: fixed;
-    top: var(--mm-toolbar-h);
+    top: var(--toolbar-h);
     bottom: 0;
     right: 0;
     width: min(360px, 92vw);

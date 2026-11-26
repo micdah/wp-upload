@@ -1,10 +1,23 @@
-// Stub entry for the `grid` feature: the justified/square grid, tiles and selection.
-// Owned by track A1 (docs/media-manager/implementation-plan.md §7).
-// The shell imports these exports directly: keep their names and replace
-// the bodies. register() wires commands, key bindings and palette sources.
+// The `grid` feature: the justified/square grid, tiles and selection
+// (interaction-spec §2). Built in M2 as the vertical slice; track A1
+// extends it in wave A (badges, upload state, peek, filters' empty states).
+// The shell imports these exports directly: keep their names.
 
-export function GridView() {
-  return null
+import { implementCommand } from '../../core/commands/registry'
+import { moveFocus, moveFocusAvailability } from './controller'
+
+export { GridView } from './GridView'
+
+let registered = false
+
+/** Wires the grid's commands. Idempotent. */
+export function register(): void {
+  if (registered) {
+    return
+  }
+  registered = true
+  implementCommand('grid.move-focus', {
+    available: () => moveFocusAvailability(),
+    run: (args) => moveFocus(args.to, args.mode),
+  })
 }
-
-export function register(): void {}

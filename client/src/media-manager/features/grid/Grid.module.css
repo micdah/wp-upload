@@ -1,0 +1,294 @@
+/* The grid (interaction-spec §2, prototype components.css `.grid`/`.tile`).
+   Tiles are absolutely positioned from the justified layout; rows are the
+   virtualiser's items. No `content-visibility` on rows or tiles: the morph
+   must be able to capture a freshly mounted tile (spike C2). */
+
+.scroller {
+  /* Own stacking context, so tile rings never show through detail mode. */
+  isolation: isolate;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* A scrollbar appearing never changes the width the layout fills (C1). */
+  scrollbar-gutter: stable;
+  outline: none;
+}
+
+.scroller[data-placeholder] {
+  opacity: 0.6;
+  transition: opacity var(--dur-2) var(--ease-standard);
+}
+
+.grid {
+  position: relative;
+  margin-inline: auto;
+}
+
+.row {
+  position: absolute;
+  left: 0;
+}
+
+.tile {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-tile);
+  background: var(--surface-tile);
+  cursor: default;
+  user-select: none;
+  /* No double-tap zoom on tiles: two taps open detail (GridView). */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transition:
+    transform var(--dur-2) var(--ease-standard),
+    border-radius var(--dur-2) var(--ease-standard);
+}
+
+.media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+}
+
+.media img[data-loaded] {
+  opacity: 1;
+}
+
+/* Transparent pictures (SVG) sit on a neutral checkerboard, contained. */
+.media[data-checker] {
+  background-image:
+    linear-gradient(45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--surface-hover) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-hover) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--surface-hover) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+}
+
+.media[data-checker] img {
+  object-fit: contain;
+  padding: 12%;
+}
+
+/* Non-picture items: a neutral card with a type icon and the file name. */
+.card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  color: var(--text-2);
+  text-align: center;
+  transition: transform var(--dur-2) var(--ease-standard);
+}
+
+.cardName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-12);
+}
+
+/* Hover scrim: a soft top gradient that carries the check circle. */
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 56px;
+  z-index: 1;
+  background: linear-gradient(rgb(0 0 0 / 0.35), transparent);
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease-out);
+  pointer-events: none;
+}
+
+.tile:hover::before,
+.grid[data-selecting] .tile::before {
+  opacity: 1;
+}
+
+.check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid rgb(255 255 255 / 0.85);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.15);
+  color: transparent;
+  opacity: 0;
+  transition:
+    opacity var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out);
+}
+
+.tile:hover .check,
+.grid[data-selecting] .check,
+.tile[aria-selected="true"] .check {
+  opacity: 1;
+}
+
+.tile[aria-selected="true"] .check {
+  border-color: var(--select-ring);
+  background: var(--select-ring);
+  color: var(--text-on-select);
+  box-shadow: var(--glow-accent);
+}
+
+.name {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  padding: var(--space-5) var(--space-2) 6px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.7));
+  color: #fff;
+  font-size: var(--fs-11);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Hidden, not just transparent, at rest: the tile's accessible name is
+     the item's title, and axe counts transparent text as visible. */
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity var(--dur-1) var(--ease-out),
+    visibility var(--dur-1);
+}
+
+.tile:hover .name {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Rings (selection, focus) are drawn by ::after above the picture, so they
+   stay visible on full-bleed photos. Each state sets --tile-ring. */
+.tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: var(--tile-ring, 0 0 0 0 transparent);
+  pointer-events: none;
+}
+
+/* Selected: the picture shrinks inside its cell, a neon ring marks it. */
+.tile[aria-selected="true"] {
+  --tile-ring: inset 0 0 0 2px var(--select-ring);
+  background: var(--select-tint);
+}
+
+.tile[aria-selected="true"] .media,
+.tile[aria-selected="true"] .card {
+  transform: scale(var(--tile-selected-scale));
+  border-radius: var(--radius-tile-selected);
+}
+
+/* Keyboard focus: a crisp inner ring with a dark hairline, distinct from
+   the selection ring. */
+.tile:focus-visible {
+  --tile-ring:
+    inset 0 0 0 2px var(--focus-ring), inset 0 0 0 3px rgb(0 0 0 / 0.5);
+  outline: none;
+}
+
+.tile[aria-selected="true"]:focus-visible {
+  --tile-ring:
+    inset 0 0 0 2px var(--select-ring), inset 0 0 0 4px var(--surface-app),
+    inset 0 0 0 6px var(--focus-ring);
+}
+
+/* The tile you return to from detail mode: a fading accent ring. */
+.tile[data-returning]::after {
+  animation: return-highlight 900ms var(--ease-out);
+}
+
+@keyframes return-highlight {
+  from {
+    box-shadow: inset 0 0 0 3px var(--accent);
+  }
+}
+
+/* Loading: skeleton rows shaped like the justified grid; no spinners. */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--grid-gap);
+  padding: var(--space-2) var(--space-4);
+  overflow: hidden;
+}
+
+.skeletonRow {
+  display: flex;
+  gap: var(--grid-gap);
+}
+
+.skeletonTile {
+  border-radius: var(--radius-tile);
+  background: linear-gradient(
+      90deg,
+      transparent,
+      var(--surface-hover),
+      transparent
+    )
+    var(--surface-tile);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+.empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  color: var(--text-2);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonTile {
+    animation: none;
+  }
+
+  .media,
+  .card {
+    transition-duration: 1ms;
+  }
+}

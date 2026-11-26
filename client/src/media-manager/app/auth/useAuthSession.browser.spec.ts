@@ -70,4 +70,18 @@ describe('useAuthSession and the session gate', () => {
     expect(await waiting).toBe('session_lost')
     expect(sessionGate.state).toBe('active')
   })
+
+  it('calls onLoggedOut once the server confirmed the logout (M2 glue 4)', async () => {
+    answerSession(() => true)
+    let loggedOut = 0
+    const { result } = renderHook(() =>
+      useAuthSession({ onLoggedOut: () => loggedOut++ }),
+    )
+    await waitFor(() =>
+      expect(result.current.auth.status).toBe('authenticated'),
+    )
+    act(() => result.current.logout())
+    await waitFor(() => expect(result.current.auth.status).toBe('anonymous'))
+    expect(loggedOut).toBe(1)
+  })
 })

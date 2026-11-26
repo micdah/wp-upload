@@ -25,8 +25,12 @@ final class UsageIndex {
 	/** Schema version; a change runs dbDelta() (§9.2). 2: `modified_gmt` on sources. */
 	public const DB_VERSION = '2';
 
-	/** Parser version; sources scanned with a lower one are rescanned. 2: fills `modified_gmt`. */
-	public const ROW_VERSION = 2;
+	/**
+	 * Parser version; sources scanned with a lower one are rescanned. 2: fills
+	 * `modified_gmt`. 3: `[gallery]` without ids (D40) and Visual Portfolio's
+	 * placeholder image (D44).
+	 */
+	public const ROW_VERSION = 3;
 
 	public const DB_VERSION_OPTION = 'wpu_usage_index_db_version';
 	public const STATE_OPTION      = 'wpu_usage_index_state';
@@ -43,22 +47,34 @@ final class UsageIndex {
 
 	private const STATUSES = array( 'publish', 'future', 'draft', 'pending', 'private' );
 
-	/** Site-level options that hold a used attachment id. */
-	private const SITE_OPTIONS = array( 'site_logo', 'site_icon' );
+	/** Site-level options that hold a used attachment id (`vp_general`: Visual Portfolio's placeholder, D44). */
+	private const SITE_OPTIONS = array( 'site_logo', 'site_icon', 'vp_general' );
 
 	private static ?Parser $parser = null;
+
+	/** @var array<int, true> Posts whose attached images changed in this request (D40), rescanned once at its end. */
+	private static array $gallery_parents = array();
 
 	public static function register(): void {
 		Plugin::provide_feature( 'usage' );
 		Plugin::provide_feature( 'usage-visual-portfolio' );
 		WpuField::add_provider( new UsageCountProvider() );
 		self::ensure_schema();
+		self::ensure_parser_version();
 
 		add_action( 'save_post', array( self::class, 'on_save_post' ), 20, 2 );
 		add_action( 'deleted_post', array( self::class, 'on_deleted_post' ), 10, 2 );
 		add_action( 'trashed_post', array( self::class, 'on_post_changed' ) );
 		add_action( 'untrashed_post', array( self::class, 'on_post_changed' ) );
 		add_action( 'delete_attachment', array( self::class, 'on_delete_attachment' ) );
+		// D40: a `[gallery]` without ids shows the post's attached images.
+		add_action( 'add_attachment', array( self::class, 'on_add_attachment' ) );
+		add_action( 'attachment_updated', array( self::class, 'on_attachment_updated' ), 10, 3 );
+		add_action( 'wp_media_attach_action', array( self::class, 'on_media_attach_action' ), 10, 3 );
+		// The parents collected above are rescanned once: before a REST response is served (and
+		// before Rev's own flush at 1000, so the rev covers it), else at the end of the request.
+		add_filter( 'rest_post_dispatch', array( self::class, 'flush_gallery_parents_filter' ), 999, 1 );
+		add_action( 'shutdown', array( self::class, 'flush_gallery_parents' ), -10, 0 );
 		foreach ( array( 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ) as $hook ) {
 			add_action( $hook, array( self::class, 'on_post_meta' ), 10, 3 );
 		}
@@ -226,7 +242,48 @@ final class UsageIndex {
 		$missed                    = $wpdb->get_var( "SELECT p.ID FROM {$wpdb->posts} p LEFT JOIN " . self::sources_table() . " s ON s.source_id = p.ID WHERE {$type_sql} AND {$status_sql} AND (s.source_id IS NULL OR NOT (s.modified_gmt <=> p.post_modified_gmt)) LIMIT 1" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( null !== $missed ) {
 			self::mark_stale();
+			return;
 		}
+		// Posts scanned by an older parser, or left for maintenance by a rescan (row_version 0),
+		// aren't stale: the next steps rescan just those.
+		$outdated = $wpdb->get_var( $wpdb->prepare( 'SELECT source_id FROM ' . self::sources_table() . ' WHERE row_version < %d LIMIT 1', self::ROW_VERSION ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( null !== $outdated ) {
+			self::mark_building();
+		}
+	}
+
+	/**
+	 * A ready index has posts to rescan (a parser upgrade, or a rescan that left
+	 * posts for maintenance): `building` until the maintenance steps have done
+	 * them, so `complete` never claims usage that wasn't looked for.
+	 */
+	public static function mark_building(): void {
+		$state = self::state();
+		if ( 'ready' !== $state['state'] ) {
+			return;
+		}
+		$state['state'] = 'building';
+		self::save_state( $state );
+		Rev::touch();
+	}
+
+	/**
+	 * A plugin update with a new parser (ROW_VERSION) has the maintenance
+	 * steps rescan every post (their rows are older), and the index isn't
+	 * complete until then. The version is kept in the state option, which is
+	 * autoloaded, so this costs no query.
+	 */
+	private static function ensure_parser_version(): void {
+		$state = self::state();
+		if ( self::ROW_VERSION === $state['parser'] ) {
+			return;
+		}
+		if ( 'ready' === $state['state'] ) {
+			$state['state'] = 'building';
+		}
+		$state['parser'] = self::ROW_VERSION;
+		self::save_state( $state );
+		Rev::touch();
 	}
 
 	/**
@@ -329,8 +386,63 @@ final class UsageIndex {
 
 	public static function on_post_changed( int $post_id ): void {
 		$post = get_post( $post_id );
-		if ( $post instanceof \WP_Post ) {
-			self::changed_post( $post_id, $post );
+		if ( ! $post instanceof \WP_Post ) {
+			return;
+		}
+		if ( 'attachment' === $post->post_type ) {
+			// Trashing or restoring an attachment goes through wp_update_post(), so
+			// on_attachment_updated() handles its galleries (D40).
+			return;
+		}
+		self::changed_post( $post_id, $post );
+	}
+
+	/**
+	 * An upload attached to a post at once joins that post's `[gallery]` (D40).
+	 */
+	public static function on_add_attachment( int $attachment_id ): void {
+		$post = get_post( $attachment_id );
+		if ( $post instanceof \WP_Post && self::is_image( $post ) ) {
+			self::queue_gallery_parent( (int) $post->post_parent );
+		}
+	}
+
+	/**
+	 * Attaching, detaching or moving an image through wp_update_post() (core
+	 * REST, `/media/batch`'s `set.post`), or changing its status (D40).
+	 *
+	 * @param int      $attachment_id The attachment.
+	 * @param \WP_Post $after         The attachment after the update.
+	 * @param \WP_Post $before        The attachment before the update.
+	 */
+	public static function on_attachment_updated( int $attachment_id, $after, $before ): void {
+		if ( ! $after instanceof \WP_Post || ! $before instanceof \WP_Post ) {
+			return;
+		}
+		$moved      = (int) $after->post_parent !== (int) $before->post_parent;
+		$restatused = $after->post_status !== $before->post_status || $after->post_mime_type !== $before->post_mime_type;
+		if ( ( ! $moved && ! $restatused ) || ( ! self::is_image( $after ) && ! self::is_image( $before ) ) ) {
+			return;
+		}
+		self::queue_gallery_parent( (int) $after->post_parent );
+		self::queue_gallery_parent( (int) $before->post_parent );
+	}
+
+	/**
+	 * wp-admin's Attach and Detach (wp_media_attach_action()) write
+	 * `post_parent` with SQL and then fire this with the parent (D40).
+	 *
+	 * @param string $action        `attach` or `detach`.
+	 * @param int    $attachment_id The attachment.
+	 * @param int    $parent_id     The post attached to, or detached from.
+	 */
+	public static function on_media_attach_action( $action, $attachment_id, $parent_id ): void {
+		// Core changed post_parent with SQL and fires this before clean_attachment_cache(): a
+		// persistent object cache would still answer the old parent.
+		clean_post_cache( (int) $attachment_id );
+		$attachment = get_post( (int) $attachment_id );
+		if ( $attachment instanceof \WP_Post && self::is_image( $attachment ) ) {
+			self::queue_gallery_parent( (int) $parent_id );
 		}
 	}
 
@@ -410,6 +522,8 @@ final class UsageIndex {
 					'%' . $wpdb->esc_like( '[visual_portfolio' ) . '%'
 				)
 			);
+			// And the site-level slots: Visual Portfolio's placeholder image (D44).
+			$wpdb->update( self::sources_table(), array( 'row_version' => 0 ), array( 'source_id' => 0 ), array( '%d' ), array( '%d' ) );
 			if ( 'ready' === $state['state'] ) {
 				$state['state'] = 'building';
 			}
@@ -448,17 +562,118 @@ final class UsageIndex {
 				'%' . $wpdb->esc_like( '[visual_portfolio' ) . '%'
 			)
 		);
-		$changed = false;
-		foreach ( array_map( 'intval', (array) $ids ) as $index => $id ) {
+		self::reindex_now_or_later( array_values( array_map( 'intval', (array) $ids ) ) );
+	}
+
+	/**
+	 * Rescans the first BATCH posts now and leaves the rest for the
+	 * maintenance step (row_version 0); then the index is `building` until
+	 * that step has done them.
+	 *
+	 * @param list<int> $ids
+	 */
+	private static function reindex_now_or_later( array $ids ): void {
+		global $wpdb;
+		$changed  = false;
+		$deferred = false;
+		foreach ( $ids as $index => $id ) {
 			if ( $index < self::BATCH ) {
 				$changed = self::reindex_post( $id ) || $changed;
-			} else {
-				$wpdb->update( self::sources_table(), array( 'row_version' => 0 ), array( 'source_id' => $id ), array( '%d' ), array( '%d' ) );
+				continue;
 			}
+			$wpdb->update( self::sources_table(), array( 'row_version' => 0 ), array( 'source_id' => $id ), array( '%d' ), array( '%d' ) );
+			$deferred = true;
+		}
+		if ( $deferred ) {
+			self::mark_building();
 		}
 		if ( $changed ) {
 			Rev::touch();
 		}
+	}
+
+	/**
+	 * The attached images of a post changed (D40): it is rescanned, with the
+	 * posts whose `[gallery id="<post>"]` shows them, once at the end of the
+	 * request (flush_gallery_parents), however many items changed.
+	 */
+	private static function queue_gallery_parent( int $parent_id ): void {
+		if ( $parent_id > 0 ) {
+			self::$gallery_parents[ $parent_id ] = true;
+		}
+	}
+
+	/**
+	 * @param mixed $response Passed through untouched.
+	 * @return mixed
+	 */
+	public static function flush_gallery_parents_filter( $response ) {
+		self::flush_gallery_parents();
+		return $response;
+	}
+
+	/**
+	 * Rescans the queued parents' galleries: one query for the indexable posts
+	 * that contain `[gallery` and are a queued parent or mention `id=`, then a
+	 * check in PHP that each other post really has a `[gallery]` without ids
+	 * whose `id` is a queued parent. The first BATCH are rescanned now, the
+	 * rest by the maintenance step.
+	 */
+	public static function flush_gallery_parents(): void {
+		if ( array() === self::$gallery_parents ) {
+			return;
+		}
+		$parents               = self::$gallery_parents;
+		self::$gallery_parents = array();
+		global $wpdb;
+		[ $type_sql, $status_sql ] = self::indexable_sql( 'p' );
+		$parent_list               = implode( ',', array_map( 'intval', array_keys( $parents ) ) );
+		$rows                      = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT p.ID, p.post_content FROM {$wpdb->posts} p WHERE {$type_sql} AND {$status_sql} AND p.post_content LIKE %s AND (p.ID IN ({$parent_list}) OR p.post_content LIKE %s) ORDER BY p.ID", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				'%' . $wpdb->esc_like( '[gallery' ) . '%',
+				'%' . $wpdb->esc_like( 'id=' ) . '%'
+			)
+		);
+		$ids = array();
+		foreach ( (array) $rows as $row ) {
+			$id = (int) $row->ID;
+			if ( isset( $parents[ $id ] ) || self::shows_attached_images_of( (string) $row->post_content, $parents ) ) {
+				$ids[] = $id;
+			}
+		}
+		self::reindex_now_or_later( $ids );
+	}
+
+	/**
+	 * Whether the content has a `[gallery]` without `ids`/`include` whose
+	 * `id` attribute names one of the parents.
+	 *
+	 * @param array<int, true> $parents
+	 */
+	private static function shows_attached_images_of( string $content, array $parents ): bool {
+		if ( ! preg_match_all( '/' . get_shortcode_regex( array( 'gallery' ) ) . '/', $content, $matches, PREG_SET_ORDER ) ) {
+			return false;
+		}
+		foreach ( $matches as $match ) {
+			$atts = shortcode_parse_atts( $match[3] );
+			$atts = is_array( $atts ) ? $atts : array();
+			if ( '' !== trim( (string) ( $atts['ids'] ?? $atts['include'] ?? '' ) ) ) {
+				continue;
+			}
+			$id = (int) ( $atts['id'] ?? 0 );
+			if ( $id > 0 && isset( $parents[ $id ] ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Only images appear in a `[gallery]`.
+	 */
+	private static function is_image( \WP_Post $attachment ): bool {
+		return str_starts_with( (string) $attachment->post_mime_type, 'image/' );
 	}
 
 	/**
@@ -630,7 +845,9 @@ final class UsageIndex {
 	 * reconcile pass's last id, null outside one) and `vp` (whether Visual
 	 * Portfolio was active at the last check).
 	 *
-	 * @return array{state: string, done: int, total: int, staleSince: ?string, cursor: ?int, vp: bool}
+	 * Also `parser`: the ROW_VERSION the state was last checked against.
+	 *
+	 * @return array{state: string, done: int, total: int, staleSince: ?string, cursor: ?int, vp: bool, parser: int}
 	 */
 	public static function state(): array {
 		$stored = get_option( self::STATE_OPTION );
@@ -643,6 +860,7 @@ final class UsageIndex {
 			'staleSince' => isset( $stored['staleSince'] ) ? (string) $stored['staleSince'] : null,
 			'cursor'     => isset( $stored['cursor'] ) ? (int) $stored['cursor'] : null,
 			'vp'         => (bool) ( $stored['vp'] ?? false ),
+			'parser'     => (int) ( $stored['parser'] ?? 0 ),
 		);
 	}
 

@@ -1,4 +1,4 @@
-import '@mantine/core/styles.css'
+import './mantineStyles'
 import './fonts'
 import './theme.css'
 import {

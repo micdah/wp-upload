@@ -35,6 +35,9 @@ final class Parser {
 
 	private ?string $uploads_path = null;
 
+	/** The post being parsed: a `[gallery]` without ids shows its attached images. */
+	private int $post_id = 0;
+
 	public function __construct( bool $visual_portfolio ) {
 		$this->visual_portfolio = $visual_portfolio;
 	}
@@ -46,8 +49,9 @@ final class Parser {
 	 * @return array<int, list<string>> attachment id => contexts
 	 */
 	public function parse_post( \WP_Post $post ): array {
-		$this->found = array();
-		$this->paths = array();
+		$this->found   = array();
+		$this->paths   = array();
+		$this->post_id = $post->ID;
 		// Layout images are cached for one post only: a layout's `vp_images` may change
 		// later in the same request (e.g. meta written after save_post).
 		$this->layout_images = array();
@@ -72,12 +76,14 @@ final class Parser {
 	}
 
 	/**
-	 * The site-level uses (source 0): the site logo and the site icon.
+	 * The site-level uses (source 0): the site logo, the site icon and, with
+	 * Visual Portfolio, its "no image" placeholder attachment (D44).
 	 *
 	 * @return array<int, list<string>>
 	 */
 	public function parse_site(): array {
-		$this->found = array();
+		$this->found   = array();
+		$this->post_id = 0;
 		$logo        = (int) get_option( 'site_logo' );
 		if ( $logo <= 0 ) {
 			$logo = (int) get_theme_mod( 'custom_logo' );
@@ -88,6 +94,14 @@ final class Parser {
 		$icon = (int) get_option( 'site_icon' );
 		if ( $icon > 0 ) {
 			$this->add( $icon, 'site-icon' );
+		}
+		if ( $this->visual_portfolio ) {
+			// Visual Portfolio shows this attachment wherever an item has no image (D44).
+			$general     = get_option( 'vp_general' );
+			$placeholder = is_array( $general ) ? self::int_value( $general['no_image'] ?? null ) : null;
+			if ( null !== $placeholder ) {
+				$this->add( $placeholder, 'visual-portfolio' );
+			}
 		}
 		return $this->existing_only( $this->found );
 	}
@@ -203,7 +217,8 @@ final class Parser {
 			$atts = is_array( $atts ) ? $atts : array();
 			if ( 'gallery' === $match[2] ) {
 				$list = (string) ( $atts['ids'] ?? $atts['include'] ?? '' );
-				foreach ( self::int_list( explode( ',', $list ) ) as $id ) {
+				$ids  = '' === trim( $list ) ? $this->attached_images( $atts ) : self::int_list( explode( ',', $list ) );
+				foreach ( $ids as $id ) {
 					$this->add( $id, 'shortcode-gallery' );
 				}
 				continue;
@@ -215,6 +230,36 @@ final class Parser {
 				}
 			}
 		}
+	}
+
+	/**
+	 * A `[gallery]` without `ids`/`include` shows the images attached to a
+	 * post (D40): its `id` attribute, else the post that contains it, minus
+	 * `exclude`. The same query as core's gallery_shortcode(): image
+	 * attachments with status `inherit` whose `post_parent` is that post.
+	 *
+	 * @param array<string, mixed> $atts
+	 * @return list<int>
+	 */
+	private function attached_images( array $atts ): array {
+		$parent = self::int_value( $atts['id'] ?? null ) ?? $this->post_id;
+		if ( $parent <= 0 ) {
+			return array();
+		}
+		$exclude = self::int_list( (string) ( $atts['exclude'] ?? '' ) );
+		$ids     = get_children(
+			array(
+				'post_parent'    => $parent,
+				'post_status'    => 'inherit',
+				'post_type'      => 'attachment',
+				'post_mime_type' => 'image',
+				'fields'         => 'ids',
+				// Fresh from the database: core's wp_media_attach_action() writes post_parent
+				// with SQL, so a persistent object cache may still hold the old children.
+				'cache_results'  => false,
+			)
+		);
+		return array_values( array_diff( array_map( 'intval', (array) $ids ), $exclude ) );
 	}
 
 	/**

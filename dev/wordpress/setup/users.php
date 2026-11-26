@@ -1,24 +1,27 @@
 <?php
 /**
- * Ensures the dev/test stack's two app users and their Application Passwords exist (D26):
+ * Ensures the dev/test stack's two app users and their Application Passwords exist (D26), plus
+ * an Application Password for the administrator:
  *
  * - the app user (an Editor, D9) that the `app` container and the host server log in as. Its
  *   role can be switched with `dev/run variant role=editor|author`;
  * - a separate Author user, so tests can check per-item permissions on another user's media in
- *   one run, without flipping the app user's role.
+ *   one run, without flipping the app user's role;
+ * - the administrator (created by the install), whose password lets the contract tests in the
+ *   runner use the dev mu-plugin's admin-only `wpu-dev/v1/eval` route instead of `wp eval`.
  *
  * Run by `dev/run up` and after every snapshot restore, through `wp eval-file`. Never shipped.
  *
  * Arguments: <app login> <known app password> <author login> <known author password>
- * (a known password may be an empty string).
+ * <admin login> <known admin password> (a known password may be an empty string).
  *
  * Why it takes the known passwords: `up` is idempotent, and a snapshot restore brings back the
  * password hashes of the time the snapshot was taken. When dev/run still holds a password that
  * WordPress accepts, it is kept, so a running dev server, the `app` container and the
  * snapshots stay valid. Otherwise the old dev password is revoked and a new one is created.
  *
- * Prints two lines on stdout and nothing else: the valid app password, then the valid Author
- * password.
+ * Prints three lines on stdout and nothing else: the valid app password, the valid Author
+ * password, then the valid administrator app password.
  */
 
 const WPU_DEV_APP_PASSWORD_NAME = 'wp-upload dev stack';
@@ -27,8 +30,10 @@ $wpu_users_app_login    = $args[0] ?? '';
 $wpu_users_app_known    = $args[1] ?? '';
 $wpu_users_author_login = $args[2] ?? '';
 $wpu_users_author_known = $args[3] ?? '';
-if ( '' === $wpu_users_app_login || '' === $wpu_users_author_login ) {
-	WP_CLI::error( 'Usage: wp eval-file users.php <app login> <known app password> <author login> <known author password>' );
+$wpu_users_admin_login  = $args[4] ?? '';
+$wpu_users_admin_known  = $args[5] ?? '';
+if ( '' === $wpu_users_app_login || '' === $wpu_users_author_login || '' === $wpu_users_admin_login ) {
+	WP_CLI::error( 'Usage: wp eval-file users.php <app login> <known app password> <author login> <known author password> <admin login> <known admin password>' );
 }
 
 /**
@@ -133,5 +138,12 @@ if ( array( 'author' ) !== array_values( $wpu_users_author->roles ) ) {
 }
 update_option( 'wpu_dev_author_user', $wpu_users_author_login );
 
+// The administrator exists since the install; it only gets an app password here.
+$wpu_users_admin = get_user_by( 'login', $wpu_users_admin_login );
+if ( ! $wpu_users_admin ) {
+	WP_CLI::error( "The administrator '$wpu_users_admin_login' doesn't exist." );
+}
+
 echo wpu_dev_valid_password( $wpu_users_app, $wpu_users_app_known ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 echo wpu_dev_valid_password( $wpu_users_author, $wpu_users_author_known ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput
+echo wpu_dev_valid_password( $wpu_users_admin, $wpu_users_admin_known ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput

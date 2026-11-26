@@ -10,6 +10,7 @@ import type { FolderTree } from '../../../shared/library-api.ts'
 import { anonymous, editor, PLUGIN } from './support/http.ts'
 import {
   collection,
+  ensureMediaIndexReady,
   expectError,
   folderTree,
   hydrate,
@@ -18,6 +19,7 @@ import {
   parse,
   toRows,
 } from './support/library.ts'
+import { makePng, rest } from './support/p2.ts'
 import {
   asAuthor,
   authorAvailable,
@@ -25,6 +27,8 @@ import {
   SKIP_REASON,
   setVariant,
   variantsAvailable,
+  wpEval,
+  wpEvalAvailable,
 } from './support/variants.ts'
 
 const RUN = `p1t${Date.now().toString(36)}`
@@ -105,6 +109,80 @@ describe('GET /folders', () => {
     expectError(await anonymous.get(`${PLUGIN}/folders`), 403, 'wpu_forbidden')
   })
 })
+
+describe.skipIf(!authorAvailable)(
+  'GET /folders as an Author (D41: counts follow the collection’s visibility)',
+  () => {
+    let hiddenItem = 0
+    let draftPost = 0
+    let folder = 0
+
+    beforeAll(async () => {
+      folder = (await createFolder(`${RUN} D41`)).folder.id
+      // An Editor's image attached to the Editor's draft: an Author can't read it (§5.2).
+      const draft = await editor.post('/wp/v2/posts', {
+        title: `${RUN} D41 draft`,
+        status: 'draft',
+      })
+      expect(draft.status).toBe(201)
+      draftPost = draft.body.id
+      const form = new FormData()
+      form.append(
+        'file',
+        new Blob([new Uint8Array(makePng(24, 24))], { type: 'image/png' }),
+        `${RUN}-d41.png`,
+      )
+      form.append('post', String(draftPost))
+      const uploaded = await rest('POST', '/wp/v2/media', { form })
+      expect(uploaded.status).toBe(201)
+      hiddenItem = uploaded.json.id
+      await assign(folder, [hiddenItem])
+    })
+
+    afterAll(async () => {
+      await editor.del(`/wp/v2/media/${hiddenItem}?force=true`)
+      await editor.del(`/wp/v2/posts/${draftPost}?force=true`)
+      await cleanUp()
+    })
+
+    async function expectCountsMatchCollection(): Promise<void> {
+      await asAuthor(async (author) => {
+        const tree = await folderTree(author)
+        expect(tree.folders.find((entry) => entry.id === folder)?.count).toBe(0)
+        for (const entry of tree.folders) {
+          expect(entry.count, `folder ${entry.id} (${entry.name})`).toBe(
+            (await collection({ folder: entry.id }, author)).total,
+          )
+        }
+        expect(tree.counts.all).toBe((await collection({}, author)).total)
+        expect(tree.counts.uncategorized).toBe(
+          (await collection({ folder: 0 }, author)).total,
+        )
+      })
+      const editorTree = await folderTree()
+      expect(
+        editorTree.folders.find((entry) => entry.id === folder)?.count,
+      ).toBe(1)
+    }
+
+    it('counts what the Author sees in each folder, in total and in Uncategorized', async () => {
+      await expectCountsMatchCollection()
+    })
+
+    it.skipIf(!wpEvalAvailable)(
+      'counts the same from FileBird’s relation table while the index is stale',
+      async () => {
+        wpEval('WpUpload\\Companion\\Index\\MediaIndex::mark_stale();')
+        try {
+          expect((await info()).index.media.state).not.toBe('ready')
+          await expectCountsMatchCollection()
+        } finally {
+          await ensureMediaIndexReady()
+        }
+      },
+    )
+  },
+)
 
 describe('POST /folders', () => {
   afterAll(cleanUp)

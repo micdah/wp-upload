@@ -1,38 +1,26 @@
-// The media manager's providers: Mantine (its own colour-scheme key, so the
-// old page's choice never leaks in), notifications, TanStack Query, and the
+// The media manager's providers: the theme (F3's MediaManagerThemeProvider:
+// tokens, fonts, its own colour-scheme key so the old page's choice never
+// leaks in), notifications, the data layer's QueryClient (F2), and the
 // single confirm dialog and live region.
 //
-// Track F3 supplies MediaManagerThemeProvider (theme from the design tokens,
-// the cssVariablesResolver, fonts). Until it merges this uses Mantine's
-// defaults; at integration the MantineProvider below is swapped for it.
+// The colour scheme follows the OS until the user picks one with the theme
+// toggle; the choice is remembered under `wpu-mm-color-scheme` (D48).
 
 import {
-  localStorageColorSchemeManager,
-  MantineProvider,
+  type MantineColorScheme,
   useComputedColorScheme,
   useMantineColorScheme,
 } from '@mantine/core'
-import { Notifications } from '@mantine/notifications'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { type ReactNode, useEffect } from 'react'
+import type { QueryClient } from '@tanstack/react-query'
+import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 import { implementCommand } from '../core/commands/registry'
+import { LibraryQueryProvider } from '../core/data/client'
 import { ConfirmHost } from '../core/ui/confirm'
 import { LiveRegion } from '../core/ui/LiveRegion'
-import '@mantine/core/styles.css'
-import '@mantine/notifications/styles.css'
+import { MediaManagerThemeProvider } from '../theme/MediaManagerThemeProvider'
 
-export const COLOR_SCHEME_KEY = 'wpu-media-manager:color-scheme'
-
-const colorSchemeManager = localStorageColorSchemeManager({
-  key: COLOR_SCHEME_KEY,
-})
-
-// TEMPORARY (M1): F2's core/data owns the QueryClient and its defaults.
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { refetchOnWindowFocus: false },
-  },
-})
+// The toasts' container is a lazy chunk (NotificationsHost.tsx).
+const NotificationsHost = lazy(() => import('./NotificationsHost'))
 
 /** Implements `theme.toggle` (it needs Mantine's colour-scheme hooks). */
 function ThemeCommand() {
@@ -48,19 +36,30 @@ function ThemeCommand() {
   return null
 }
 
-export function AppProviders({ children }: { children: ReactNode }) {
+export interface AppProvidersProps {
+  children: ReactNode
+  /** A shared client (tests); one is created per mount otherwise. */
+  queryClient?: QueryClient
+  /** Pins the scheme (tests); otherwise the stored choice or the OS. */
+  forceColorScheme?: Exclude<MantineColorScheme, 'auto'>
+}
+
+export function AppProviders({
+  children,
+  queryClient,
+  forceColorScheme,
+}: AppProvidersProps) {
   return (
-    <MantineProvider
-      defaultColorScheme='auto'
-      colorSchemeManager={colorSchemeManager}
-    >
-      <QueryClientProvider client={queryClient}>
-        <Notifications position='bottom-right' />
+    <MediaManagerThemeProvider forceColorScheme={forceColorScheme}>
+      <LibraryQueryProvider client={queryClient}>
+        <Suspense fallback={null}>
+          <NotificationsHost />
+        </Suspense>
         <ThemeCommand />
         {children}
         <ConfirmHost />
         <LiveRegion />
-      </QueryClientProvider>
-    </MantineProvider>
+      </LibraryQueryProvider>
+    </MediaManagerThemeProvider>
   )
 }

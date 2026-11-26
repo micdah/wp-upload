@@ -1,8 +1,9 @@
 // Where the contract tests find WordPress and its users.
 //
 // In the runner (`dev/run test plugin-contract`) the stack's env vars are set:
-// WPU_WP_URL, WPU_APP_USER, WPU_APP_PASSWORD (the Editor app user) and, once
-// track D's M1 lands (D26), WPU_AUTHOR_USER and WPU_AUTHOR_APP_PASSWORD.
+// WPU_WP_URL, WPU_APP_USER, WPU_APP_PASSWORD (the Editor app user),
+// WPU_AUTHOR_USER and WPU_AUTHOR_APP_PASSWORD (D26), and WPU_ADMIN_USER and
+// WPU_ADMIN_APP_PASSWORD (the dev mu-plugin's admin-only eval route).
 //
 // On the host (`npx vitest run --config plugin/vitest.config.ts`) they fall
 // back to dev/.state/<mode>/stack.env of this worktree's running stack, where
@@ -24,6 +25,8 @@ export interface TestEnv {
   editor: Credentials
   /** a separate Author app user (D26), when the stack provides one */
   author: Credentials | null
+  /** the administrator's app password, for the dev mu-plugin's eval route */
+  admin: Credentials | null
   /** the stack mode, for `dev/run variant` on the host */
   mode: string | null
 }
@@ -65,12 +68,19 @@ function resolveEnv(): TestEnv {
   const authorUser = process.env.WPU_AUTHOR_USER ?? stack.WPU_AUTHOR_USER
   const authorPassword =
     process.env.WPU_AUTHOR_APP_PASSWORD ?? stack.WPU_AUTHOR_APP_PASSWORD
+  const adminUser = process.env.WPU_ADMIN_USER ?? stack.WPU_ADMIN_USER
+  const adminPassword =
+    process.env.WPU_ADMIN_APP_PASSWORD ?? stack.WPU_ADMIN_APP_PASSWORD
   return {
     wpUrl: wpUrl.replace(/\/+$/, ''),
     editor: { user, password },
     author:
       authorUser && authorPassword
         ? { user: authorUser, password: authorPassword }
+        : null,
+    admin:
+      adminUser && adminPassword
+        ? { user: adminUser, password: adminPassword }
         : null,
     mode,
   }

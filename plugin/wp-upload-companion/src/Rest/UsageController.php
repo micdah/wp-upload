@@ -156,11 +156,24 @@ final class UsageController {
 	}
 
 	/**
-	 * A site-level use: the logo or the icon (§5.10).
+	 * A site-level use: the logo or the icon (§5.10), or Visual Portfolio's
+	 * "no image" placeholder (D44), which links to Visual Portfolio's settings.
 	 *
 	 * @return array<string, mixed>
 	 */
 	private static function site_ref( string $context ): array {
+		if ( 'visual-portfolio' === $context ) {
+			return array(
+				'postId'        => null,
+				'postType'      => 'site',
+				'postTypeLabel' => 'Site',
+				'title'         => 'Visual Portfolio placeholder image',
+				'status'        => 'publish',
+				'editUrl'       => current_user_can( 'manage_options' ) ? admin_url( 'edit.php?post_type=portfolio&page=visual-portfolio-settings' ) : null,
+				'viewUrl'       => null,
+				'contexts'      => array( $context ),
+			);
+		}
 		$edit_url = null;
 		if ( current_user_can( 'edit_theme_options' ) ) {
 			$edit_url = function_exists( 'wp_is_block_theme' ) && wp_is_block_theme()

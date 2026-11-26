@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { MEDIA_KINDS, ROW_STRIDE } from '../../../../../../shared/library-api'
+import { MEDIA_KINDS, ROW_STRIDE } from '../../../../../shared/library-api'
+import { syntheticCollectionRows } from '../../test/spikes/c1/syntheticCollection'
 import {
   aspectRatio,
   captureScrollAnchor,
@@ -14,7 +15,6 @@ import {
   verticalNeighbour,
   withPinnedIndex,
 } from './justifiedLayout'
-import { syntheticCollectionRows } from './syntheticCollection'
 
 // Spike C1, the pure part: correctness of the ported justified layout and the
 // helpers around it, plus its speed at 50k and 100k items (plan §9: ≤ 50 ms
@@ -128,6 +128,32 @@ describe('computeJustifiedLayout', () => {
     for (let row = 0; row < layout.rowCount - 1; row++) {
       expect(Math.abs(rowWidth(layout, row) - 1237)).toBeLessThan(1e-6)
     }
+  })
+
+  it('lays out square cells of one size, the last row included', () => {
+    const items: Array<[number, number, number?]> = [
+      [4000, 1000],
+      [500, 2000],
+      [1000, 1000],
+      [0, 0, KIND('audio')],
+      [800, 600],
+      [600, 800],
+      [3000, 1000],
+    ]
+    const layout = computeJustifiedLayout(rowsOf(items), {
+      containerWidth: 404,
+      targetHeight: 120,
+      gap: 2,
+      square: true,
+    })
+    // 404 px fits three 120 px cells plus gaps, so cells shrink to fit 4.
+    expect(layout.rowCount).toBe(2)
+    const size = layout.rowHeight[0] as number
+    expect(layout.rowHeight[1]).toBe(size)
+    for (let index = 0; index < layout.count; index++) {
+      expect(layout.itemWidth[index]).toBeCloseTo(size, 6)
+    }
+    expect(Math.abs(rowWidth(layout, 0) - 404)).toBeLessThan(1e-6)
   })
 })
 

@@ -9,7 +9,9 @@
 #   dev/run variant k=v ...        trash=on|off filebird=on|off peruser=on|off vp=on|off
 #                                  role=editor|author (the app user's role)
 #   dev/run test <suite> [-- args] run a suite in the runner (see `dev/run help`); args after
-#                                  `--` go to its test runner (Playwright or Vitest)
+#                                  `--` go to its test runner (Playwright or Vitest).
+#                                  WPU_PERF_REPORT_ONLY=true makes `perf` report an
+#                                  over-budget run without failing (the CI job, D46)
 #   dev/run logs [compose args]    show logs; without arguments, save them to test-results/logs/
 #   dev/run down [--volumes]       stop both modes' stacks (and delete their data)
 #   dev/run info                   print this worktree's project names, ports and URLs

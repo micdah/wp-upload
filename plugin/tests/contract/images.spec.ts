@@ -498,6 +498,134 @@ describe.skipIf(!ready)('Image operations', () => {
       )
     })
 
+    it('keeps old sub-size files whose dimensions no longer exist, until the item is deleted (D38)', async () => {
+      const target = await jpegCopy('p2-replace-aspect.jpg')
+      const ratio = target.media_details.width / target.media_details.height
+      const list = await rest(
+        'GET',
+        '/wp/v2/media?mime_type=image/jpeg&per_page=100&_fields=source_url,media_details',
+      )
+      const other = list.json.find(
+        (item: Json) =>
+          !item.media_details.original_image &&
+          item.media_details.width >= 800 &&
+          Math.abs(
+            item.media_details.width / item.media_details.height - ratio,
+          ) > 0.2,
+      )
+      expect(other, 'a seeded JPEG of another aspect ratio').toBeDefined()
+      const folder = target.source_url.slice(
+        0,
+        target.source_url.lastIndexOf('/') + 1,
+      )
+      const subSizes = (item: Json) =>
+        Object.entries(item.media_details.sizes as Record<string, Json>)
+          .filter(([name]) => name !== 'full')
+          .map(([, size]) => size.file as string)
+      const before = subSizes(target)
+      const originalBytes = await download(target.source_url)
+
+      const reply = await replaceWith(
+        target.id,
+        'other-aspect.jpg',
+        await download(other.source_url),
+        'image/jpeg',
+      )
+      expect(reply.status).toBe(200)
+      const after = await media(target.id)
+      const current = new Set(subSizes(after))
+      const kept = before.filter((file) => !current.has(file))
+      expect(kept.length).toBeGreaterThan(0)
+      for (const file of kept) {
+        // Still served, so posts that embedded it keep an image ...
+        expect(
+          (await fetch(`${folder}${file}?nocache=${Date.now()}`)).status,
+        ).toBe(200)
+      }
+      // ... but never listed as a size of the item.
+      const listed = JSON.stringify(after.media_details.sizes)
+      for (const file of kept) expect(listed).not.toContain(file)
+
+      // Replacing back to the first aspect ratio makes those names current sizes again.
+      const back = await replaceWith(
+        target.id,
+        'back.jpg',
+        originalBytes,
+        'image/jpeg',
+      )
+      expect(back.status).toBe(200)
+      const restored = new Set(subSizes(await media(target.id)))
+      for (const file of kept) expect(restored.has(file)).toBe(true)
+
+      // Deleting the item deletes every file, the kept ones included.
+      const keptNow = subSizes(after).filter((file) => !restored.has(file))
+      const deleted = await rest(
+        'DELETE',
+        `/wp/v2/media/${target.id}?force=true`,
+      )
+      expect(deleted.status).toBe(200)
+      for (const file of [...keptNow, ...kept]) {
+        expect(
+          (await fetch(`${folder}${file}?nocache=${Date.now()}`)).status,
+        ).toBe(404)
+      }
+    })
+
+    it('also keeps the sub-sizes from before an edit when an edited item is replaced (D38)', async () => {
+      const target = await jpegCopy('p2-replace-edited.jpg')
+      const folder = target.source_url.slice(
+        0,
+        target.source_url.lastIndexOf('/') + 1,
+      )
+      const subSizes = (item: Json) =>
+        Object.entries(item.media_details.sizes as Record<string, Json>)
+          .filter(([name]) => name !== 'full')
+          .map(([, size]) => size.file as string)
+      const preEdit = subSizes(target)
+      const replacement = await download(
+        target.media_details.sizes.medium.source_url,
+      )
+      const side = Math.min(
+        target.media_details.width,
+        target.media_details.height,
+      )
+      // A square crop gives the sub-sizes other names; the undo stack keeps the old files.
+      const edited = await operation(target.id, 'edit', {
+        ops: [{ op: 'crop', x: 0, y: 0, width: side, height: side }],
+        applyTo: 'all',
+      })
+      expect(edited.status).toBe(200)
+      const afterEdit = new Set(subSizes(await media(target.id)))
+      const replaced = await replaceWith(
+        target.id,
+        'after-edit.jpg',
+        replacement,
+        'image/jpeg',
+      )
+      expect(replaced.status).toBe(200)
+      expect(replaced.json.undoable).toBe(false)
+      const current = new Set(subSizes(await media(target.id)))
+      const preEditOnly = preEdit.filter(
+        (file) => !afterEdit.has(file) && !current.has(file),
+      )
+      expect(preEditOnly.length).toBeGreaterThan(0)
+      for (const file of preEditOnly) {
+        expect(
+          (await fetch(`${folder}${file}?nocache=${Date.now()}`)).status,
+        ).toBe(200)
+      }
+      const deleted = await rest(
+        'DELETE',
+        `/wp/v2/media/${target.id}?force=true`,
+      )
+      expect(deleted.status).toBe(200)
+      for (const file of preEditOnly) {
+        expect(
+          (await fetch(`${folder}${file}?nocache=${Date.now()}`)).status,
+        ).toBe(404)
+      }
+    })
+
     it('keeps a -scaled URL when the new image is under the threshold', async () => {
       const big = await bigJpeg()
       if (!big) return

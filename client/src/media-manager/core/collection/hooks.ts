@@ -11,17 +11,20 @@ import type {
   LibraryItemTile,
 } from '../../../../../shared/library-api'
 import { notifyCommandsChanged } from '../commands/registry'
+import { useCollectionRows } from '../data/collection'
+import { useItem as useDataItem } from '../data/items'
+import { normaliseCollectionQuery } from '../data/params'
 import { useCore } from '../state'
 import { hiddenSelectedCount, targetIds } from '../state/selection'
 import { collectionQueryOf } from '../url/codec'
 import { useUrlState } from '../url/useUrlState'
-import { type CollectionRows, decodeRows, EMPTY_ROWS } from './rows'
-import { useCollectionResponse, useItemData } from './source'
+import { type CollectionRows, EMPTY_ROWS, rowsOf } from './rows'
 
 export interface CollectionView {
   status: 'pending' | 'error' | 'success'
   /** True while showing the previous query's rows (a new query is loading). */
   isPlaceholder: boolean
+  /** The normalised query (the cache key; the server's echo). */
   query: CollectionQuery
   rev: string | null
   total: number
@@ -30,17 +33,6 @@ export interface CollectionView {
   ids: readonly number[]
   indexComplete: boolean
   error: unknown
-}
-
-const decodedCache = new WeakMap<readonly number[], CollectionRows>()
-
-function decodeOnce(rows: readonly number[]): CollectionRows {
-  let decoded = decodedCache.get(rows)
-  if (!decoded) {
-    decoded = decodeRows(rows)
-    decodedCache.set(rows, decoded)
-  }
-  return decoded
 }
 
 let current: CollectionView | null = null
@@ -57,9 +49,11 @@ export function getCurrentCollection(): CollectionView | null {
 export function useCollection(): CollectionView {
   const query = useUrlState(collectionQueryKey)
   const parsed = useMemo(() => JSON.parse(query) as CollectionQuery, [query])
-  const result = useCollectionResponse(parsed)
+  // Keeps the previous rows while a new query loads (no blank grid between
+  // folders); `isPlaceholder` says so, and commands wait for the real rows.
+  const result = useCollectionRows(parsed, { keepPrevious: true })
   const data = result.data
-  const rows = data ? decodeOnce(data.rows) : EMPTY_ROWS
+  const rows = data ? rowsOf(data) : EMPTY_ROWS
   return useMemo(
     () => ({
       status: result.status,
@@ -76,11 +70,16 @@ export function useCollection(): CollectionView {
   )
 }
 
-/** A stable string key for the URL's collection query (selector-safe). */
+/**
+ * A stable string key for the URL's collection query (selector-safe). The
+ * data layer's normaliser makes it, so it matches the query cache key: in
+ * the Trash the URL may keep its filters (Back restores them), but they
+ * don't change the request (server-api.md §6).
+ */
 function collectionQueryKey(
   state: Parameters<typeof collectionQueryOf>[0],
 ): string {
-  return JSON.stringify(collectionQueryOf(state))
+  return JSON.stringify(normaliseCollectionQuery(collectionQueryOf(state)))
 }
 
 /**
@@ -105,12 +104,16 @@ export interface ItemResult<V extends ItemView> {
   missing: boolean
 }
 
-/** One item, hydrated on demand (batched with other ids asked for at once). */
+/**
+ * One item. The data layer's per-id cache answers it: a tile the grid
+ * hydrated (or a full item the inspector loaded) comes from cache without a
+ * request. Features import this one, not core/data's.
+ */
 export function useItem<V extends ItemView = 'tile'>(
   id: number | null,
   view?: V,
 ): ItemResult<V> {
-  const result = useItemData(id, (view ?? 'tile') as V)
+  const result = useDataItem(id, (view ?? 'tile') as V)
   return {
     item: (result.data ?? null) as ItemResult<V>['item'],
     status: id === null ? 'success' : result.status,

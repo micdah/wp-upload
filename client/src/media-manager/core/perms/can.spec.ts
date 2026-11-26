@@ -73,6 +73,23 @@ describe('can()', () => {
     })
   })
 
+  it('denies mutations while WordPress rejects the app password (M2 glue 3)', () => {
+    const result = evaluate(
+      {
+        bootstrap: bootstrapOk,
+        online: false,
+        offlineReason: 'wp_auth_failed',
+      },
+      'edit-meta',
+      editable,
+    )
+    expect(result).toEqual({
+      ok: false,
+      code: 'offline',
+      reason: 'WordPress rejected the app password',
+    })
+  })
+
   it('folder actions follow the FileBird mode', () => {
     expect(code(check(bootstrapNoFileBird, 'move-to-folder', editable))).toBe(
       'no-filebird',

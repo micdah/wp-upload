@@ -19,6 +19,7 @@ function contextOf(state: CoreState): PermContext {
   return {
     bootstrap: state.bootstrap,
     online: state.connectivity.state === 'online',
+    offlineReason: state.connectivity.reason,
   }
 }
 

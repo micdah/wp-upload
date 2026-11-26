@@ -1,8 +1,9 @@
 // centerApi: how code outside the grid and detail reaches into them, without
-// importing them. The grid registers revealItem/tileElement/focusTile, detail
-// registers stageElement. The morph (core/ui/morph) and commands use it: e.g.
-// leaving detail first reveals the tile you return to, which a virtualised
-// grid may not have rendered (spike C2).
+// importing them. The grid registers revealItem, tileElement, heroElement and
+// focusTile; detail registers stageElement and nudgeStage. The morph
+// (core/ui/morph) and commands use it: e.g. leaving detail first reveals the
+// tile you return to, which a virtualised grid may not have rendered (spike
+// C2).
 
 export interface CenterApi {
   /**
@@ -21,10 +22,22 @@ export interface CenterApi {
   revealItem(id: number): Promise<HTMLElement | null>
   /** The tile element if it is rendered now, else null. */
   tileElement(id: number): HTMLElement | null
+  /**
+   * The element the morph names on the grid side: the tile's picture (or
+   * the tile itself without one), and only while the tile is fully inside
+   * the grid's viewport. A half-hidden hero would paint over the toolbar,
+   * because view-transition pseudos aren't clipped (spike C2). Else null.
+   */
+  heroElement(id: number): HTMLElement | null
   /** Moves keyboard focus to the item's tile (roving tabindex). */
   focusTile(id: number): void
   /** The detail stage's main image/media element, for the morph. */
   stageElement(): HTMLElement | null
+  /**
+   * Plays the stage's "no further" nudge: detail stepping stops at both
+   * ends of the collection (D34).
+   */
+  nudgeStage(direction: 1 | -1): void
 }
 
 type Part = Partial<CenterApi>
@@ -62,10 +75,16 @@ export const centerApi: CenterApi = {
   tileElement(id) {
     return find('tileElement')?.(id) ?? null
   },
+  heroElement(id) {
+    return find('heroElement')?.(id) ?? null
+  },
   focusTile(id) {
     find('focusTile')?.(id)
   },
   stageElement() {
     return find('stageElement')?.() ?? null
+  },
+  nudgeStage(direction) {
+    find('nudgeStage')?.(direction)
   },
 }

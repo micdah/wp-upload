@@ -1,19 +1,23 @@
 // Switches the dev stack's variants (FileBird off, per-user mode, MEDIA_TRASH, Visual
 // Portfolio off, the app user's role) and runs WP-CLI.
 //
-// - On the host, through `dev/run variant` and `dev/run wp eval` (needs Docker).
-// - Inside the runner (`dev/run test plugin-contract`), which has no Docker, variants go through
-//   the dev mu-plugin's `wpu-dev/v1/variant` REST route as the app user (P1 CR-1, CR-P2-2).
-//   `wp eval` has no such route, so the tests that need it are skipped there (they say so).
+// - Variants: on the host through `dev/run variant` (needs Docker); inside the runner
+//   (`dev/run test plugin-contract`), which has no Docker, through the dev mu-plugin's
+//   `wpu-dev/v1/variant` REST route as the app user (P1 CR-1, CR-P2-2).
+// - PHP (`wpEval`): through the dev mu-plugin's admin-only `wpu-dev/v1/eval` route whenever the
+//   stack gives an administrator app password (WPU_ADMIN_APP_PASSWORD), on the host and in the
+//   runner alike, so both run the same way; `dev/run wp eval` is the fallback on the host.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import type { Credentials } from './env.ts'
 import { env, REPO_ROOT } from './env.ts'
 import type { Client } from './http.ts'
 import { client, editor } from './http.ts'
 
 const DEV_RUN = join(REPO_ROOT, 'dev', 'run')
 const VARIANT_ROUTE = `${env.wpUrl}/wp-json/wpu-dev/v1/variant`
+const EVAL_ROUTE = `${env.wpUrl}/wp-json/wpu-dev/v1/eval`
 
 export interface Variant {
   trash?: 'on' | 'off'
@@ -50,11 +54,16 @@ function dockerAvailable(): boolean {
 }
 
 /**
- * Sends one request to the variant route and returns its JSON. Synchronous (a child Node
- * process does the fetch), so callers switch variants the same way on the host and in the
- * runner, including from `beforeAll` and inside tests without awaiting.
+ * Sends one request to a dev mu-plugin route and returns its JSON. Synchronous (a child Node
+ * process does the fetch), so callers switch variants and run PHP the same way on the host and
+ * in the runner, including from `beforeAll` and inside tests without awaiting. A non-2xx answer
+ * throws with its status and body.
  */
-function callVariantRoute(body: Variant | null): Record<string, string> {
+function callDevRoute(
+  route: string,
+  credentials: Credentials,
+  body: object | null,
+): unknown {
   const script = `
     const [url, user, password, body] = process.argv.slice(1)
     const response = await fetch(url, {
@@ -78,14 +87,32 @@ function callVariantRoute(body: Variant | null): Record<string, string> {
       '--input-type=module',
       '-e',
       script,
-      VARIANT_ROUTE,
-      env.editor.user,
-      env.editor.password,
+      route,
+      credentials.user,
+      credentials.password,
       body ? JSON.stringify(body) : '',
     ],
-    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 64 * 1024 * 1024,
+    },
   )
-  return JSON.parse(output) as Record<string, string>
+  return JSON.parse(output)
+}
+
+function callVariantRoute(body: Variant | null): Record<string, string> {
+  return callDevRoute(VARIANT_ROUTE, env.editor, body) as Record<string, string>
+}
+
+function callEvalRoute(php: string): string {
+  if (!env.admin) {
+    throw new Error('No administrator app password (WPU_ADMIN_APP_PASSWORD).')
+  }
+  const reply = callDevRoute(EVAL_ROUTE, env.admin, { php }) as {
+    output: string
+  }
+  return reply.output
 }
 
 function variantRouteAvailable(): boolean {
@@ -100,10 +127,25 @@ function variantRouteAvailable(): boolean {
   }
 }
 
-const useDocker = dockerAvailable()
+function evalRouteAvailable(): boolean {
+  if (variantsDisabled() || !env.admin) {
+    return false
+  }
+  try {
+    return callEvalRoute('echo "ok";') === 'ok'
+  } catch {
+    return false
+  }
+}
 
-/** Whether `wp eval` can run from where the tests run (the host, with Docker). */
-export const wpEvalAvailable = useDocker
+const useDocker = dockerAvailable()
+const useEvalRoute = evalRouteAvailable()
+
+/**
+ * Whether PHP can run inside WordPress from where the tests run: the eval route (host and
+ * runner), else `dev/run wp eval` (the host, with Docker).
+ */
+export const wpEvalAvailable = useEvalRoute || useDocker
 
 /** Whether variants can be switched from where the tests run. */
 export const variantsAvailable = useDocker || variantRouteAvailable()
@@ -112,7 +154,7 @@ export const SKIP_REASON =
   'needs `dev/run variant` or the dev stack variant route'
 
 export const WP_EVAL_SKIP_REASON =
-  'needs `dev/run wp eval` (Docker on the host); skipped in the runner'
+  'needs the dev stack eval route (WPU_ADMIN_APP_PASSWORD) or `dev/run wp eval`'
 
 function devRun(args: string[]): string {
   return execFileSync(DEV_RUN, args, {
@@ -141,9 +183,12 @@ export function resetVariant(): void {
   setVariant(DEFAULT_VARIANT)
 }
 
-/** Runs PHP inside WordPress (`wp eval`), returning its output. */
+/** Runs PHP inside WordPress (as `wp eval` does), returning its output. */
 export function wpEval(php: string): string {
-  if (!wpEvalAvailable) {
+  if (useEvalRoute) {
+    return callEvalRoute(php).trim()
+  }
+  if (!useDocker) {
     throw new Error(WP_EVAL_SKIP_REASON)
   }
   return devRun(['wp', 'eval', php]).trim()

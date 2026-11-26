@@ -19,6 +19,7 @@ namespace WpUpload\Companion\Rest;
 use WpUpload\Companion\FileBird\Adapter;
 use WpUpload\Companion\Index\MediaIndex;
 use WpUpload\Companion\Plugin;
+use WpUpload\Companion\Query\Visibility;
 use WpUpload\Companion\Rev;
 use WpUpload\Companion\Support\Errors;
 use WpUpload\Companion\Support\Params;
@@ -102,8 +103,12 @@ final class FoldersController {
 
 	/**
 	 * Non-trashed attachments per folder (directly in it), in total, and in no
-	 * folder of the tree. From the index's folder column in shared mode once
-	 * the index is ready, else from FileBird's relation table.
+	 * folder of the tree, counting only the items the current user sees in the
+	 * collection (§5.2's visibility rule, D41): for an Author a count matches
+	 * what that folder shows. For Editors and Administrators that is every
+	 * non-trashed attachment (FileBird's own count). From the index's folder
+	 * column in shared mode once the index is ready, else from FileBird's
+	 * relation table.
 	 *
 	 * @param list<array{id: int, name: string, parent: int, ord: int}> $folders
 	 * @return array{byId: array<int, int>, all: int, uncategorized: int}
@@ -113,12 +118,16 @@ final class FoldersController {
 		foreach ( $folders as $folder ) {
 			$by_id[ $folder['id'] ] = 0;
 		}
+		$visibility = new Visibility();
 
 		if ( ! $per_user && MediaIndex::is_ready() ) {
 			global $wpdb;
 			$table = MediaIndex::table();
+			// The index has no parent column: users who need the parent check join wp_posts by primary key.
+			$join  = $visibility->needs_parent() ? "INNER JOIN {$wpdb->posts} p ON p.ID = i.attachment_id" : '';
+			$where = $visibility->live( 'i.status', 'i.author', 'p.post_parent' );
 			$rows  = $wpdb->get_results(
-				"SELECT folder_id, COUNT(*) AS c FROM {$table} WHERE status IN ('inherit','private') GROUP BY folder_id",
+				"SELECT i.folder_id, COUNT(*) AS c FROM {$table} i {$join} WHERE {$where} GROUP BY i.folder_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				ARRAY_A
 			);
 			$all         = 0;
@@ -139,7 +148,7 @@ final class FoldersController {
 			);
 		}
 
-		$relation = Adapter::count_from_relations( $owner );
+		$relation = Adapter::count_from_relations( $owner, $visibility->live( 'p.post_status', 'p.post_author', 'p.post_parent' ) );
 		foreach ( $relation['byId'] as $folder => $count ) {
 			if ( isset( $by_id[ $folder ] ) ) {
 				$by_id[ $folder ] = $count;

@@ -27,11 +27,11 @@ FILEBIRD_ZIP_URL="https://downloads.wordpress.org/plugin/filebird.${FILEBIRD_VER
 VISUAL_PORTFOLIO_VERSION="3.11.0"
 VISUAL_PORTFOLIO_ZIP_SHA256="27bd3caa9c7b6954d384322c47f2ca6bd404982fbc44aea27e5fb858606580dc"
 VISUAL_PORTFOLIO_ZIP_URL="https://downloads.wordpress.org/plugin/visual-portfolio.${VISUAL_PORTFOLIO_VERSION}.zip"
-# The oldest companion-plugin release the app must still work with (plan §2.6): plugin-contract
-# also runs against this git tag's build. Empty means the oldest `plugin-v*` tag; with no such
-# tag yet (before the first release) it is the current build. Raise it with the server's
-# required API level (minMinor). WPU_PLUGIN_OLDEST_REF overrides it with any git ref.
-PLUGIN_OLDEST_SUPPORTED_TAG=""
+# The oldest companion-plugin release the app must still work with (plan §2.6) isn't pinned
+# here: plugin-contract derives it from the server's PLUGIN_API_REQUIRED (D48(4), see
+# oldest_supported_plugin_ref in dev/lib/suites.sh), so raising minMinor raises it too.
+SERVER_PLUGIN_API_FILE="$REPO_ROOT/server/src/routes/library/bootstrap.ts"
+PLUGIN_ENTRY_PATH="plugin/wp-upload-companion/wp-upload-companion.php"
 # Must match @playwright/test once the e2e workspace pins it (change request in the D handoff).
 PLAYWRIGHT_VERSION="1.65.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v1.65.1-noble@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579"

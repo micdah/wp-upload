@@ -6,5 +6,10 @@
 //
 // The faces register as 'Geist Variable' and 'Geist Mono Variable'; the font
 // stacks in tokens.ts name them first.
+//
+// Orbitron (600 only) is the wordmark's face (--font-brand). Self-hosting it
+// here replaces the old page's Google Fonts request for the media manager;
+// index.html's link goes with the old page in M5.
 import '@fontsource-variable/geist'
 import '@fontsource-variable/geist-mono'
+import '@fontsource/orbitron/600.css'

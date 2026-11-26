@@ -23,7 +23,7 @@ import {
   scrollTopToReveal,
   verticalNeighbour,
   withPinnedIndex,
-} from './justifiedLayout'
+} from '../../../features/grid/justifiedLayout'
 
 // Spike C1: a virtualised justified grid. Only the visible rows (plus
 // overscan, plus the focused tile's row) are in the DOM; every row's size is

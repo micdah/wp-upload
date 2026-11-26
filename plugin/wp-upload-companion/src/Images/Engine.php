@@ -27,6 +27,12 @@ final class Engine {
 	private const ORIG_TAG   = 'wpuo';
 
 	/**
+	 * Marks the `_wp_attachment_backup_sizes` keys of sub-size files a replace
+	 * kept (D38, §5.15): `<size>-wpu-kept-<token>`.
+	 */
+	private const KEPT_KEY = '-wpu-kept-';
+
+	/**
 	 * Loads the admin includes, raises limits (§1.6) and pins the output
 	 * format so a configured conversion (e.g. JPEG → WebP) never changes a
 	 * file's type or name.
@@ -485,7 +491,7 @@ final class Engine {
 		}
 		$stack        = EditStack::get( $id );
 		$backup_sizes = self::backup_sizes( $id );
-		$staged       = self::stage_sizes( $id, $file, $dir, $main, $meta, $meta, true, $stack, $backup_sizes );
+		$staged       = self::stage_sizes( $id, $file, $dir, $main, $meta, $meta, true, $stack, self::without_kept( $backup_sizes ) );
 		if ( is_wp_error( $staged ) ) {
 			return $staged;
 		}
@@ -508,6 +514,7 @@ final class Engine {
 		if ( $current_stack ) {
 			$stack = EditStack::refresh_top( $id, $stack, $new_meta );
 		}
+		$backup_sizes = self::forget_current_kept( $backup_sizes, $new_meta );
 		self::save_state( $id, $new_meta, $stack, $backup_sizes );
 		self::delete_unprotected( $id, $dir, Files::of_meta( $meta ), $new_meta, $stack, $backup_sizes );
 		return array(
@@ -716,9 +723,34 @@ final class Engine {
 		if ( array() !== $stack ) {
 			self::drop_recorded_original( $id, $stack );
 			$current = wp_get_attachment_metadata( $id );
-			self::drop_stack( $id, $dir, is_array( $current ) ? $current : array(), $stack );
+			$current = is_array( $current ) ? $current : array();
+			// D38 for edited items too: sub-sizes from before an edit that posts made then
+			// still embed survive the stack.
+			self::keep_stack_sizes( $id, $dir, $current, $stack );
+			self::drop_stack( $id, $dir, $current, $stack );
 		}
 		return $result;
+	}
+
+	/**
+	 * Before a replace drops the undo stack, the sub-size files of its
+	 * earlier states that still exist and aren't current sizes are kept
+	 * like the replaced image's own (D38, keep_dropped_sizes()): a post
+	 * made before an edit may embed one of them.
+	 *
+	 * @param array<string, mixed>       $meta  the metadata after the replace
+	 * @param list<array<string, mixed>> $stack the stack about to be dropped
+	 */
+	private static function keep_stack_sizes( int $id, string $dir, array $meta, array $stack ): void {
+		$backup_sizes = self::backup_sizes( $id );
+		$kept         = $backup_sizes;
+		foreach ( $stack as $entry ) {
+			$entry_meta = is_array( $entry['meta'] ?? null ) ? $entry['meta'] : array();
+			$kept       = self::keep_dropped_sizes( $dir, $entry_meta, $meta, $kept, Files::token() );
+		}
+		if ( $kept !== $backup_sizes ) {
+			self::put_backup_sizes( $id, $kept );
+		}
 	}
 
 	/**
@@ -805,8 +837,9 @@ final class Engine {
 		}
 
 		// The old image's undo stack still protects its files until replace() drops it.
+		// Sub-sizes an earlier replace kept may be overwritten by a new size of the same name.
 		$backup_sizes = self::backup_sizes( $id );
-		$staged       = self::stage_sizes( $id, Files::path( $dir, $new_main ), $dir, $main, $meta, $new_meta, false, $stack, $backup_sizes );
+		$staged       = self::stage_sizes( $id, Files::path( $dir, $new_main ), $dir, $main, $meta, $new_meta, false, $stack, self::without_kept( $backup_sizes ) );
 		if ( is_wp_error( $staged ) ) {
 			self::discard( $dir, array_map( 'strval', array_keys( $renames ) ) );
 			return $staged;
@@ -817,12 +850,84 @@ final class Engine {
 			return $swapped;
 		}
 		$new_meta['sizes'] = $new_sizes;
+		$backup_sizes      = self::keep_dropped_sizes( $dir, $meta, $new_meta, $backup_sizes, $token );
 		self::save_state( $id, $new_meta, $stack, $backup_sizes );
 		self::delete_unprotected( $id, $dir, Files::of_meta( $meta ), $new_meta, $stack, $backup_sizes );
 		return array(
 			'sizes'      => count( $new_sizes ),
 			'urlChanged' => false,
 		);
+	}
+
+	/**
+	 * D38: a replace keeps the old sub-size files whose names the new image
+	 * doesn't produce (another aspect ratio, or a size the new image is too
+	 * small for), so a post that embedded one keeps showing an image. They
+	 * are recorded in `_wp_attachment_backup_sizes` under `<size>-wpu-kept-<token>`
+	 * and never in the metadata's `sizes`, so nothing offers them as current
+	 * sizes. WordPress deletes every backup size with the attachment, also
+	 * without this plugin; wp-admin's restore reads only the `-orig` keys.
+	 *
+	 * @param array<string, mixed> $meta         the metadata before the replace
+	 * @param array<string, mixed> $new_meta     the metadata after it
+	 * @param array<string, mixed> $backup_sizes
+	 * @return array<string, mixed> the backup sizes to save
+	 */
+	private static function keep_dropped_sizes( string $dir, array $meta, array $new_meta, array $backup_sizes, string $token ): array {
+		$backup_sizes = self::forget_current_kept( $backup_sizes, $new_meta );
+		$current      = array_fill_keys( Files::of_meta( $new_meta ), true );
+		$referenced   = array_fill_keys( Files::of_backup_sizes( $backup_sizes ), true );
+		foreach ( (array) ( $meta['sizes'] ?? array() ) as $name => $size ) {
+			if ( ! is_array( $size ) || empty( $size['file'] ) ) {
+				continue;
+			}
+			$file = wp_basename( (string) $size['file'] );
+			if ( isset( $current[ $file ] ) || isset( $referenced[ $file ] ) || ! Files::exists( $dir, $file ) ) {
+				continue;
+			}
+			$size['file'] = $file;
+			$backup_sizes[ $name . self::KEPT_KEY . $token ] = $size;
+			$referenced[ $file ]                             = true;
+		}
+		return $backup_sizes;
+	}
+
+	/**
+	 * Kept sub-sizes (D38) whose file is a current size again (a later
+	 * replace or regenerate made a size of that name) are no longer kept.
+	 *
+	 * @param array<string, mixed> $backup_sizes
+	 * @param array<string, mixed> $meta the metadata about to be saved
+	 * @return array<string, mixed>
+	 */
+	private static function forget_current_kept( array $backup_sizes, array $meta ): array {
+		$current = array_fill_keys( Files::of_meta( $meta ), true );
+		foreach ( $backup_sizes as $key => $size ) {
+			$file = is_array( $size ) ? wp_basename( (string) ( $size['file'] ?? '' ) ) : '';
+			if ( self::is_kept_key( (string) $key ) && isset( $current[ $file ] ) ) {
+				unset( $backup_sizes[ $key ] );
+			}
+		}
+		return $backup_sizes;
+	}
+
+	/**
+	 * The backup sizes without the kept sub-sizes (D38): those never stop a
+	 * new size of the same name from being written.
+	 *
+	 * @param array<string, mixed> $backup_sizes
+	 * @return array<string, mixed>
+	 */
+	private static function without_kept( array $backup_sizes ): array {
+		return array_filter(
+			$backup_sizes,
+			static fn ( $key ) => ! self::is_kept_key( (string) $key ),
+			ARRAY_FILTER_USE_KEY
+		);
+	}
+
+	private static function is_kept_key( string $key ): bool {
+		return str_contains( $key, self::KEPT_KEY );
 	}
 
 	/**

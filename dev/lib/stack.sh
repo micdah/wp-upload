@@ -70,6 +70,7 @@ load_mode_state() {
   STATE_PORT_BLOCK=""
   STATE_APP_PASSWORD=""
   STATE_AUTHOR_APP_PASSWORD=""
+  STATE_ADMIN_APP_PASSWORD=""
   if [ ! -f "$state_file" ]; then
     return 0
   fi
@@ -83,6 +84,7 @@ load_mode_state() {
   STATE_PORT_BLOCK="${WPU_PORT_BLOCK:-}"
   STATE_APP_PASSWORD="${WPU_APP_PASSWORD:-}"
   STATE_AUTHOR_APP_PASSWORD="${WPU_AUTHOR_APP_PASSWORD:-}"
+  STATE_ADMIN_APP_PASSWORD="${WPU_ADMIN_APP_PASSWORD:-}"
 }
 
 # Writes the state file. Values never contain single quotes, so plain single quoting keeps the
@@ -102,6 +104,8 @@ save_mode_state() {
     echo "WPU_APP_PASSWORD='$WPU_APP_PASSWORD'"
     echo "WPU_AUTHOR_USER='$WPU_AUTHOR_USER'"
     echo "WPU_AUTHOR_APP_PASSWORD='$WPU_AUTHOR_APP_PASSWORD'"
+    echo "WPU_ADMIN_USER='$WPU_ADMIN_USER'"
+    echo "WPU_ADMIN_APP_PASSWORD='$WPU_ADMIN_APP_PASSWORD'"
   } > "$(mode_state_file "$mode")"
   chmod 600 "$(mode_state_file "$mode")"
 }
@@ -126,6 +130,8 @@ write_env_wp_file() {
     echo "WPU_WP_ADMIN_URL='$wordpress_url/wp-admin/'"
     echo "WPU_ADMIN_USER='$ADMIN_USER'"
     echo "WPU_ADMIN_PASSWORD='$ADMIN_PASSWORD'"
+    echo "# The administrator's app password, for the dev mu-plugin's admin-only routes."
+    echo "WPU_ADMIN_APP_PASSWORD='$WPU_ADMIN_APP_PASSWORD'"
   } > "$ENV_WP_FILE"
   chmod 600 "$ENV_WP_FILE"
 }
@@ -216,6 +222,7 @@ prepare_stack() {
   export WPU_AUTHOR_APP_PASSWORD="$STATE_AUTHOR_APP_PASSWORD"
   export WPU_ADMIN_USER="$ADMIN_USER"
   export WPU_ADMIN_PASSWORD="$ADMIN_PASSWORD"
+  export WPU_ADMIN_APP_PASSWORD="$STATE_ADMIN_APP_PASSWORD"
   export WPU_LOGIN_USER="$LOGIN_USER"
   export WPU_LOGIN_PASSWORD="$LOGIN_PASSWORD"
   export WPU_SESSION_SECRET="$SESSION_SECRET"
@@ -267,7 +274,19 @@ require_running_stack() {
   fi
 }
 
-# Creates the dev CA for `test` mode (kept across runs; removed by `down --volumes`).
+# Creates the dev CA for `test` mode (kept across runs; removed by `down --volumes`) and the
+# proxy certificate, and re-issues the certificate when the names it must carry changed
+# (WPU_BIND_ADDRESS). A running proxy only reads its certificate at start, so it is restarted
+# after a re-issue.
 ensure_dev_ca() {
-  compose_run ca >/dev/null
+  local output issued_line
+  output="$(compose_run ca)"
+  issued_line="$(printf '%s\n' "$output" | grep '^Issued the proxy certificate' || true)"
+  if [ -z "$issued_line" ]; then
+    return 0
+  fi
+  log_info "$issued_line"
+  if [ -n "$(compose ps --status running --quiet proxy 2>/dev/null)" ]; then
+    compose restart proxy >/dev/null
+  fi
 }

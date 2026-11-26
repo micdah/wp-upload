@@ -15,6 +15,8 @@
  *
  * Drive it with `dev/run variant ...` (which calls `wp wpu-dev variant ...`), or, where there is
  * no Docker (the test runner), with `POST /wp-json/wpu-dev/v1/variant` as the app user.
+ * `POST /wp-json/wpu-dev/v1/eval` stands in for `dev/run wp eval` there (administrators only).
+ * Both routes exist only while WP_ENVIRONMENT_TYPE is `local`.
  *
  * FileBird itself is never modified (D17): no writes to its tables or options. Per-user mode is
  * answered through a `pre_option_` filter, and "FileBird off" filters `active_plugins`.
@@ -265,6 +267,74 @@ add_action(
 						}
 					}
 					return rest_ensure_response( wpu_dev_variant_state() );
+				},
+			)
+		);
+	}
+);
+
+/**
+ * Runs PHP the way `wp eval` does, for `POST /wpu-dev/v1/eval`: the admin includes are loaded
+ * (wp-cli has them, a REST request doesn't), the code runs as no user (as `wp eval` without
+ * `--user`), and what it prints is returned. A Throwable becomes a 500 with its message and
+ * the output so far.
+ *
+ * @param string $php PHP code without the opening tag.
+ * @return array{output: string}|WP_Error
+ */
+function wpu_dev_eval( $php ) {
+	require_once ABSPATH . 'wp-admin/includes/admin.php';
+	wp_set_current_user( 0 );
+	ob_start();
+	try {
+		eval( $php ); // phpcs:ignore Squiz.PHP.Eval.Discouraged -- dev/test stack only, administrators only.
+	} catch ( Throwable $error ) {
+		$output = (string) ob_get_clean();
+		return new WP_Error(
+			'wpu_dev_eval_failed',
+			get_class( $error ) . ': ' . $error->getMessage() . ' in ' . $error->getFile() . ':' . $error->getLine(),
+			array(
+				'status' => 500,
+				'output' => $output,
+			)
+		);
+	}
+	return array( 'output' => (string) ob_get_clean() );
+}
+
+/**
+ * `POST /wp-json/wpu-dev/v1/eval` with `{"php": "..."}`: what `dev/run wp eval` does, reachable
+ * from the test runner, which has no Docker. The contract tests use it for PHP-level checks and
+ * lifecycle steps (deactivate, uninstall, stale marks) that HTTP can't provoke. Answers
+ * `{"output": "..."}`.
+ *
+ * It runs arbitrary PHP, so it is registered only on a `local` environment (the dev/test stack
+ * defines WP_ENVIRONMENT_TYPE=local; this file is never shipped), and only an administrator
+ * (`manage_options`) may call it: the app user and the Author get 403.
+ */
+add_action(
+	'rest_api_init',
+	function () {
+		if ( 'local' !== wp_get_environment_type() ) {
+			return;
+		}
+		register_rest_route(
+			'wpu-dev/v1',
+			'/eval',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+				'args'                => array(
+					'php' => array(
+						'type'     => 'string',
+						'required' => true,
+					),
+				),
+				'callback'            => function ( WP_REST_Request $request ) {
+					$result = wpu_dev_eval( (string) $request->get_param( 'php' ) );
+					return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 				},
 			)
 		);

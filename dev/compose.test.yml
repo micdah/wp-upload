@@ -36,6 +36,9 @@ services:
       WPU_AUTHOR_APP_PASSWORD: ${WPU_AUTHOR_APP_PASSWORD:-}
       WPU_ADMIN_USER: ${WPU_ADMIN_USER:-}
       WPU_ADMIN_PASSWORD: ${WPU_ADMIN_PASSWORD:-}
+      # The administrator's app password: the contract tests run PHP through the dev
+      # mu-plugin's admin-only `wpu-dev/v1/eval` route, since the runner has no Docker.
+      WPU_ADMIN_APP_PASSWORD: ${WPU_ADMIN_APP_PASSWORD:-}
       WPU_LOGIN_USER: ${WPU_LOGIN_USER:-}
       WPU_LOGIN_PASSWORD: ${WPU_LOGIN_PASSWORD:-}
     volumes:

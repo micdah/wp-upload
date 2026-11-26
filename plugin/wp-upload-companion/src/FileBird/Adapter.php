@@ -214,20 +214,23 @@ final class Adapter {
 	}
 
 	/**
-	 * Non-trashed attachments directly in each folder of one owner, from
-	 * FileBird's relation table (FileBird's own count semantics), plus the
-	 * number of non-trashed attachments in none of that owner's folders.
+	 * Attachments directly in each folder of one owner, from FileBird's
+	 * relation table, plus the number of attachments in none of that owner's
+	 * folders. `$visible` is an SQL condition on the attachment (alias `p`,
+	 * built by Query\Visibility from trusted values only); by default every
+	 * non-trashed attachment (FileBird's own count semantics).
 	 *
 	 * @return array{byId: array<int, int>, all: int, categorized: int}
 	 */
-	public static function count_from_relations( int $owner ): array {
+	public static function count_from_relations( int $owner, string $visible = '' ): array {
 		global $wpdb;
 		$relation = self::relation_table();
 		$folders  = self::folder_table();
+		$visible  = '' === $visible ? "p.post_status NOT IN ('trash', 'auto-draft')" : $visible;
 		$by_id    = array();
 		$rows     = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT fa.folder_id, COUNT(*) AS c FROM {$relation} fa INNER JOIN {$folders} f ON f.id = fa.folder_id AND f.created_by = %d INNER JOIN {$wpdb->posts} p ON p.ID = fa.attachment_id AND p.post_type = 'attachment' AND p.post_status NOT IN ('trash', 'auto-draft') GROUP BY fa.folder_id",
+				"SELECT fa.folder_id, COUNT(*) AS c FROM {$relation} fa INNER JOIN {$folders} f ON f.id = fa.folder_id AND f.created_by = %d INNER JOIN {$wpdb->posts} p ON p.ID = fa.attachment_id AND p.post_type = 'attachment' WHERE {$visible} GROUP BY fa.folder_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$owner
 			),
 			ARRAY_A
@@ -237,12 +240,12 @@ final class Adapter {
 		}
 		$categorized = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(DISTINCT fa.attachment_id) FROM {$relation} fa INNER JOIN {$folders} f ON f.id = fa.folder_id AND f.created_by = %d INNER JOIN {$wpdb->posts} p ON p.ID = fa.attachment_id AND p.post_type = 'attachment' AND p.post_status NOT IN ('trash', 'auto-draft')",
+				"SELECT COUNT(DISTINCT fa.attachment_id) FROM {$relation} fa INNER JOIN {$folders} f ON f.id = fa.folder_id AND f.created_by = %d INNER JOIN {$wpdb->posts} p ON p.ID = fa.attachment_id AND p.post_type = 'attachment' WHERE {$visible}", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$owner
 			)
 		);
 		$all = (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_status NOT IN ('trash', 'auto-draft')"
+			"SELECT COUNT(*) FROM {$wpdb->posts} p WHERE p.post_type = 'attachment' AND {$visible}" // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		);
 		return array(
 			'byId'        => $by_id,

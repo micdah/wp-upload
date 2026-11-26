@@ -13,6 +13,7 @@
 
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, mergeConfig, type Plugin } from 'vite'
 import baseConfig from './vite.config'
@@ -73,9 +74,30 @@ function mockServiceWorker(): Plugin {
   }
 }
 
+/** The repository root: relative paths in the env are resolved against it. */
+const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url))
+
+// Optional HTTPS for the dev server, so another device on the network can
+// open the mock (service workers need a secure context). Both paths are PEM
+// files, absolute or relative to the repository root (npm runs this from
+// client/, so a path relative to the working directory would be wrong);
+// client/scripts/mock-lan-cert.sh makes them from the dev CA.
+function devServerHttps() {
+  const cert = process.env.WPU_MOCK_HTTPS_CERT
+  const key = process.env.WPU_MOCK_HTTPS_KEY
+  if (!cert || !key) {
+    return undefined
+  }
+  return {
+    cert: readFileSync(path.resolve(REPO_ROOT, cert)),
+    key: readFileSync(path.resolve(REPO_ROOT, key)),
+  }
+}
+
 export default mergeConfig(
   baseConfig,
   defineConfig({
+    server: { https: devServerHttps() },
     define: {
       'import.meta.env.VITE_MOCK': JSON.stringify('1'),
     },

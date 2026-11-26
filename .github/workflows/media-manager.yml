@@ -193,9 +193,17 @@ jobs:
         if: ${{ !cancelled() && steps.up.outcome == 'success' }}
         run: dev/run seed large
 
-      - name: perf
+      # D46: report-only. GitHub's runners are slower than the reference machine, so the job
+      # records and uploads the numbers and never fails on the budget; local runs enforce it.
+      - name: perf (report-only)
         if: ${{ !cancelled() && steps.seed.outcome == 'success' }}
+        env:
+          WPU_PERF_REPORT_ONLY: 'true'
         run: dev/run test perf
+
+      - name: Add the perf report to the job summary
+        if: ${{ !cancelled() && hashFiles('test-results/perf/perf.md') != '' }}
+        run: cat test-results/perf/perf.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Collect logs
         if: ${{ always() }}

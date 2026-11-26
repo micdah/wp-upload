@@ -20,7 +20,11 @@ import {
 } from '../../../../shared/library-api.schema.ts'
 import type { PluginFeature } from '../../../../shared/library-api.ts'
 import { env } from '../../config/env.ts'
-import { jobsSettled, resetJobsForTests } from '../../lib/library/jobs.ts'
+import {
+  type JobContext,
+  jobsSettled,
+  resetJobsForTests,
+} from '../../lib/library/jobs.ts'
 import {
   callsTo,
   type FakeHandler,
@@ -32,8 +36,11 @@ import {
   wpErrorResponse,
   wpMediaFor,
 } from '../../lib/library/specSupport.ts'
+import { getActiveUploadCount } from '../../lib/uploadJobs.ts'
+import { regenerate } from './images.ts'
 
 const originalWpUrl = env.wpUrl
+const originalConcurrency = env.uploadConcurrency
 beforeEach(() => {
   env.wpUrl = 'https://example.com'
 })
@@ -41,6 +48,7 @@ afterEach(async () => {
   await jobsSettled()
   resetJobsForTests()
   env.wpUrl = originalWpUrl
+  env.uploadConcurrency = originalConcurrency
   await resetLibrary()
 })
 
@@ -383,6 +391,34 @@ describe('POST items/regenerate', () => {
     expect(
       callsTo(spy, plugin('POST', '/media/1000/regenerate'))[0]?.data,
     ).toEqual({})
+    expect(getActiveUploadCount()).toBe(0)
+  })
+
+  it('stops at the first item when the job is aborted, instead of failing every item', async () => {
+    const spy = fakeLibrary({
+      [plugin('POST', '/media/1/regenerate')]: () => opAnswer,
+      [plugin('POST', '/media/2/regenerate')]: () => opAnswer,
+    })
+    const controller = new AbortController()
+    let steps = 0
+    const context: JobContext = {
+      signal: controller.signal,
+      setProgress: () => {},
+      setProcessing: () => {},
+      // What runStep does once the job is aborted while it waits for a slot.
+      step: async (work) => {
+        steps += 1
+        if (steps === 2) controller.abort()
+        controller.signal.throwIfAborted()
+        return work()
+      },
+    }
+    await expect(regenerate([1, 2, 3], context)).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(steps).toBe(2)
+    expect(callsTo(spy, plugin('POST', '/media/1/regenerate'))).toHaveLength(1)
+    expect(callsTo(spy, plugin('POST', '/media/2/regenerate'))).toHaveLength(0)
   })
 
   it('fails the job when WordPress can no longer be reached', async () => {
@@ -423,6 +459,154 @@ describe('POST items/regenerate', () => {
       })
     })
     release()
+  })
+
+  it('releases its slot between items, so a job queued meanwhile goes first', async () => {
+    env.uploadConcurrency = 1
+    const order: string[] = []
+    let releaseFirst: () => void = () => {}
+    const regenerated = (id: number) => () => {
+      order.push(`regenerate ${id}`)
+      return opAnswer
+    }
+    fakeLibrary({
+      [plugin('POST', '/media/1/regenerate')]: () => {
+        order.push('regenerate 1')
+        return new Promise((resolve) => {
+          releaseFirst = () => resolve(opAnswer)
+        })
+      },
+      [plugin('POST', '/media/2/regenerate')]: regenerated(2),
+      [plugin('POST', '/media/3/regenerate')]: regenerated(3),
+      [plugin('POST', '/media/1000/edit')]: () => {
+        order.push('edit 1000')
+        return opAnswer
+      },
+      'GET /wp-json/wp/v2/media': media,
+    })
+    const regenerate = await request(libraryApp())
+      .post('/items/regenerate')
+      .send({ ids: [1, 2, 3] })
+    await vi.waitFor(() => expect(order).toEqual(['regenerate 1']))
+
+    // With the only slot taken by item 1, the edit waits in queued.
+    const editRes = await request(libraryApp())
+      .post('/items/1000/edit')
+      .send(edit)
+    const editId = JobAcceptedSchema.parse(editRes.body).jobId
+    const queued = await request(libraryApp()).get(`/jobs?ids=${editId}`)
+    expect(queued.body.jobs[0].state).toBe('queued')
+
+    releaseFirst()
+    const job = RegenerateJobSchema.parse(await settledJob(regenerate))
+    expect(order).toEqual([
+      'regenerate 1',
+      'edit 1000',
+      'regenerate 2',
+      'regenerate 3',
+    ])
+    expect(job).toMatchObject({
+      state: 'succeeded',
+      progress: { done: 3, total: 3, unit: 'items' },
+    })
+    expect(getActiveUploadCount()).toBe(0)
+  })
+
+  it('stays running while it waits for the next item’s slot', async () => {
+    env.uploadConcurrency = 1
+    let releaseRegenerate: (() => void) | undefined
+    let releaseEdit: (() => void) | undefined
+    const spy = fakeLibrary({
+      [plugin('POST', '/media/1/regenerate')]: () =>
+        new Promise((resolve) => {
+          releaseRegenerate = () => resolve(opAnswer)
+        }),
+      [plugin('POST', '/media/2/regenerate')]: () => opAnswer,
+      [plugin('POST', '/media/1000/edit')]: () =>
+        new Promise((resolve) => {
+          releaseEdit = () => resolve(opAnswer)
+        }),
+      'GET /wp-json/wp/v2/media': media,
+    })
+    const app = libraryApp()
+    const regenerate = await request(app)
+      .post('/items/regenerate')
+      .send({ ids: [1, 2] })
+    const { jobId } = JobAcceptedSchema.parse(regenerate.body)
+    const poll = async () =>
+      (await request(app).get(`/jobs?ids=${jobId}`)).body.jobs[0]
+    await vi.waitFor(async () =>
+      expect(await poll()).toMatchObject({
+        state: 'running',
+        progress: { done: 0, total: 2, unit: 'items' },
+      }),
+    )
+    await vi.waitFor(() => expect(releaseRegenerate).toBeDefined())
+    await request(app).post('/items/1000/edit').send(edit)
+
+    // Item 1 done; the edit holds the slot, so item 2 waits for it.
+    releaseRegenerate?.()
+    await vi.waitFor(() => expect(releaseEdit).toBeDefined())
+    expect(await poll()).toMatchObject({
+      state: 'running',
+      progress: { done: 1, total: 2, unit: 'items' },
+    })
+    expect(callsTo(spy, plugin('POST', '/media/2/regenerate'))).toHaveLength(0)
+    releaseEdit?.()
+    await jobsSettled()
+    expect(await poll()).toMatchObject({
+      state: 'succeeded',
+      progress: { done: 2, total: 2, unit: 'items' },
+    })
+    expect(getActiveUploadCount()).toBe(0)
+  })
+
+  it('has no progress while it waits for its first slot', async () => {
+    env.uploadConcurrency = 1
+    let releaseEdit: (() => void) | undefined
+    fakeLibrary({
+      [plugin('POST', '/media/1000/edit')]: () =>
+        new Promise((resolve) => {
+          releaseEdit = () => resolve(opAnswer)
+        }),
+      [plugin('POST', '/media/1/regenerate')]: () => opAnswer,
+      'GET /wp-json/wp/v2/media': media,
+    })
+    const app = libraryApp()
+    await request(app).post('/items/1000/edit').send(edit)
+    await vi.waitFor(() => expect(releaseEdit).toBeDefined())
+    const regenerate = await request(app)
+      .post('/items/regenerate')
+      .send({ ids: [1] })
+    const { jobId } = JobAcceptedSchema.parse(regenerate.body)
+    const poll = await request(app).get(`/jobs?ids=${jobId}`)
+    expect(poll.body.jobs[0]).toMatchObject({ state: 'queued', progress: null })
+    releaseEdit?.()
+  })
+
+  it('keeps progress and results through a failed item and a fatal error, and frees its slot', async () => {
+    env.uploadConcurrency = 1
+    const spy = fakeLibrary({
+      [plugin('POST', '/media/1000/regenerate')]: () => opAnswer,
+      [plugin('POST', '/media/1091/regenerate')]: () => {
+        throw wpErrorResponse(415, 'wpu_unsupported_type', 'No sizes.')
+      },
+      [plugin('POST', '/media/1/regenerate')]: () => {
+        throw networkError()
+      },
+    })
+    const res = await request(libraryApp())
+      .post('/items/regenerate')
+      .send({ ids: [1000, 1091, 1, 2] })
+    const job = await settledJob(res)
+    expect(job).toMatchObject({
+      state: 'failed',
+      error: { code: 'wp_unreachable' },
+      progress: { done: 2, total: 4, unit: 'items' },
+      result: null,
+    })
+    expect(callsTo(spy, plugin('POST', '/media/2/regenerate'))).toHaveLength(0)
+    expect(getActiveUploadCount()).toBe(0)
   })
 
   it.each([

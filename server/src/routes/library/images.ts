@@ -327,17 +327,30 @@ const FATAL_CODES = new Set([
   'plugin_missing',
 ])
 
-async function regenerate(
+/**
+ * Regenerates the items one at a time. Each item is one job step: it takes
+ * a slot of the concurrency budget and gives it back, so a long regenerate
+ * lets queued uploads in between items instead of holding a slot throughout
+ * (D48).
+ */
+export async function regenerate(
   ids: number[],
   context: JobContext,
 ): Promise<{ results: RegenerateItemResult[] }> {
   const results: RegenerateItemResult[] = []
-  context.setProgress({ done: 0, total: ids.length, unit: 'items' })
+  const reportDone = (done: number) =>
+    context.setProgress({ done, total: ids.length, unit: 'items' })
   for (const id of ids) {
     try {
-      const answer = await pluginClient.imageRegenerate(id)
+      const answer = await context.step(() => {
+        // Reported once the job runs: a queued job has no progress yet.
+        if (results.length === 0) reportDone(0)
+        return pluginClient.imageRegenerate(id)
+      })
       results.push({ id, ok: true, sizesRegenerated: answer.sizesRegenerated })
     } catch (err) {
+      // An aborted job stops: the remaining items would only fail the same way.
+      if (context.signal.aborted) throw err
       const { body } = toLibraryError(err)
       if (FATAL_CODES.has(body.code)) throw err
       results.push({
@@ -346,11 +359,7 @@ async function regenerate(
         error: { code: body.code, message: body.message },
       })
     }
-    context.setProgress({
-      done: results.length,
-      total: ids.length,
-      unit: 'items',
-    })
+    reportDone(results.length)
   }
   return { results }
 }
@@ -366,6 +375,7 @@ imagesRouter.post(
     const jobId = startJob({
       kind: 'regenerate',
       itemIds: ids,
+      slots: 'per-step',
       run: (context) => regenerate(ids, context),
     })
     accepted(res, jobId)

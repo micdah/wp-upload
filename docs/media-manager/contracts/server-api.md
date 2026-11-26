@@ -697,7 +697,9 @@ interface UsageRef {         // the one unified UsageRef (implementation plan §
 
 `UsageContext` is one of `featured`, `image-block`, `gallery-block`, `file-block`, `cover-block`,
 `media-text`, `video-block`, `audio-block`, `content` (a URL or `wp-image-N` class in other content),
-`shortcode-gallery`, `visual-portfolio` (Visual Portfolio galleries and saved layouts, D22), `site-logo`,
+`shortcode-gallery` (`[gallery ids=…]`, or a `[gallery]` without ids, which shows a post's attached images,
+D40), `visual-portfolio` (Visual Portfolio galleries and saved layouts, D22; and, as a site-level ref titled
+"Visual Portfolio placeholder image", Visual Portfolio's "no image" placeholder, D44), `site-logo`,
 `site-icon`. Refs are sorted: site-level refs first, then refs
 with `featured`, then by post title.
 
@@ -912,7 +914,10 @@ then answers **202 `{ "jobId": "…" }`** and runs the plugin call as a job (§7
 (`wpu_stale`, `wpu_unsupported_type`, …) arrive in `job.error`.
 
 Jobs share the upload concurrency budget (`UPLOAD_CONCURRENCY`, `acquireSlot` in `uploadJobs.ts`): an image
-job waits in `queued` until a slot is free.
+job waits in `queued` until a slot is free. Most jobs hold their slot until they finish. A `regenerate` job
+takes the slot per item and releases it between items (D48), so uploads waiting for a slot interleave with a
+long regenerate instead of queueing behind all of it. It is `queued` until its first item gets a slot and
+stays `running` from then on, also while it waits for the next item's slot.
 
 | Route | Body | Plugin route | Job kind |
 |---|---|---|---|
@@ -1000,7 +1005,7 @@ interface RegenerateJob extends JobCommon { kind: 'regenerate'; itemIds: number[
 
 | State | Meaning |
 |---|---|
-| `queued` | Waiting for a concurrency slot |
+| `queued` | Waiting for a concurrency slot (regenerate: for its first item's; §7.12) |
 | `running` | Talking to WordPress. Uploads: sending bytes (`progress` in bytes). Regenerate: `progress` in items |
 | `processing` | Uploads only: every byte is sent and WordPress is generating sub-sizes ("Processing"; after 8 s the client says "Still processing…") |
 | `succeeded` | `result` is set |
