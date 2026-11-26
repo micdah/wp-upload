@@ -81,6 +81,7 @@ From [`research/00-synthesis.md`](research/00-synthesis.md) ("Decisions" and "De
 | D18 | **No hosted environments.** Two modes of one local Docker Compose project driven by `dev/run`: `dev` (hot reload) and `test` (all automated tests, including the production image under a sub-path). No test needs a real WordPress site; CI calls the same commands, so local runs and CI are interchangeable (plan §5) |
 | D19–D30 | Checkpoint 4 decisions: in-place edits keep the same URL; `-scaled` replace warns then proceeds; Attach finds published posts only; usage covers core plus Visual Portfolio; folder colours Pro-only; bulk operations client-chunked; per-user mode shows own folders read-only; separate Editor and Author test users; plugin minimums WordPress 7.0 / PHP 8.1; Biome excludes the design prototype; the contracts' 45 detailed decisions accepted; dev-stack defaults accepted. See plan §0 |
 | D31–D32 | M1 review: the 150 kB initial-chunk budget stays, M2 uses per-component Mantine CSS; no "view attachment page" link in v1. See plan §0 |
+| D33–D48 | M1 open questions: bulk actions include hidden selected items; detail stops at the ends; toast-only undo; one overlay at a time; animated GIF edit warns; replace keeps old sizes; Visual Portfolio counting rules; Author folder counts follow visibility; Pro detection ships; downloads without credentials; no chunking in v1; CI perf report-only; plus technical items. Items marked *M2 task* go into the M2 briefs. See plan §0 |
 
 **v1 scope:**
 

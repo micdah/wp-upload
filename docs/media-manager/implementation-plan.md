@@ -32,6 +32,22 @@ D19–D30 were recorded at Checkpoint 4 (M0). These add to D1–D11 in the [synt
 | D30 | **Dev stack defaults accepted:** bind to 127.0.0.1 with `admin`/`admin` (`WPU_BIND_ADDRESS` can open it up), WordPress pinned to the exact 7.1.5 image, ports from 20000–27999 in 20-port blocks per worktree, PHPStan's composer from a digest-pinned `composer:2` image, and the built plugin at `plugin/dist/wp-upload-companion/wp-upload-companion.php` plus its zip |
 | D31 | **Bundle budget stays at 150 kB gzip** for the initial media-manager chunk (§9). M2 switches from Mantine's global stylesheet to per-component Mantine CSS (measured −25 kB), which makes room for the data layer, theme and fonts (M1 review) |
 | D32 | **No "view attachment page" link in v1:** `links.view` stays null, because core reports an attachment-page link even when the site has attachment pages off. An `attachmentPages` flag in `/info` can come later as an optional plugin feature (M1 review) |
+| D33 | **Bulk actions act on every selected item, including ones hidden by the current filters,** and the selection bar and confirms say so ("12 selected · 3 hidden by filters") |
+| D34 | **Detail stepping stops at both ends** (no wrap-around), with a nudge and the announcement "Last item in this view" |
+| D35 | **Undo reaches only the newest undoable toast while it is visible** (about 8 s), as specified; otherwise "Nothing to undo" |
+| D36 | **One centre overlay at a time** (peek, detail editor, …) in v1 |
+| D37 | **Animated GIFs: warn, then allow editing.** The editor says editing removes the animation and asks to confirm; Undo and Restore bring it back. *M2/M4 task (B1, A4)* |
+| D38 | **Replace keeps old sub-size files whose dimensions no longer exist,** so posts that embedded them keep an image; they are deleted with the item, and the Replace confirm mentions it. *M2 task (P2 code), contract §5.15 wording* |
+| D39 | **Visual Portfolio galleries switched away from "images" still count their stored images as used** (safer for delete warnings) |
+| D40 | **A `[gallery]` shortcode without ids counts the post's attached images as used** (`shortcode-gallery`). *M2 task (P2 parser)* |
+| D41 | **An Author's folder counts follow the collection's visibility rule,** so a count matches what the Author sees in that folder. *M2 task (P1 code), contract §5.16 wording* |
+| D42 | **FileBird Pro detection (spike X9) ships in v1;** the `wpu_filebird_pro` filter can force it either way |
+| D43 | **Downloads are fetched without WordPress credentials** in v1; sites that protect their uploads get a clear download error |
+| D44 | **Visual Portfolio's "no image" placeholder attachment is reported as used by Visual Portfolio.** *M2 task (P2 parser)* |
+| D45 | **No chunked collection loading in v1.** One payload (224 kB gzip at 50k, ~14 ms client cost); revisit if a site nears 55k items |
+| D46 | **The `[perf]` CI job is report-only;** the 300 ms budget is enforced on local runs, with this machine as the reference. *M2 task (D)* |
+| D47 | **The owner's 50k feel review uses real photos** (`?mock-images=picsum`) |
+| D48 | **Technical items accepted:** (1) image-job read-back failures fail the job with `details.applied: true`, and the client refetches instead of retrying; (2) the plugin-state guard re-reads `/info` every 5 min and whenever the client re-runs bootstrap; (3) a large regenerate releases its concurrency slot between items (*M2 task, S2*); (4) `dev/run` derives the oldest supported plugin tag from the server's required API level (*M2 task, D*); (5) the usage index always parses content rather than trusting Visual Portfolio's own layout index; (6) the dev CA goes into Firefox/WebKit in the runner only when a test needs those browsers. Also settled during integration: registered size order for `sizes`, the plugin bundle layout, a cancelled upload job reads `not_found`, the restated payload budget, `features[]` lists everything a build implements, and the colour scheme follows the OS by default with a manual override (as the brief says) |
 
 The plan ends with a `final-reviewer` step that addresses the findings worth acting on (M5).
 
@@ -65,7 +81,7 @@ documents:
 - the prototype as the behavioural reference. It is **not** code to port, except a few pure algorithms
   listed below.
 
-The binding decisions are D1–D11 plus D1c and D12–D32 (§0). The app becomes **one UI**: the
+The binding decisions are D1–D11 plus D1c and D12–D48 (§0). The app becomes **one UI**: the
 media manager. It needs the companion plugin, and without it the user sees the onboarding screen.
 
 **Architecture in one paragraph:**
