@@ -63,6 +63,8 @@ the LAN for an iPad that trusts the dev CA.
 
 ## Open questions
 
+Decided at the M2 review as D49–D51 (plan §0): 1 kept as built, 2 kept collapsed, 3 and 4 kept.
+
 From the slice:
 1. While offline, Retry is refused and the fields turn read-only, though the typed text stays. Keep
    that, or let Retry try anyway?

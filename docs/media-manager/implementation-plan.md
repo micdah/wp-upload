@@ -48,6 +48,9 @@ D19–D30 were recorded at Checkpoint 4 (M0). These add to D1–D11 in the [synt
 | D46 | **The `[perf]` CI job is report-only;** the 300 ms budget is enforced on local runs, with this machine as the reference. *M2 task (D)* |
 | D47 | **The owner's 50k feel review uses real photos** (`?mock-images=picsum`) |
 | D48 | **Technical items accepted:** (1) image-job read-back failures fail the job with `details.applied: true`, and the client refetches instead of retrying; (2) the plugin-state guard re-reads `/info` every 5 min and whenever the client re-runs bootstrap; (3) a large regenerate releases its concurrency slot between items (*M2 task, S2*); (4) `dev/run` derives the oldest supported plugin tag from the server's required API level (*M2 task, D*); (5) the usage index always parses content rather than trusting Visual Portfolio's own layout index; (6) the dev CA goes into Firefox/WebKit in the runner only when a test needs those browsers. Also settled during integration: registered size order for `sizes`, the plugin bundle layout, a cancelled upload job reads `not_found`, the restated payload budget, `features[]` lists everything a build implements, and the colour scheme follows the OS by default with a manual override (as the brief says) |
+| D49 | **Offline, the inspector refuses Retry and keeps clean fields read-only;** typed text stays and can be committed once WordPress answers again (M2 review) |
+| D50 | **The inspector starts collapsed below 1200 px,** including an iPad in landscape, as the spec says; the user's choice to open it is remembered (M2 review) |
+| D51 | **Replace keeps every old sub-size set** (no cap; deleted with the item), and **the usage index keeps tracking `[gallery id=N]`** (M2 review) |
 
 The plan ends with a `final-reviewer` step that addresses the findings worth acting on (M5).
 
@@ -81,7 +84,7 @@ documents:
 - the prototype as the behavioural reference. It is **not** code to port, except a few pure algorithms
   listed below.
 
-The binding decisions are D1–D11 plus D1c and D12–D48 (§0). The app becomes **one UI**: the
+The binding decisions are D1–D11 plus D1c and D12–D51 (§0). The app becomes **one UI**: the
 media manager. It needs the companion plugin, and without it the user sees the onboarding screen.
 
 **Architecture in one paragraph:**
