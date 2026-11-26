@@ -51,6 +51,7 @@ D19–D30 were recorded at Checkpoint 4 (M0). These add to D1–D11 in the [synt
 | D49 | **Offline, the inspector refuses Retry and keeps clean fields read-only;** typed text stays and can be committed once WordPress answers again (M2 review) |
 | D50 | **The inspector starts collapsed below 1200 px,** including an iPad in landscape, as the spec says; the user's choice to open it is remembered (M2 review) |
 | D51 | **Replace keeps every old sub-size set** (no cap; deleted with the item), and **the usage index keeps tracking `[gallery id=N]`** (M2 review) |
+| D52 | **In detail mode the info panel follows the item on stage.** With 0 or 1 items selected, stepping moves the selection with it; with several selected, the selection is kept and the panel shows the current item (batch editing is a grid-mode feature). Amends inspector.md §1 "the same in grid and detail mode" (M2 feel review) |
 
 The plan ends with a `final-reviewer` step that addresses the findings worth acting on (M5).
 
@@ -84,7 +85,7 @@ documents:
 - the prototype as the behavioural reference. It is **not** code to port, except a few pure algorithms
   listed below.
 
-The binding decisions are D1–D11 plus D1c and D12–D51 (§0). The app becomes **one UI**: the
+The binding decisions are D1–D11 plus D1c and D12–D52 (§0). The app becomes **one UI**: the
 media manager. It needs the companion plugin, and without it the user sees the onboarding screen.
 
 **Architecture in one paragraph:**

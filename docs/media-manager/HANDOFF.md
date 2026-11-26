@@ -83,6 +83,7 @@ From [`research/00-synthesis.md`](research/00-synthesis.md) ("Decisions" and "De
 | D31–D32 | M1 review: the 150 kB initial-chunk budget stays, M2 uses per-component Mantine CSS; no "view attachment page" link in v1. See plan §0 |
 | D33–D48 | M1 open questions: bulk actions include hidden selected items; detail stops at the ends; toast-only undo; one overlay at a time; animated GIF edit warns; replace keeps old sizes; Visual Portfolio counting rules; Author folder counts follow visibility; Pro detection ships; downloads without credentials; no chunking in v1; CI perf report-only; plus technical items. Items marked *M2 task* go into the M2 briefs. See plan §0 |
 | D49–D51 | M2 review: offline Retry stays refused; the inspector starts collapsed below 1200 px; replace keeps every old size set and `[gallery id=N]` stays tracked. See plan §0 |
+| D52 | M2 feel review: in detail mode the info panel follows the item on stage. See plan §0 |
 
 **v1 scope:**
 
